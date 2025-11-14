@@ -1,0 +1,6 @@
+POST http://localhost:3000/api/generate-image
+Content-Type: application/json
+
+{
+  "prompt": "Testbilde av en kopp"
+}

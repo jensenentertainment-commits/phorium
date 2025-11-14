@@ -1,0 +1,6 @@
+POST http://localhost:3000/api/generate-text
+Content-Type: application/json
+
+{
+  "productName": "Phorium Hoodie"
+}
