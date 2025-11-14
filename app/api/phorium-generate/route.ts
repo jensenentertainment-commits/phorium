@@ -141,14 +141,16 @@ La komposisjonen ha tydelig plass til tittel og undertekst som skal legges på e
       .png()
       .toBuffer();
 
-    // 7) Returner PNG
-    return new NextResponse(finalBuffer, {
-      status: 200,
-      headers: {
-        "Content-Type": "image/png",
-        "Cache-Control": "no-store",
-      },
-    });
+   // 7) Returner PNG som Uint8Array (BodyInit-friendly)
+const pngBytes = new Uint8Array(finalBuffer);
+
+return new NextResponse(pngBytes as any, {
+  status: 200,
+  headers: {
+    "Content-Type": "image/png",
+  },
+});
+
   } catch (err: any) {
     console.error("[Phorium] Phorium-generate error:", err);
     return NextResponse.json(

@@ -119,19 +119,24 @@ export default function VisualsPage() {
   const [bannerCooldown, setBannerCooldown] = useState(0);
   const [packCooldown, setPackCooldown] = useState(0);
 
-  function startCooldown(setter: (v: number) => void, seconds: number) {
-    const secs = Math.max(1, Math.min(60, seconds || 10)); // 1–60s
-    setter(secs);
-    const interval = setInterval(() => {
-      setter((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  }
+function startCooldown(setter: (v: number) => void, seconds: number) {
+  const secs = Math.max(1, Math.min(60, seconds || 10)); // 1–60s
+  setter(secs);
+
+  let current = secs;
+
+  const interval = setInterval(() => {
+    current -= 1;
+
+    if (current <= 0) {
+      clearInterval(interval);
+      setter(0);
+    } else {
+      setter(current);
+    }
+  }, 1000);
+}
+
 
   function parseRetrySeconds(msg: string | undefined) {
     if (!msg) return 10;
