@@ -32,13 +32,13 @@ export default function OmPhoriumClient() {
           {/* Top bar */}
           <div className="mb-6 flex flex-wrap gap-3 text-[11px]">
             <Link
-              href="/dashboard"
+              href="/studio"
               className="inline-flex items-center gap-2 rounded-full border border-phorium-off/35 bg-phorium-dark px-3 py-1.5 text-phorium-light/80 transition hover:border-phorium-accent hover:text-phorium-light"
             >
               ← Tilbake til Studio
             </Link>
             <Link
-              href="/pricing"
+              href="/priser"
               className="inline-flex items-center gap-2 rounded-full border border-phorium-accent/50 bg-phorium-dark px-3 py-1.5 text-phorium-accent/95 transition hover:bg-phorium-accent/10"
             >
               Se priser
@@ -187,13 +187,13 @@ export default function OmPhoriumClient() {
             </div>
             <div className="flex gap-2">
               <Link
-                href="/dashboard"
+                href="/studio"
                 className="rounded-full bg-phorium-accent px-4 py-2 text-[12px] font-semibold text-phorium-dark shadow transition hover:bg-phorium-accent/90"
               >
                 Gå til Studio
               </Link>
               <Link
-                href="/pricing"
+                href="/priser"
                 className="rounded-full border border-phorium-off/40 bg-transparent px-4 py-2 text-[12px] text-phorium-accent/95 transition hover:bg-phorium-accent/10"
               >
                 Se priser

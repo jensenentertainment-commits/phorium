@@ -26,7 +26,7 @@ export default function NotFound() {
         <div className="mt-4 text-[11px] text-[#7F7764]">
           Eller ta en titt på{" "}
           <Link
-            href="/dashboard"
+            href="/studio"
             className="underline underline-offset-2 hover:text-phorium-accent transition"
           >
             Studio

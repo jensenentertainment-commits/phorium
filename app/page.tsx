@@ -30,13 +30,13 @@ export default function HomePage() {
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
               <Link
-                href="/dashboard"
+                href="/studio"
                 className="inline-flex items-center justify-center rounded-full bg-phorium-accent px-5 py-2.5 text-xs sm:text-sm font-medium text-phorium-dark transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-[0_18px_60px_rgba(0,0,0,0.7)]"
               >
                 Åpne Phorium Studio
               </Link>
               <Link
-                href="/pricing"
+                href="/priser"
                 className="inline-flex items-center justify-center rounded-full border border-phorium-off/40 px-5 py-2.5 text-xs sm:text-sm text-phorium-light/85 transition-all duration-150 ease-out hover:border-phorium-accent/70 hover:text-phorium-light"
               >
                 Se planene
@@ -203,7 +203,7 @@ export default function HomePage() {
           </p>
           <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4 sm:text-sm">
             <Link
-              href="/pricing"
+              href="/priser"
               className="inline-flex items-center justify-center rounded-full bg-phorium-accent px-5 py-2.5 text-xs sm:text-sm font-medium text-phorium-dark transition-all duration-150 ease-out hover:-translate-y-0.5 hover:shadow-[0_18px_60px_rgba(0,0,0,0.7)]"
             >
               Se planene

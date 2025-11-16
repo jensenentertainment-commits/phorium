@@ -30,7 +30,7 @@ export default function Footer() {
             Forside
           </Link>
           <Link
-            href="/pricing"
+            href="/priser"
             className="hover:text-phorium-accent transition-colors"
           >
             Priser
@@ -48,7 +48,7 @@ export default function Footer() {
             Guide
           </Link>
           <Link
-            href="/dashboard"
+            href="/studio"
             className="hover:text-phorium-accent transition-colors"
           >
             Studio
@@ -61,7 +61,7 @@ export default function Footer() {
           </Link>
 
           <Link
-  href="/personvern-vilkar"
+  href="/personvern"
   className="hover:text-[#C8B77A] transition-colors"
 >
   Personvern & vilkår

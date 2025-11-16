@@ -72,7 +72,7 @@ export default function KontaktPage() {
               Se planene før du tar kontakt
             </Link>
             <Link
-              href="/dashboard"
+              href="/studio"
               className="rounded-full border border-phorium-off/40 px-3 py-1.5 hover:border-phorium-accent hover:text-phorium-accent transition-colors"
             >
               Forhåndsvis dashboard (demo)

@@ -80,7 +80,7 @@ export default function SettingsPage() {
           <div className="flex items-center justify-between mb-8">
             <h1 className="text-3xl font-semibold">Innstillinger</h1>
             <Link
-              href="/dashboard"
+              href="/studio"
               className="px-4 py-2 rounded-full bg-[#23271D] border border-[#3B4032] text-[#C8B77A] text-[12px] hover:bg-[#C8B77A]/10 transition"
             >
               ⬅ Tilbake til Studio

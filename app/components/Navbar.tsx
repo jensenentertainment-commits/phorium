@@ -26,11 +26,11 @@ export default function Navbar() {
 
   const navItems = [
     { href: "/", label: "Forside" },
-    { href: "/pricing", label: "Priser" },
+    { href: "/priser", label: "Priser" },
     { href: "/om", label: "Om" },
     { href: "/guide", label: "Guide" },
     { href: "/kontakt", label: "Kontakt" },
-    { href: "/dashboard", label: "Studio", isApp: true },
+    { href: "/studio", label: "Studio", isApp: true },
   ];
 
   return (
@@ -55,18 +55,18 @@ export default function Navbar() {
           {navItems.map((item) => {
             const active =
               pathname === item.href ||
-              (item.isApp && pathname.startsWith("/dashboard"));
+              (item.isApp && pathname.startsWith("/studio"));
 
             const baseClasses =
               "px-2 py-1 rounded-full transition-all whitespace-nowrap";
 
             const activeClasses = item.isApp
-              ? "bg-phorium-dark text-phorium-light shadow-sm"
-              : "bg-phorium-dark text-phorium-light shadow-sm";
+              ? "bg-phorium-dark text-white shadow-sm"
+              : "bg-phorium-dark text-white shadow-sm";
 
             const inactiveClasses = item.isApp
               ? "border border-phorium-off/40 text-[#3E3A30] hover:border-phorium-dark hover:bg-phorium-off/40 hover:text-phorium-dark"
-              : "text-[#3E3A30] hover:text-phorium-dark hover:bg-phorium-off/40";
+              : "text-[#3E3A30] hover:text-phorium-dark hover:bg-phorium-accent/60";
 
             return (
               <Link
@@ -110,7 +110,7 @@ export default function Navbar() {
               {navItems.map((item) => {
                 const active =
                   pathname === item.href ||
-                  (item.isApp && pathname.startsWith("/dashboard"));
+                  (item.isApp && pathname.startsWith("/studio"));
 
                 return (
                   <Link

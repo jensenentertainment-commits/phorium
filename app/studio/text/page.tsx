@@ -205,6 +205,42 @@ export default function PhoriumTextPage() {
           transition={{ duration: 0.4 }}
           className="rounded-3xl border border-phorium-off/25 bg-phorium-surface px-6 py-10 text-phorium-light shadow-[0_22px_80px_rgba(0,0,0,0.55)] sm:px-10"
         >
+
+             {/* Top navigation / actions – samsvarer med Visuals */}
+          <div className="mb-8 flex flex-wrap gap-3 text-[11px]">
+            <Link
+              href="/studio"
+              className="inline-flex items-center gap-2 rounded-full border border-phorium-off/35 bg-phorium-dark px-3 py-1.5 text-phorium-light/80"
+            >
+              <Home className="h-3.5 w-3.5 text-phorium-accent" />
+              Studio-oversikt
+            </Link>
+
+            <Link
+              href="/studio/text"
+              className="inline-flex items-center gap-2 rounded-full bg-phorium-accent px-3 py-1.5 text-[11px] font-semibold text-phorium-dark shadow-sm transition hover:bg-phorium-accent/90"
+            >
+              <FileText className="h-3.5 w-3.5 text-phorium-dark" />
+              Tekst
+            </Link>
+
+            <Link
+              href="/studio/visuals"
+              className="inline-flex items-center gap-2 rounded-full border border-phorium-off/35 bg-phorium-dark px-3 py-1.5 text-phorium-accent transition hover:border-phorium-accent hover:text-phorium-light"
+            >
+              <ImageIcon className="h-3.5 w-3.5 text-phorium-accent" />
+              Visuals
+            </Link>
+
+            <Link
+              href="/studio/koble-nettbutikk"
+              className="inline-flex items-center gap-2 rounded-full border border-phorium-off/35 bg-phorium-dark px-3 py-1.5 text-phorium-accent transition hover:border-phorium-accent hover:text-phorium-light"
+            >
+              <Link2 className="h-3.5 w-3.5 text-phorium-accent" />
+              Koble til nettbutikk
+            </Link>
+          </div>
+          
           {/* Header */}
           <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -219,7 +255,7 @@ export default function PhoriumTextPage() {
                 <p className="mt-2 text-[11px] text-phorium-light/60">
                   Tips: Koble til nettbutikken i{" "}
                   <Link
-                    href="/dashboard/store-connect"
+                    href="/studio/k"
                     className="underline decoration-phorium-accent/60 underline-offset-2 hover:text-phorium-accent"
                   >
                     Phorium Connect
@@ -245,40 +281,7 @@ export default function PhoriumTextPage() {
             </div>
           </div>
 
-          {/* Top navigation / actions – samsvarer med Visuals */}
-          <div className="mb-8 flex flex-wrap gap-3 text-[11px]">
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center gap-2 rounded-full border border-phorium-off/35 bg-phorium-dark px-3 py-1.5 text-phorium-light/80"
-            >
-              <Home className="h-3.5 w-3.5 text-phorium-accent" />
-              Studio-oversikt
-            </Link>
-
-            <Link
-              href="/dashboard/text"
-              className="inline-flex items-center gap-2 rounded-full bg-phorium-accent px-3 py-1.5 text-[11px] font-semibold text-phorium-dark shadow-sm transition hover:bg-phorium-accent/90"
-            >
-              <FileText className="h-3.5 w-3.5 text-phorium-dark" />
-              Tekst
-            </Link>
-
-            <Link
-              href="/dashboard/visuals"
-              className="inline-flex items-center gap-2 rounded-full border border-phorium-off/35 bg-phorium-dark px-3 py-1.5 text-phorium-accent transition hover:border-phorium-accent hover:text-phorium-light"
-            >
-              <ImageIcon className="h-3.5 w-3.5 text-phorium-accent" />
-              Visuals
-            </Link>
-
-            <Link
-              href="/dashboard/store-connect"
-              className="inline-flex items-center gap-2 rounded-full border border-phorium-off/35 bg-phorium-dark px-3 py-1.5 text-phorium-accent transition hover:border-phorium-accent hover:text-phorium-light"
-            >
-              <Link2 className="h-3.5 w-3.5 text-phorium-accent" />
-              Koble til nettbutikk
-            </Link>
-          </div>
+       
 
           {/* Grid: prompt + resultat */}
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">

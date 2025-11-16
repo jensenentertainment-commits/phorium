@@ -24,13 +24,18 @@ const geistMono = Geist_Mono({
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="no">
-      <body className="bg-[#eee6da] text-[#11140F] antialiased">
+    <html
+      lang="no"
+      className={`${geistSans.variable} ${geistMono.variable}`}
+    >
+      <body className="min-h-screen flex flex-col antialiased">
         <Navbar />
-        <main className="w-full max-w-6xl mx-auto px-4 py-10">
+
+        <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-10">
           {children}
         </main>
-        <Footer /> {/* 👈 ny footer-komponent */}
+
+        <Footer />
       </body>
     </html>
   );

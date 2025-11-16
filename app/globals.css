@@ -2,19 +2,27 @@
 
 /* Phorium – tema (Tailwind v4 via @theme inline) */
 @theme inline {
-  /* Font-variabler – kobles mot next/font i layout.tsx */
+  /* Fonter – kobles mot next/font i layout.tsx */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 
-  /* Farger */
+  /* Kjernefarger */
   --color-phorium-dark: #1A4242;
   --color-phorium-accent: #C8B77A;
   --color-phorium-light: #ECE8DA;
   --color-phorium-off: #DCD8CA;
 
-  /* Du kan også overstyre tailwind-navn hvis du vil */
+  /* Bakgrunn / foreground for hele siden */
   --color-background: #F5E9D8;
   --color-foreground: #11140F;
+
+  /* Overflate til kort/sekjoner (kan brukes i Studio) */
+  --color-surface: #11140F;
+  --color-surface-soft: #171C14;
+
+  /* Radius & skygger – fint for kort / cards */
+  --radius-card: 24px;
+  --shadow-soft: 0 18px 40px rgba(0, 0, 0, 0.55);
 }
 
 /* Body-reset + bakgrunn */
@@ -28,15 +36,165 @@
   box-sizing: border-box;
 }
 
+html,
 body {
   margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
   min-height: 100vh;
   background-color: var(--color-background);
   color: var(--color-foreground);
   font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Valgfritt: lenker etc. */
+/* Lenker – nøytral som default, styres ofte via Tailwind */
 a {
   text-decoration: none;
+  color: inherit;
+}
+
+/* Fokus – enkel, men tydelig outline (bra for tastaturbruk) */
+:focus-visible {
+  outline: 2px solid var(--color-phorium-accent);
+  outline-offset: 2px;
+}
+
+/* Enkle typografiske defaults */
+p {
+  margin: 0 0 0.75rem;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0 0 0.75rem;
+}
+
+/* Små hjelpek­lasser du kan bruke med Tailwind-klasser */
+
+/* Eyebrow-tekst (over overskrift) */
+.eyebrow {
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+}
+
+/* Seksjoner (kan kombineres med Tailwind, f.eks. className="section px-4") */
+.section {
+  padding-block: 3.5rem;
+}
+
+/* Standard "kort" hvis du ikke vil skrive alt i Tailwind hver gang */
+.card {
+  border-radius: var(--radius-card);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-soft);
+}
+
+/* ============================= */
+/* Phorium – knapper             */
+/* ============================= */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+
+  padding: 0.45rem 0.95rem;
+  border-radius: 999px;
+
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.2;
+
+  border: 1px solid transparent;
+  cursor: pointer;
+
+  transition:
+    background-color 150ms ease,
+    color 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    transform 120ms ease;
+}
+
+/* Primær knapp (gull) */
+.btn-primary {
+  background-color: var(--color-phorium-accent);
+  color: #11140f;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
+}
+
+.btn-primary:hover {
+  background-color: color-mix(in srgb, var(--color-phorium-accent) 92%, #ffffff);
+}
+
+.btn-primary:active {
+  transform: translateY(1px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45);
+}
+
+/* Sekundær / mørk knapp */
+.btn-secondary {
+  background-color: #0d2424;
+  border-color: #1f3c3c;
+  color: #c9d7d7;
+}
+
+.btn-secondary:hover {
+  border-color: var(--color-phorium-accent);
+  color: #ffffff;
+}
+
+/* Outline-variant (bare kant) */
+.btn-outline {
+  background-color: transparent;
+  border-color: #1f3c3c;
+  color: #c9d7d7;
+}
+
+.btn-outline:hover {
+  border-color: var(--color-phorium-accent);
+  color: #ffffff;
+}
+
+/* Spesielt for "ghost" linker, f.eks. små tekstlenker */
+.btn-ghost {
+  background-color: transparent;
+  border-color: transparent;
+  color: #c9d7d7;
+}
+
+.btn-ghost:hover {
+  color: #ffffff;
+}
+
+/* Størrelser */
+.btn-sm {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.7rem;
+}
+
+.btn-lg {
+  padding: 0.6rem 1.2rem;
+  font-size: 0.8rem;
+}
+
+/* Ikoner i knapper */
+.btn-icon-left > svg {
+  width: 0.9rem;
+  height: 0.9rem;
+  margin-right: 0.25rem;
+}
+
+.btn-icon-right > svg {
+  width: 0.9rem;
+  height: 0.9rem;
+  margin-left: 0.25rem;
 }
