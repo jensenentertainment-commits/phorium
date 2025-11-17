@@ -3,8 +3,6 @@
 import React, { useState, useEffect, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { RotateCcw, Palette, Download } from "lucide-react";
-import Link from "next/link";
-import { Home, FileText, Image as ImageIcon, Link2 } from "lucide-react";
 
 type HistoryItem = {
   prompt: string;
@@ -119,24 +117,23 @@ export default function VisualsPage() {
   const [bannerCooldown, setBannerCooldown] = useState(0);
   const [packCooldown, setPackCooldown] = useState(0);
 
-function startCooldown(setter: (v: number) => void, seconds: number) {
-  const secs = Math.max(1, Math.min(60, seconds || 10)); // 1–60s
-  setter(secs);
+  function startCooldown(setter: (v: number) => void, seconds: number) {
+    const secs = Math.max(1, Math.min(60, seconds || 10)); // 1–60s
+    setter(secs);
 
-  let current = secs;
+    let current = secs;
 
-  const interval = setInterval(() => {
-    current -= 1;
+    const interval = setInterval(() => {
+      current -= 1;
 
-    if (current <= 0) {
-      clearInterval(interval);
-      setter(0);
-    } else {
-      setter(current);
-    }
-  }, 1000);
-}
-
+      if (current <= 0) {
+        clearInterval(interval);
+        setter(0);
+      } else {
+        setter(current);
+      }
+    }, 1000);
+  }
 
   function parseRetrySeconds(msg: string | undefined) {
     if (!msg) return 10;
@@ -631,590 +628,546 @@ function startCooldown(setter: (v: number) => void, seconds: number) {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-phorium-dark pt-24 pb-32">
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_25%_0%,rgba(0,0,0,0.35),transparent_70%)]" />
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
+      className="text-phorium-light"
+    >
+      {/* Header */}
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="mb-1.5 text-3xl font-semibold tracking-tight sm:text-4xl">
+            Phorium Visuals
+          </h1>
+          <p className="text-[13px] text-phorium-light/80 sm:text-[14px]">
+            Velg modus, skriv kort – Phorium tilpasser alt til butikken din.
+          </p>
+        </div>
+        <div className="flex flex-col items-start gap-1 sm:items-end">
+          <div className="text-[11px] text-phorium-accent/90">
+            Kreditter igjen
+          </div>
+          <div className="text-[14px]">
+            <span className="font-semibold text-phorium-light">994</span>
+            <span className="text-phorium-light/55"> / 1000</span>
+          </div>
+          <div className="h-2 w-36 overflow-hidden rounded-full border border-phorium-off/40 bg-phorium-dark">
+            <motion.div
+              className="h-full bg-phorium-accent"
+              initial={{ width: "0%" }}
+              animate={{ width: "99.4%" }}
+              transition={{ duration: 1 }}
+            />
+          </div>
+        </div>
+      </div>
 
-      <section className="mx-auto max-w-6xl px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35 }}
-          className="rounded-3xl border border-phorium-off/25 bg-phorium-surface px-6 py-9 text-phorium-light shadow-[0_24px_90px_rgba(0,0,0,0.65)] sm:px-10"
+      {/* Brand-profil */}
+      <BrandProfileCard brand={brand} setBrand={setBrand} />
+
+      {/* Mode switch */}
+      <div className="mb-8 inline-flex rounded-full border border-phorium-off/40 bg-phorium-dark p-1 text-[11px]">
+        <ModeButton
+          active={mode === "image"}
+          onClick={() => setMode("image")}
         >
+          Standardbilde
+        </ModeButton>
+        <ModeButton
+          active={mode === "banner"}
+          onClick={() => setMode("banner")}
+        >
+          Banner med tekst
+        </ModeButton>
+        <ModeButton
+          active={mode === "product"}
+          onClick={() => setMode("product")}
+        >
+          Produktbilde til scene
+        </ModeButton>
+      </div>
 
-          
-          {/* Top navigation / actions – samsvarer med Phorium Tekst */}
-          <div className="mb-8 flex flex-wrap gap-3 text-[11px]">
-            <Link
-              href="/studio"
-              className="inline-flex items-center gap-2 rounded-full border border-phorium-off/35 bg-phorium-dark px-3 py-1.5 text-phorium-light/80"
-            >
-              <Home className="h-3.5 w-3.5 text-phorium-accent" />
-              Studio-oversikt
-            </Link>
+      {/* MODE: Standardbilde */}
+      {mode === "image" && (
+        <div className="mb-8">
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={(e) => {
+              const isMac =
+                typeof navigator !== "undefined" &&
+                navigator.platform.toUpperCase().includes("MAC");
+              const submitCombo =
+                (isMac && e.metaKey && e.key === "Enter") ||
+                (!isMac && e.ctrlKey && e.key === "Enter");
+              if (submitCombo) {
+                e.preventDefault();
+                handleGenerate();
+              }
+            }}
+            placeholder='Beskriv bildet. Eks: «Produktfoto av kaffekopp på lys benk, mykt dagslys.»'
+            className="h-32 w-full resize-none rounded-2xl border border-phorium-accent/40 bg-phorium-light px-4 py-3 text-[14px] text-phorium-dark outline-none placeholder:text-[#8F8A7A] focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/18"
+          />
 
-            <Link
-              href="/studio/text"
-              className="inline-flex items-center gap-2 rounded-full border border-phorium-off/35 bg-phorium-dark px-3 py-1.5 text-phorium-light/80 transition hover:border-phorium-accent hover:text-phorium-accent"
-            >
-              <FileText className="h-3.5 w-3.5 text-phorium-accent" />
-              Tekst
-            </Link>
-
-            <Link
-              href="/studio/visuals"
-              className="inline-flex items-center gap-2 rounded-full bg-phorium-accent px-3 py-1.5 text-[11px] font-semibold text-phorium-dark shadow-sm transition hover:bg-phorium-accent/90"
-            >
-              <ImageIcon className="h-3.5 w-3.5 text-phorium-dark" />
-              Visuals
-            </Link>
-
-            <Link
-              href="/studio/koble-nettbutikk"
-              className="inline-flex items-center gap-2 rounded-full border border-phorium-off/35 bg-phorium-dark px-3 py-1.5 text-phorium-accent transition hover:border-phorium-accent hover:text-phorium-light"
-            >
-              <Link2 className="h-3.5 w-3.5 text-phorium-accent" />
-              Koble til nettbutikk
-            </Link>
+          <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+            {["Produktfoto", "Livsstil", "Kampanjebanner", "Bakgrunn", "Mockup"].map(
+              (label) => (
+                <button
+                  key={label}
+                  type="button"
+                  className="rounded-full border border-phorium-off/35 bg-phorium-dark px-3 py-1.5 text-phorium-light/82 transition hover:border-phorium-accent hover:text-phorium-accent"
+                  onClick={() =>
+                    setPrompt(
+                      `Lag et ${label.toLowerCase()} i fotorealistisk stil. Profesjonelt lys, høy oppløsning.`,
+                    )
+                  }
+                >
+                  {label}
+                </button>
+              ),
+            )}
           </div>
-          
-          {/* Header */}
-          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <button
+            type="button"
+            onClick={handleGenerate}
+            disabled={isBusy || imageCooldown > 0}
+            className="mt-4 w-full rounded-full bg-phorium-accent px-7 py-2.5 text-[13px] font-semibold text-phorium-dark shadow-md transition-all disabled:opacity-60 sm:w-auto hover:bg-phorium-accent/90"
+          >
+            {imageCooldown > 0
+              ? `Vent ${imageCooldown}s`
+              : "Generer bilde"}
+          </button>
+        </div>
+      )}
+
+      {/* MODE: Banner med tekst */}
+      {mode === "banner" && (
+        <div className="mb-8 space-y-4 rounded-2xl border border-phorium-off/30 bg-phorium-dark p-5">
+          <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <h1 className="mb-1.5 text-3xl font-semibold tracking-tight sm:text-4xl">
-                Phorium Visuals
-              </h1>
-              <p className="text-[13px] text-phorium-light/80 sm:text-[14px]">
-                Velg modus, skriv kort – Phorium tilpasser alt til butikken din.
-              </p>
+              <label className="mb-1 block text-[10px] text-phorium-accent/90">
+                Hovedtekst*
+              </label>
+              <input
+                value={safeHeadline}
+                onChange={(e) => setSafeHeadline(e.target.value)}
+                placeholder="-40% SOMMERSALG"
+                className="w-full rounded-2xl border border-phorium-accent/35 bg-phorium-light px-3 py-2 text-[13px] text-phorium-dark outline-none focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/18"
+              />
             </div>
-            <div className="flex flex-col items-start gap-1 sm:items-end">
-              <div className="text-[11px] text-phorium-accent/90">
-                Kreditter igjen
-              </div>
-              <div className="text-[14px]">
-                <span className="font-semibold text-phorium-light">
-                  994
-                </span>
-                <span className="text-phorium-light/55"> / 1000</span>
-              </div>
-              <div className="h-2 w-36 overflow-hidden rounded-full border border-phorium-off/40 bg-phorium-dark">
-                <motion.div
-                  className="h-full bg-phorium-accent"
-                  initial={{ width: "0%" }}
-                  animate={{ width: "99.4%" }}
-                  transition={{ duration: 1 }}
-                />
-              </div>
+            <div>
+              <label className="mb-1 block text-[10px] text-phorium-accent/90">
+                Undertekst (valgfritt)
+              </label>
+              <input
+                value={safeSubline}
+                onChange={(e) => setSafeSubline(e.target.value)}
+                placeholder="Kun denne helgen"
+                className="w-full rounded-2xl border border-phorium-accent/35 bg-phorium-light px-3 py-2 text-[13px] text-phorium-dark outline-none focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/18"
+              />
             </div>
           </div>
 
-
-          {/* Brand-profil */}
-          <BrandProfileCard brand={brand} setBrand={setBrand} />
-
-          {/* Mode switch */}
-          <div className="mb-8 inline-flex rounded-full border border-phorium-off/40 bg-phorium-dark p-1 text-[11px]">
-            <ModeButton
-              active={mode === "image"}
-              onClick={() => setMode("image")}
+          {/* Templates / forslag */}
+          <div className="flex flex-wrap gap-2 text-[10px]">
+            {["Sommersalg", "Nyhet", "Black Week", "Outlet"].map((tpl) => (
+              <button
+                key={tpl}
+                type="button"
+                onClick={() => {
+                  if (tpl === "Sommersalg") {
+                    setSafeHeadline("-40% SOMMERSALG");
+                    setSafeSubline("Kun denne uken");
+                  } else if (tpl === "Nyhet") {
+                    setSafeHeadline("NYHETER");
+                    setSafeSubline("Utforsk siste kolleksjon");
+                  } else if (tpl === "Black Week") {
+                    setSafeHeadline("BLACK WEEK");
+                    setSafeSubline("Begrensede tilbud");
+                  } else if (tpl === "Outlet") {
+                    setSafeHeadline("OUTLET");
+                    setSafeSubline("Siste sjanse, lave priser");
+                  }
+                }}
+                className="rounded-full border border-phorium-off/40 bg-phorium-surface px-3 py-1 text-phorium-light/80 transition hover:border-phorium-accent hover:text-phorium-accent"
+              >
+                {tpl}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={handleSuggestText}
+              className="rounded-full border border-phorium-accent/40 bg-phorium-accent/10 px-3 py-1 text-[10px] text-phorium-accent transition hover:bg-phorium-accent/20"
             >
-              Standardbilde
-            </ModeButton>
-            <ModeButton
-              active={mode === "banner"}
-              onClick={() => setMode("banner")}
-            >
-              Banner med tekst
-            </ModeButton>
-            <ModeButton
-              active={mode === "product"}
-              onClick={() => setMode("product")}
-            >
-              Produktbilde til scene
-            </ModeButton>
+              Foreslå tekst
+            </button>
           </div>
 
-          {/* MODE: Standardbilde */}
-          {mode === "image" && (
-            <div className="mb-8">
+          {/* Kildevalg */}
+          <div className="flex flex-wrap gap-2 text-[10px]">
+            <BannerSourceButton
+              active={bannerSource === "ai"}
+              onClick={() => setBannerSource("ai")}
+            >
+              AI-bakgrunn
+            </BannerSourceButton>
+            <BannerSourceButton
+              active={bannerSource === "own"}
+              onClick={() => setBannerSource("own")}
+            >
+              Mitt bilde
+            </BannerSourceButton>
+          </div>
+
+          {/* AI-bakgrunn */}
+          {bannerSource === "ai" && (
+            <>
               <textarea
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
+                value={safeBgPrompt}
+                onChange={(e) => setSafeBgPrompt(e.target.value)}
                 onKeyDown={(e) => {
-                  const isMac = navigator.platform
-                    .toUpperCase()
-                    .includes("MAC");
+                  const isMac =
+                    typeof navigator !== "undefined" &&
+                    navigator.platform.toUpperCase().includes("MAC");
                   const submitCombo =
                     (isMac && e.metaKey && e.key === "Enter") ||
                     (!isMac && e.ctrlKey && e.key === "Enter");
                   if (submitCombo) {
                     e.preventDefault();
-                    handleGenerate();
+                    handleSmartTextGenerate();
                   }
                 }}
-                placeholder='Beskriv bildet. Eks: «Produktfoto av kaffekopp på lys benk, mykt dagslys.»'
-                className="h-32 w-full resize-none rounded-2xl border border-phorium-accent/40 bg-phorium-light px-4 py-3 text-[14px] text-phorium-dark outline-none placeholder:text-[#8F8A7A] focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/18"
+                placeholder='Stil / bakgrunn (valgfritt). Eks: «Mørkt, eksklusivt banner med subtil struktur.»'
+                className="h-20 w-full resize-none rounded-2xl border border-phorium-accent/35 bg-phorium-light px-3 py-2 text-[13px] text-phorium-dark outline-none placeholder:text-[#8F8A7A] focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/18"
               />
 
-              <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
-                {["Produktfoto", "Livsstil", "Kampanjebanner", "Bakgrunn", "Mockup"].map(
-                  (label) => (
-                    <button
-                      key={label}
-                      type="button"
-                      className="rounded-full border border-phorium-off/35 bg-phorium-dark px-3 py-1.5 text-phorium-light/82 transition hover:border-phorium-accent hover:text-phorium-accent"
-                      onClick={() =>
-                        setPrompt(
-                          `Lag et ${label.toLowerCase()} i fotorealistisk stil. Profesjonelt lys, høy oppløsning.`,
-                        )
-                      }
-                    >
-                      {label}
-                    </button>
-                  ),
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleSmartTextGenerate}
+                  disabled={
+                    !safeHeadline.trim() || isBusy || bannerCooldown > 0
+                  }
+                 className="btn btn-primary btn-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {bannerCooldown > 0
+                    ? `Vent ${bannerCooldown}s`
+                    : safeLoading
+                    ? "Genererer banner…"
+                    : "Generer banner med trygg tekst"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCampaignPack}
+                  disabled={
+                    !safeHeadline.trim() || isBusy || packCooldown > 0
+                  }
+                  className="btn btn-secondary btn-lg disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {packCooldown > 0
+                    ? `Vent ${packCooldown}s`
+                    : campaignLoading
+                    ? "Lager kampanjepakke…"
+                    : "Lag kampanjepakke"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleVariant}
+                  disabled={!lastBannerConfig || isBusy}
+                  className="btn btn-ghost btn-sm inline-flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Ny variant
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* Mitt bilde */}
+          {bannerSource === "own" && (
+            <>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    setTextBgFile(file);
+                    if (file) {
+                      const url = URL.createObjectURL(file);
+                      setTextBgPreview(url);
+                    } else {
+                      setTextBgPreview(null);
+                    }
+                  }}
+                  className="text-[11px] text-phorium-light/90"
+                />
+                {textBgPreview && (
+                  <div className="h-16 w-24 overflow-hidden rounded-xl border border-phorium-off/35 bg-phorium-dark">
+                    <img
+                      src={textBgPreview}
+                      alt="Valgt bakgrunn"
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
                 )}
               </div>
               <button
                 type="button"
-                onClick={handleGenerate}
-                disabled={isBusy || imageCooldown > 0}
-                className="mt-4 w-full rounded-full bg-phorium-accent px-7 py-2.5 text-[13px] font-semibold text-phorium-dark shadow-md transition-all disabled:opacity-60 sm:w-auto hover:bg-phorium-accent/90"
+                onClick={handleSmartTextOnOwnImage}
+                disabled={!safeHeadline.trim() || !textBgFile || isBusy}
+                className="mt-1 w-full rounded-full bg-phorium-accent px-7 py-2.5 text-[12px] font-semibold text-phorium-dark shadow-md transition-all disabled:opacity-40 sm:w-auto hover:bg-phorium-accent/90"
               >
-                {imageCooldown > 0
-                  ? `Vent ${imageCooldown}s`
-                  : "Generer bilde"}
+                Legg trygg tekst på mitt bilde
               </button>
-            </div>
+            </>
           )}
+        </div>
+      )}
 
-          {/* MODE: Banner med tekst */}
-          {mode === "banner" && (
-            <div className="mb-8 space-y-4 rounded-2xl border border-phorium-off/30 bg-phorium-dark p-5">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <label className="mb-1 block text-[10px] text-phorium-accent/90">
-                    Hovedtekst*
-                  </label>
-                  <input
-                    value={safeHeadline}
-                    onChange={(e) => setSafeHeadline(e.target.value)}
-                    placeholder="-40% SOMMERSALG"
-                    className="w-full rounded-2xl border border-phorium-accent/35 bg-phorium-light px-3 py-2 text-[13px] text-phorium-dark outline-none focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/18"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-[10px] text-phorium-accent/90">
-                    Undertekst (valgfritt)
-                  </label>
-                  <input
-                    value={safeSubline}
-                    onChange={(e) => setSafeSubline(e.target.value)}
-                    placeholder="Kun denne helgen"
-                    className="w-full rounded-2xl border border-phorium-accent/35 bg-phorium-light px-3 py-2 text-[13px] text-phorium-dark outline-none focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/18"
-                  />
-                </div>
-              </div>
-
-              {/* Templates / forslag */}
-              <div className="flex flex-wrap gap-2 text-[10px]">
-                {["Sommersalg", "Nyhet", "Black Week", "Outlet"].map((tpl) => (
-                  <button
-                    key={tpl}
-                    type="button"
-                    onClick={() => {
-                      if (tpl === "Sommersalg") {
-                        setSafeHeadline("-40% SOMMERSALG");
-                        setSafeSubline("Kun denne uken");
-                      } else if (tpl === "Nyhet") {
-                        setSafeHeadline("NYHETER");
-                        setSafeSubline("Utforsk siste kolleksjon");
-                      } else if (tpl === "Black Week") {
-                        setSafeHeadline("BLACK WEEK");
-                        setSafeSubline("Begrensede tilbud");
-                      } else if (tpl === "Outlet") {
-                        setSafeHeadline("OUTLET");
-                        setSafeSubline("Siste sjanse, lave priser");
-                      }
-                    }}
-                    className="rounded-full border border-phorium-off/40 bg-phorium-surface px-3 py-1 text-phorium-light/80 transition hover:border-phorium-accent hover:text-phorium-accent"
-                  >
-                    {tpl}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={handleSuggestText}
-                  className="rounded-full border border-phorium-accent/40 bg-phorium-accent/10 px-3 py-1 text-[10px] text-phorium-accent transition hover:bg-phorium-accent/20"
-                >
-                  Foreslå tekst
-                </button>
-              </div>
-
-              {/* Kildevalg */}
-              <div className="flex flex-wrap gap-2 text-[10px]">
-                <BannerSourceButton
-                  active={bannerSource === "ai"}
-                  onClick={() => setBannerSource("ai")}
-                >
-                  AI-bakgrunn
-                </BannerSourceButton>
-                <BannerSourceButton
-                  active={bannerSource === "own"}
-                  onClick={() => setBannerSource("own")}
-                >
-                  Mitt bilde
-                </BannerSourceButton>
-              </div>
-
-              {/* AI-bakgrunn */}
-              {bannerSource === "ai" && (
-                <>
-                  <textarea
-                    value={safeBgPrompt}
-                    onChange={(e) => setSafeBgPrompt(e.target.value)}
-                    onKeyDown={(e) => {
-                      const isMac = navigator.platform
-                        .toUpperCase()
-                        .includes("MAC");
-                      const submitCombo =
-                        (isMac && e.metaKey && e.key === "Enter") ||
-                        (!isMac && e.ctrlKey && e.key === "Enter");
-                      if (submitCombo) {
-                        e.preventDefault();
-                        handleSmartTextGenerate();
-                      }
-                    }}
-                    placeholder='Stil / bakgrunn (valgfritt). Eks: «Mørkt, eksklusivt banner med subtil struktur.»'
-                    className="h-20 w-full resize-none rounded-2xl border border-phorium-accent/35 bg-phorium-light px-3 py-2 text-[13px] text-phorium-dark outline-none placeholder:text-[#8F8A7A] focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/18"
-                  />
-
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={handleSmartTextGenerate}
-                      disabled={
-                        !safeHeadline.trim() || isBusy || bannerCooldown > 0
-                      }
-                      className="rounded-full bg-phorium-accent px-7 py-2.5 text-[12px] font-semibold text-phorium-dark shadow-md transition-all disabled:opacity-50 hover:bg-phorium-accent/90"
-                    >
-                      {bannerCooldown > 0
-                        ? `Vent ${bannerCooldown}s`
-                        : safeLoading
-                        ? "Genererer banner…"
-                        : "Generer banner med trygg tekst"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleCampaignPack}
-                      disabled={
-                        !safeHeadline.trim() || isBusy || packCooldown > 0
-                      }
-                      className="rounded-full border border-phorium-accent bg-phorium-dark px-7 py-2.5 text-[12px] text-phorium-accent shadow-md transition-all disabled:opacity-40 hover:bg-phorium-accent hover:text-phorium-dark"
-                    >
-                      {packCooldown > 0
-                        ? `Vent ${packCooldown}s`
-                        : campaignLoading
-                        ? "Lager kampanjepakke…"
-                        : "Lag kampanjepakke"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleVariant}
-                      disabled={!lastBannerConfig || isBusy}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-phorium-off/40 bg-phorium-surface px-5 py-2.5 text-[11px] text-phorium-light/85 transition disabled:opacity-40 hover:border-phorium-accent hover:text-phorium-accent"
-                    >
-                      <RotateCcw className="h-3.5 w-3.5" />
-                      Ny variant
-                    </button>
-                  </div>
-                </>
-              )}
-
-              {/* Mitt bilde */}
-              {bannerSource === "own" && (
-                <>
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <input
-                      type="file"
-                      accept="image/png,image/jpeg"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0] || null;
-                        setTextBgFile(file);
-                        if (file) {
-                          const url = URL.createObjectURL(file);
-                          setTextBgPreview(url);
-                        } else {
-                          setTextBgPreview(null);
-                        }
-                      }}
-                      className="text-[11px] text-phorium-light/90"
-                    />
-                    {textBgPreview && (
-                      <div className="h-16 w-24 overflow-hidden rounded-xl border border-phorium-off/35 bg-phorium-dark">
-                        <img
-                          src={textBgPreview}
-                          alt="Valgt bakgrunn"
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleSmartTextOnOwnImage}
-                    disabled={!safeHeadline.trim() || !textBgFile || isBusy}
-                    className="mt-1 w-full rounded-full bg-phorium-accent px-7 py-2.5 text-[12px] font-semibold text-phorium-dark shadow-md transition-all disabled:opacity-40 sm:w-auto hover:bg-phorium-accent/90"
-                  >
-                    Legg trygg tekst på mitt bilde
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* MODE: Produktbilde til scene */}
-          {mode === "product" && (
-            <div className="mb-8 space-y-4 rounded-2xl border border-phorium-off/30 bg-phorium-dark p-5">
-              <input
-                type="file"
-                accept="image/png,image/jpeg"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  const url = URL.createObjectURL(file);
-                  setBaseImage(url);
-                }}
-                className="text-[11px] text-phorium-light/90"
-              />
-              {baseImage && (
-                <div className="flex items-center gap-3">
-                  <div className="h-24 w-24 overflow-hidden rounded-xl border border-phorium-off/35 bg-phorium-dark">
-                    <img
-                      src={baseImage}
-                      alt="Opplastet produkt"
-                      className="h-full w-full object-contain"
-                    />
-                  </div>
-                  <p className="text-[11px] text-phorium-light/70">
-                    Bruk et tydelig produktbilde. Vi bygger scenen rundt det.
-                  </p>
-                </div>
-              )}
-              <textarea
-                value={editPrompt}
-                onChange={(e) => setEditPrompt(e.target.value)}
-                placeholder='Kort: «Lyst studio», «Eksklusivt baderom», «Kjøkkenbenk i tre» osv.'
-                className="h-20 w-full resize-none rounded-2xl border border-phorium-accent/35 bg-phorium-light px-3 py-2 text-[13px] text-phorium-dark outline-none placeholder:text-[#8F8A7A] focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/18"
-              />
-              <button
-                type="button"
-                onClick={handleEditGenerate}
-                disabled={!baseImage || !editPrompt.trim() || isBusy}
-                className="w-full rounded-full bg-phorium-accent px-7 py-2.5 text-[13px] font-semibold text-phorium-dark shadow-md transition-all disabled:opacity-50 sm:w-auto hover:bg-phorium-accent/90"
-              >
-                {editing
-                  ? "Genererer scene…"
-                  : "Generer scene rundt produktet"}
-              </button>
-            </div>
-          )}
-
-          {/* Forhåndsvisning + kampanjepakke */}
-          <div className="mt-2 border-t border-phorium-off/30 pt-6">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold text-phorium-accent">
-                Forhåndsvisning
-              </h2>
-              <label className="flex items-center gap-2 text-[10px] text-phorium-light/65">
-                <input
-                  type="checkbox"
-                  checked={showSafeZone}
-                  onChange={(e) => setShowSafeZone(e.target.checked)}
-                  className="accent-phorium-accent"
+      {/* MODE: Produktbilde til scene */}
+      {mode === "product" && (
+        <div className="mb-8 space-y-4 rounded-2xl border border-phorium-off/30 bg-phorium-dark p-5">
+          <input
+            type="file"
+            accept="image/png,image/jpeg"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              const url = URL.createObjectURL(file);
+              setBaseImage(url);
+            }}
+            className="text-[11px] text-phorium-light/90"
+          />
+          {baseImage && (
+            <div className="flex items-center gap-3">
+              <div className="h-24 w-24 overflow-hidden rounded-xl border border-phorium-off/35 bg-phorium-dark">
+                <img
+                  src={baseImage}
+                  alt="Opplastet produkt"
+                  className="h-full w-full object-contain"
                 />
-                Vis trygg tekst-sone
-              </label>
-            </div>
-
-            {error && (
-              <div className="mb-3 rounded-2xl border border-phorium-accent/50 bg-phorium-accent/10 px-3 py-2 text-[11px] text-phorium-light">
-                {error}
               </div>
-            )}
-
-            <div className="flex min-h-[240px] flex-col items-center justify-center gap-4 rounded-2xl border border-phorium-off/35 bg-phorium-dark/60 px-4 py-6">
-              {isBusy && (
-                <PhoriumLoader label="Genererer bilde … finjusterer komposisjon og tekstplass" />
-              )}
-
-              {!isBusy && imageUrl && (
-                <AnimatePresence>
-                  <motion.div
-                    key={imageUrl}
-                    initial={{ opacity: 0, scale: 0.97 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.97 }}
-                    transition={{ duration: 0.3 }}
-                    className="flex w-full flex-col items-center gap-3"
-                  >
-                    <div className="relative">
-                      <img
-                        src={imageUrl}
-                        alt="Generert bilde"
-                        onClick={() => setFullscreenImage(imageUrl)}
-                        className="max-h-[420px] max-w-full cursor-zoom-in rounded-2xl border border-phorium-accent/40 object-contain shadow-2xl transition hover:opacity-90"
-                      />
-
-                      {showSafeZone && (
-                        <div className="pointer-events-none absolute inset-[8%] rounded-2xl border border-dashed border-phorium-accent/70" />
-                      )}
-                    </div>
-                    <button
-                      onClick={() => handleDownload(imageUrl)}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-phorium-accent px-3 py-1.5 text-[12px] font-semibold text-phorium-dark transition hover:bg-phorium-accent/90"
-                    >
-                      <Download className="h-3.5 w-3.5" />
-                      Last ned
-                    </button>
-
-                    <AnimatePresence>
-                      {fullscreenImage && (
-                        <motion.div
-                          key="fullscreen"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          transition={{ duration: 0.25 }}
-                          className="fixed inset-0 z-[100] flex cursor-zoom-out items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
-                          onClick={() => setFullscreenImage(null)}
-                        >
-                          <motion.img
-                            src={fullscreenImage}
-                            alt="Forstørret bilde"
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.95, opacity: 0 }}
-                            transition={{ duration: 0.25 }}
-                            className="max-h-[90vh] max-w-[95vw] rounded-2xl border border-phorium-accent/50 object-contain shadow-2xl"
-                          />
-                          <motion.button
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="absolute right-6 top-6 rounded-full bg-phorium-accent px-4 py-1.5 text-[13px] font-semibold text-phorium-dark shadow-lg transition hover:bg-phorium-accent/90"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setFullscreenImage(null);
-                            }}
-                          >
-                            Lukk ✕
-                          </motion.button>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </motion.div>
-                </AnimatePresence>
-              )}
-
-              {!isBusy && !imageUrl && !error && (
-                <p className="text-center text-[12px] text-phorium-light/70">
-                  Velg modus, fyll inn det viktigste – forhåndsvisningen dukker opp
-                  her.
-                </p>
-              )}
-            </div>
-
-            {/* Kampanjepakke-visning */}
-            {campaignPack.length > 0 && (
-              <div className="mt-4">
-                <p className="mb-1.5 text-[11px] text-phorium-light/75">
-                  Kampanjepakke generert:
-                </p>
-                <div className="grid gap-3 md:grid-cols-3">
-                  {campaignPack.map((item) => (
-                    <div
-                      key={item.label + item.size}
-                      className="flex flex-col gap-1 rounded-2xl border border-phorium-off/35 bg-phorium-dark p-2 text-[11px]"
-                    >
-                      <div className="text-[10px] font-semibold text-phorium-accent">
-                        {item.label}
-                      </div>
-                      <div className="text-[9px] text-phorium-light/60">
-                        {item.size}
-                      </div>
-                      <div className="mt-1 flex flex-1 items-center justify-center overflow-hidden rounded-xl bg-phorium-dark">
-                        <img
-                          src={item.url}
-                          alt={item.label}
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                      <button
-                        onClick={() => setImageUrl(item.url)}
-                        className="mt-1 rounded-full border border-phorium-off/40 bg-phorium-surface px-2 py-1 text-[9px] text-phorium-accent transition hover:border-phorium-accent"
-                      >
-                        Vis i forhåndsvisning
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Historikk */}
-          <div className="mt-8 border-t border-phorium-off/30 pt-5">
-            <h2 className="mb-3 text-lg font-semibold text-phorium-accent">
-              Historikk (siste 3)
-            </h2>
-
-            {history.length === 0 && (
-              <p className="text-[12px] text-phorium-light/70">
-                Når du genererer bilder, lagres de her for rask gjenbruk.
+              <p className="text-[11px] text-phorium-light/70">
+                Bruk et tydelig produktbilde. Vi bygger scenen rundt det.
               </p>
-            )}
+            </div>
+          )}
+          <textarea
+            value={editPrompt}
+            onChange={(e) => setEditPrompt(e.target.value)}
+            placeholder='Kort: «Lyst studio», «Eksklusivt baderom», «Kjøkkenbenk i tre» osv.'
+            className="h-20 w-full resize-none rounded-2xl border border-phorium-accent/35 bg-phorium-light px-3 py-2 text-[13px] text-phorium-dark outline-none placeholder:text-[#8F8A7A] focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/18"
+          />
+          <button
+  type="button"
+  onClick={handleEditGenerate}
+  disabled={!baseImage || !editPrompt.trim() || isBusy}
+  className="w-full rounded-full bg-phorium-accent px-7 py-2.5 text-[13px] font-semibold text-phorium-dark shadow-md transition-all disabled:opacity-50 sm:w-auto hover:bg-phorium-accent/90"
+>
+            {editing
+              ? "Genererer scene…"
+              : "Generer scene rundt produktet"}
+          </button>
+        </div>
+      )}
 
-            <div className="grid gap-4 md:grid-cols-3">
-              {history.map((item, index) => (
-                <div
-                  key={item.createdAt + index}
-                  className="flex flex-col gap-2 rounded-2xl border border-phorium-off/35 bg-phorium-dark p-3 text-[11px]"
+      {/* Forhåndsvisning + kampanjepakke */}
+      <div className="mt-2 border-t border-phorium-off/30 pt-6">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-phorium-accent">
+            Forhåndsvisning
+          </h2>
+          <label className="flex items-center gap-2 text-[10px] text-phorium-light/65">
+            <input
+              type="checkbox"
+              checked={showSafeZone}
+              onChange={(e) => setShowSafeZone(e.target.checked)}
+              className="accent-phorium-accent"
+            />
+            Vis trygg tekst-sone
+          </label>
+        </div>
+
+        {error && (
+          <div className="mb-3 rounded-2xl border border-phorium-accent/50 bg-phorium-accent/10 px-3 py-2 text-[11px] text-phorium-light">
+            {error}
+          </div>
+        )}
+
+        <div className="flex min-h-[240px] flex-col items-center justify-center gap-4 rounded-2xl border border-phorium-off/35 bg-phorium-dark/60 px-4 py-6">
+          {isBusy && (
+            <PhoriumLoader label="Genererer bilde … finjusterer komposisjon og tekstplass" />
+          )}
+
+          {!isBusy && imageUrl && (
+            <AnimatePresence>
+              <motion.div
+                key={imageUrl}
+                initial={{ opacity: 0, scale: 0.97 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.97 }}
+                transition={{ duration: 0.3 }}
+                className="flex w-full flex-col items-center gap-3"
+              >
+                <div className="relative">
+                  <img
+                    src={imageUrl}
+                    alt="Generert bilde"
+                    onClick={() => setFullscreenImage(imageUrl)}
+                    className="max-h-[420px] max-w-full cursor-zoom-in rounded-2xl border border-phorium-accent/40 object-contain shadow-2xl transition hover:opacity-90"
+                  />
+
+                  {showSafeZone && (
+                    <div className="pointer-events-none absolute inset-[8%] rounded-2xl border border-dashed border-phorium-accent/70" />
+                  )}
+                </div>
+                <button
+                  onClick={() => handleDownload(imageUrl)}
+                  className="btn btn-secondary btn-sm inline-flex items-center gap-1"
+
                 >
-                  <p className="min-h-[30px] line-clamp-2 font-semibold text-phorium-accent/90">
-                    {item.prompt}
-                  </p>
-                  <div className="flex flex-1 items-center justify-center overflow-hidden rounded-xl bg-phorium-dark/80">
+                  <Download className="h-3.5 w-3.5" />
+                  Last ned
+                </button>
+
+                <AnimatePresence>
+                  {fullscreenImage && (
+                    <motion.div
+                      key="fullscreen"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.25 }}
+                      className="fixed inset-0 z-[100] flex cursor-zoom-out items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
+                      onClick={() => setFullscreenImage(null)}
+                    >
+                      <motion.img
+                        src={fullscreenImage}
+                        alt="Forstørret bilde"
+                        initial={{ scale: 0.95, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.95, opacity: 0 }}
+                        transition={{ duration: 0.25 }}
+                        className="max-h-[90vh] max-w-[95vw] rounded-2xl border border-phorium-accent/50 object-contain shadow-2xl"
+                      />
+                      <motion.button
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="absolute right-6 top-6 rounded-full bg-phorium-accent px-4 py-1.5 text-[13px] font-semibold text-phorium-dark shadow-lg transition hover:bg-phorium-accent/90"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFullscreenImage(null);
+                        }}
+                      >
+                        Lukk ✕
+                      </motion.button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            </AnimatePresence>
+          )}
+
+          {!isBusy && !imageUrl && !error && (
+            <p className="text-center text-[12px] text-phorium-light/70">
+              Velg modus, fyll inn det viktigste – forhåndsvisningen dukker opp
+              her.
+            </p>
+          )}
+        </div>
+
+        {/* Kampanjepakke-visning */}
+        {campaignPack.length > 0 && (
+          <div className="mt-4">
+            <p className="mb-1.5 text-[11px] text-phorium-light/75">
+              Kampanjepakke generert:
+            </p>
+            <div className="grid gap-3 md:grid-cols-3">
+              {campaignPack.map((item) => (
+                <div
+                  key={item.label + item.size}
+                  className="flex flex-col gap-1 rounded-2xl border border-phorium-off/35 bg-phorium-dark p-2 text-[11px]"
+                >
+                  <div className="text-[10px] font-semibold text-phorium-accent">
+                    {item.label}
+                  </div>
+                  <div className="text-[9px] text-phorium-light/60">
+                    {item.size}
+                  </div>
+                  <div className="mt-1 flex flex-1 items-center justify-center overflow-hidden rounded-xl bg-phorium-dark">
                     <img
-                      src={item.imageUrl}
-                      alt="Historikkbilde"
-                      onClick={() => setFullscreenImage(item.imageUrl)}
-                      className="h-full w-full cursor-zoom-in object-cover transition hover:opacity-90"
+                      src={item.url}
+                      alt={item.label}
+                      className="h-full w-full object-cover"
                     />
                   </div>
-                  <div className="mt-2 flex gap-1.5">
-                    <button
-                      onClick={() => handleReusePrompt(item)}
-                      className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-full border border-phorium-off/40 bg-phorium-surface px-2 py-1.5 text-[11px] text-phorium-accent transition hover:border-phorium-accent"
-                    >
-                      <RotateCcw className="h-3.5 w-3.5" />
-                      Bruk igjen
-                    </button>
-                    <button
-                      onClick={() => handleUseStyle(item)}
-                      className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-full border border-phorium-off/40 bg-phorium-surface px-2 py-1.5 text-[11px] text-phorium-light/85 transition hover:border-phorium-accent"
-                    >
-                      <Palette className="h-3.5 w-3.5" />
-                      Bruk stil
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => setImageUrl(item.url)}
+                    className="mt-1 rounded-full border border-phorium-off/40 bg-phorium-surface px-2 py-1 text-[9px] text-phorium-accent transition hover:border-phorium-accent"
+                  >
+                    Vis i forhåndsvisning
+                  </button>
                 </div>
               ))}
             </div>
           </div>
-        </motion.div>
-      </section>
-    </main>
+        )}
+      </div>
+
+      {/* Historikk */}
+      <div className="mt-8 border-t border-phorium-off/30 pt-5">
+        <h2 className="mb-3 text-lg font-semibold text-phorium-accent">
+          Historikk (siste 3)
+        </h2>
+
+        {history.length === 0 && (
+          <p className="text-[12px] text-phorium-light/70">
+            Når du genererer bilder, lagres de her for rask gjenbruk.
+          </p>
+        )}
+
+        <div className="grid gap-4 md:grid-cols-3">
+          {history.map((item, index) => (
+            <div
+              key={item.createdAt + index}
+              className="flex flex-col gap-2 rounded-2xl border border-phorium-off/35 bg-phorium-dark p-3 text-[11px]"
+            >
+              <p className="min-h-[30px] line-clamp-2 font-semibold text-phorium-accent/90">
+                {item.prompt}
+              </p>
+              <div className="flex flex-1 items-center justify-center overflow-hidden rounded-xl bg-phorium-dark/80">
+                <img
+                  src={item.imageUrl}
+                  alt="Historikkbilde"
+                  onClick={() => setFullscreenImage(item.imageUrl)}
+                  className="h-full w-full cursor-zoom-in object-cover transition hover:opacity-90"
+                />
+              </div>
+              <div className="mt-2 flex gap-1.5">
+                <button
+  onClick={() => handleReusePrompt(item)}
+  className="btn btn-secondary btn-sm flex-1 inline-flex items-center justify-center gap-1"
+>
+  <RotateCcw className="h-3.5 w-3.5" />
+  Bruk igjen
+</button>
+<button
+  onClick={() => handleUseStyle(item)}
+  className="btn btn-ghost btn-sm flex-1 inline-flex items-center justify-center gap-1"
+>
+  <Palette className="h-3.5 w-3.5" />
+  Bruk stil
+</button>
+
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </motion.div>
   );
 }
 

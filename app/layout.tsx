@@ -31,7 +31,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="min-h-screen flex flex-col antialiased">
         <Navbar />
 
-        <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-10">
+        <main className="flex-1 w-full max-w-6xl mx-auto px-4 pt-10 pb-0">
           {children}
         </main>
 

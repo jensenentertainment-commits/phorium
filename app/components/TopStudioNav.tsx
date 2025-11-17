@@ -7,41 +7,46 @@ import { Home, FileText, Image as ImageIcon, Link2 } from "lucide-react";
 export default function TopStudioNav() {
   const pathname = usePathname();
 
-  // Hvilken side er aktiv?
   const isHub = pathname === "/studio";
   const isText = pathname.startsWith("/studio/text");
   const isVisuals = pathname.startsWith("/studio/visuals");
   const isConnect = pathname.startsWith("/studio/koble-nettbutikk");
 
-  const neutral =
-    "inline-flex items-center gap-2 rounded-full border border-[#1F3C3C] bg-[#0D2424] px-4 py-1.5 text-[12px] text-[#9FB9B9] transition hover:text-white hover:border-phorium-accent/60";
-  const activeCls =
-    "inline-flex items-center gap-2 rounded-full bg-phorium-accent px-4 py-1.5 text-[12px] font-semibold text-[#11140F] shadow-md shadow-phorium-accent/40 border border-phorium-accent";
-
   return (
-    <nav className="mb-8 flex flex-wrap gap-3">
-      <Link href="/studio" className={isHub ? activeCls : neutral}>
-        <Home className="h-3.5 w-3.5" />
-        Studio-oversikt
-      </Link>
+    <div className="mb-8 rounded-3xl border border-phorium-off/25 bg-phorium-surface px-5 py-4 shadow-[0_18px_70px_rgba(0,0,0,0.55)] flex justify-center">
+      <nav className="flex flex-wrap gap-3 items-center">
+        <Link
+          href="/studio"
+          className={`btn-tab ${isHub ? "btn-tab-active" : ""}`}
+        >
+          <Home />
+          Studio-oversikt
+        </Link>
 
-      <Link href="/studio/text" className={isText ? activeCls : neutral}>
-        <FileText className="h-3.5 w-3.5" />
-        Tekst
-      </Link>
+        <Link
+          href="/studio/text"
+          className={`btn-tab ${isText ? "btn-tab-active" : ""}`}
+        >
+          <FileText />
+          Tekst
+        </Link>
 
-      <Link href="/studio/visuals" className={isVisuals ? activeCls : neutral}>
-        <ImageIcon className="h-3.5 w-3.5" />
-        Visuals
-      </Link>
+        <Link
+          href="/studio/visuals"
+          className={`btn-tab ${isVisuals ? "btn-tab-active" : ""}`}
+        >
+          <ImageIcon />
+          Visuals
+        </Link>
 
-      <Link
-        href="/studio/koble-nettbutikk"
-        className={isConnect ? activeCls : neutral}
-      >
-        <Link2 className="h-3.5 w-3.5" />
-        Koble til nettbutikk
-      </Link>
-    </nav>
+        <Link
+          href="/studio/koble-nettbutikk"
+          className={`btn-tab ${isConnect ? "btn-tab-active" : ""}`}
+        >
+          <Link2 />
+          Koble til nettbutikk
+        </Link>
+      </nav>
+    </div>
   );
 }

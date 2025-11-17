@@ -96,9 +96,230 @@ h4 {
   box-shadow: var(--shadow-soft);
 }
 
+/* Studio Tab Buttons (Phorium) */
+/* ============================ */
+
+.btn-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+
+  padding: 0.4rem 0.95rem;
+  border-radius: 999px;
+
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.2;
+
+  background: transparent;
+  color: #c9d7d7;
+  border: 1px solid #1f3c3c;
+
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.btn-tab:hover {
+  border-color: var(--color-phorium-accent);
+  color: #fff;
+}
+
+/* AKTIV TAB */
+.btn-tab-active {
+  background: var(--color-phorium-accent);
+  border-color: var(--color-phorium-accent);
+  color: #11140f;
+  font-weight: 600;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+}
+
+.btn-tab-active:active {
+  transform: translateY(1px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+
+/* Ikon-håndtering (perfekt størrelse for tabs) */
+.btn-tab svg,
+.btn-tab-active svg {
+  width: 0.85rem;
+  height: 0.85rem;
+  margin-top: -1px;
+}
+
 /* ============================= */
-/* Phorium – knapper             */
+/*  CHIP / TAB-STIL FOR STUDIO   */
 /* ============================= */
+
+.btn-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+
+  padding: 0.45rem 1rem;
+  border-radius: 999px;
+
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.2;
+
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(200, 183, 122, 0.25);
+  color: #d5dfdf;
+
+  backdrop-filter: blur(4px);
+  transition: 
+      background-color 180ms ease,
+      border-color 180ms ease,
+      box-shadow 180ms ease,
+      color 180ms ease,
+      transform 120ms ease;
+}
+
+.btn-tab:hover {
+  background: rgba(200, 183, 122, 0.08);
+  border-color: rgba(200, 183, 122, 0.45);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+}
+
+.btn-tab:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.22);
+}
+
+
+/* ====== AKTIV CHIP ====== */
+
+.btn-tab-active {
+  background: var(--color-phorium-accent);
+  border-color: var(--color-phorium-accent);
+  color: #11140f;
+
+  box-shadow:
+    0 6px 18px rgba(0,0,0,0.33),
+    inset 0 0 6px rgba(255, 255, 255, 0.25);  /* chip shine */
+}
+
+.btn-tab-active:hover {
+  background: color-mix(in srgb, var(--color-phorium-accent) 92%, #ffffff);
+}
+
+.btn-tab-active:active {
+  transform: translateY(1px);
+  box-shadow:
+    0 4px 14px rgba(0,0,0,0.40),
+    inset 0 0 5px rgba(255, 255, 255, 0.18);
+}
+
+
+/* ====== ikon-størrelse ====== */
+
+.btn-tab svg,
+.btn-tab-active svg {
+  width: 0.9rem;
+  height: 0.9rem;
+  margin-top: -1px;
+}
+
+.btn-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+
+  font-size: 0.75rem;
+  font-weight: 500;
+
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(200, 183, 122, 0.2);
+  color: #d5dfdf;
+
+  backdrop-filter: blur(3px);
+  transition:
+    background-color 200ms ease,
+    border-color 200ms ease,
+    color 200ms ease,
+    box-shadow 200ms ease;
+}
+
+.btn-nav:hover {
+  background: rgba(200, 183, 122, 0.10);
+  border-color: rgba(200, 183, 122, 0.35);
+  color: #fff;
+}
+
+/* ========================================== */
+/*   NAVBAR CHIPS – LIGHT MODE (GLOW + POP)   */
+/* ========================================== */
+
+.btn-nav {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+
+  padding: 0.38rem 0.95rem;
+  border-radius: 999px;
+
+  font-size: 0.75rem;
+  font-weight: 500;
+
+  color: #4a453b;
+  background: rgba(255, 255, 255, 0.6);              /* mer synlig */
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  backdrop-filter: blur(6px);
+
+  box-shadow:
+    0 1px 1px rgba(255, 255, 255, 0.6) inset,        /* indre glow */
+    0 1px 2px rgba(0, 0, 0, 0.04);                   /* subtil base */
+
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 180ms ease,
+    transform 120ms ease;
+}
+
+/* Hover (GLASS POP) */
+.btn-nav:hover {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(0, 0, 0, 0.18);
+  color: #171613;
+
+  transform: translateY(-1px);                       /* løft */
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.12),
+    0 0 8px rgba(255, 255, 255, 0.6) inset;          /* indre glow */
+}
+
+/* Aktiv knapp */
+.btn-nav-active {
+  background: #1c241c;
+  color: #f5e9d8;
+  border-color: #1c241c;
+
+  box-shadow:
+    0 3px 10px rgba(0, 0, 0, 0.35),
+    inset 0 0 6px rgba(255, 255, 255, 0.25);          /* luksus */
+}
+
+.btn-nav-active:hover {
+  transform: translateY(-1px);
+  background: #151b15;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.4),
+    inset 0 0 7px rgba(255, 255, 255, 0.30);
+}
+
+/* ================================
+   Phorium – globale knapper
+   ================================ */
 
 .btn {
   display: inline-flex;
@@ -106,95 +327,155 @@ h4 {
   justify-content: center;
   gap: 0.4rem;
 
-  padding: 0.45rem 0.95rem;
+  padding: 0.55rem 1.15rem;
   border-radius: 999px;
+  border-width: 1px;
+  border-style: solid;
 
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   font-weight: 500;
-  line-height: 1.2;
-
-  border: 1px solid transparent;
-  cursor: pointer;
+  letter-spacing: 0.02em;
 
   transition:
-    background-color 150ms ease,
-    color 150ms ease,
-    border-color 150ms ease,
-    box-shadow 150ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease,
     transform 120ms ease;
 }
 
-/* Primær knapp (gull) */
+/* Primærknapp – gull, brukes til viktigste handling */
 .btn-primary {
-  background-color: var(--color-phorium-accent);
+  background: var(--color-phorium-accent);
+  border-color: var(--color-phorium-accent);
   color: #11140f;
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 14px 45px rgba(0, 0, 0, 0.45);
 }
 
 .btn-primary:hover {
-  background-color: color-mix(in srgb, var(--color-phorium-accent) 92%, #ffffff);
+  background: #d9c58b;
+  border-color: #d9c58b;
+  transform: translateY(-1px);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.65);
 }
 
 .btn-primary:active {
-  transform: translateY(1px);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45);
+  transform: translateY(0);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.45);
 }
 
-/* Sekundær / mørk knapp */
+/* Sekundærknapp – transparent, lys tekst, subtil kant */
 .btn-secondary {
-  background-color: #0d2424;
-  border-color: #1f3c3c;
-  color: #c9d7d7;
+  background: transparent;
+  border-color: rgba(200, 183, 122, 0.45);
+  color: var(--color-phorium-light);
 }
 
 .btn-secondary:hover {
-  border-color: var(--color-phorium-accent);
+  background: rgba(200, 183, 122, 0.10);
+  border-color: rgba(200, 183, 122, 0.75);
   color: #ffffff;
 }
 
-/* Outline-variant (bare kant) */
-.btn-outline {
-  background-color: transparent;
-  border-color: #1f3c3c;
-  color: #c9d7d7;
-}
-
-.btn-outline:hover {
-  border-color: var(--color-phorium-accent);
-  color: #ffffff;
-}
-
-/* Spesielt for "ghost" linker, f.eks. små tekstlenker */
+/* Ghost / lite støy – f.eks. små lenkeknapper */
 .btn-ghost {
-  background-color: transparent;
+  background: rgba(0, 0, 0, 0.12);
   border-color: transparent;
-  color: #c9d7d7;
+  color: var(--color-phorium-off);
 }
 
 .btn-ghost:hover {
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--color-phorium-light);
+}
+
+/* Størrelser – kan mikses inn ved behov */
+.btn-sm {
+  padding: 0.4rem 0.9rem;
+  font-size: 0.75rem;
+}
+
+.btn-lg {
+  padding: 0.7rem 1.4rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* ================================
+   Phorium – globale knapper
+   ================================ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+
+  padding: 0.5rem 1.1rem;
+  border-radius: 999px;
+  border-width: 1px;
+  border-style: solid;
+
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease,
+    transform 100ms ease;
+}
+
+/* Primærknapp – hoved-CTA */
+.btn-primary {
+  background: var(--color-phorium-accent);
+  border-color: var(--color-phorium-accent);
+  color: #11140f;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+}
+
+.btn-primary:hover {
+  background: #d9c58b;
+  border-color: #d9c58b;
+  transform: translateY(-1px);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.65);
+}
+
+/* Sekundær – outline, mer rolig */
+.btn-secondary {
+  background: transparent;
+  border-color: rgba(200, 183, 122, 0.55);
+  color: var(--color-phorium-light);
+}
+
+.btn-secondary:hover {
+  background: rgba(200, 183, 122, 0.12);
+  border-color: rgba(200, 183, 122, 0.9);
   color: #ffffff;
+}
+
+/* Ghost – nesten usynlig, til små knapper */
+.btn-ghost {
+  background: rgba(0, 0, 0, 0.12);
+  border-color: transparent;
+  color: var(--color-phorium-off);
+}
+
+.btn-ghost:hover {
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--color-phorium-light);
 }
 
 /* Størrelser */
 .btn-sm {
-  padding: 0.25rem 0.75rem;
+  padding: 0.35rem 0.8rem;
   font-size: 0.7rem;
 }
 
 .btn-lg {
-  padding: 0.6rem 1.2rem;
-  font-size: 0.8rem;
-}
-
-/* Ikoner i knapper */
-.btn-icon-left > svg {
-  width: 0.9rem;
-  height: 0.9rem;
-  margin-right: 0.25rem;
-}
-
-.btn-icon-right > svg {
-  width: 0.9rem;
-  height: 0.9rem;
-  margin-left: 0.25rem;
+  padding: 0.7rem 1.4rem;
+  font-size: 0.9rem;
+  font-weight: 600;
 }

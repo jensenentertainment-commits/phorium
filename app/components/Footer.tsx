@@ -1,74 +1,80 @@
+"use client";
+
 import Link from "next/link";
 
 export default function Footer() {
-  const year = new Date().getFullYear();
-
   return (
-    <footer className="mt-16 border-t border-phorium-off/25 bg-phorium-dark text-phorium-light/75">
-      <div className="mx-auto flex max-w-6xl flex-col gap-5 px-4 py-6 sm:flex-row sm:items-start sm:justify-between">
+    <footer
+      className="
+        mt-0 px-4 py-6
+        border-t border-phorium-off/25
+        bg-phorium-surface
+        text-phorium-dark
+        shadow-[0_-10px_40px_rgba(0,0,0,0.28)]
+      "
+    >
+      <div className="mx-auto w-full max-w-6xl flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between text-[12px]">
+        
         {/* Venstre side */}
-        <div className="space-y-2">
-          <p className="text-[11px] sm:text-[12px]">
-            © {year} Phorium. Bygget i Norge for nettbutikker, byråer og skapere.
-          </p>
-          <p className="text-[10px] sm:text-[11px] text-phorium-light/55">
-            Demo-versjon uten ekte innlogging og API. Først får vi på plass
-            flyt, design og struktur – så kommer motoren under panseret.
-          </p>
+        <div className="flex flex-col gap-1">
+          <span className="text-phorium-dark/70">
+            © {new Date().getFullYear()} Phorium — Bygget for norske nettbutikker. Utviklet av Jensen Digital
+          </span>
 
-          <p className="pt-1 text-[10px] text-phorium-light/45">
-            Utviklet av:{" "}
-            <span className="font-medium text-phorium-light/70">
-              Jensen Digital
-            </span>
-          </p>
+          {/* Retningslinjer */}
+          <div className="flex flex-wrap gap-4 text-phorium-dark/60">
+            <Link 
+              href="/personvern" 
+              className="transition hover:text-phorium-dark hover:underline underline-offset-2"
+            >
+              Personvern
+            </Link>
+
+            <Link 
+              href="/vilkar" 
+              className="transition hover:text-phorium-dark hover:underline underline-offset-2"
+            >
+              Vilkår
+            </Link>
+
+            <Link 
+              href="/retningslinjer" 
+              className="transition hover:text-phorium-dark hover:underline underline-offset-2"
+            >
+              Retningslinjer
+            </Link>
+
+            <Link 
+              href="/cookies" 
+              className="transition hover:text-phorium-dark hover:underline underline-offset-2"
+            >
+              Cookies
+            </Link>
+          </div>
         </div>
 
         {/* Høyre side */}
-        <div className="flex flex-wrap gap-3 text-[10px] sm:text-[11px] sm:justify-end">
-          <Link href="/" className="hover:text-phorium-accent transition-colors">
-            Forside
-          </Link>
-          <Link
-            href="/priser"
-            className="hover:text-phorium-accent transition-colors"
-          >
-            Priser
-          </Link>
-          <Link
-            href="/om"
-            className="hover:text-phorium-accent transition-colors"
+        <div className="flex gap-4 text-phorium-dark/70">
+          <Link 
+            href="/om" 
+            className="transition hover:text-phorium-dark hover:underline underline-offset-2"
           >
             Om
           </Link>
-          <Link
-            href="/guide"
-            className="hover:text-phorium-accent transition-colors"
-          >
-            Guide
-          </Link>
-          <Link
-            href="/studio"
-            className="hover:text-phorium-accent transition-colors"
-          >
-            Studio
-          </Link>
-          <Link
+
+          <Link 
             href="/kontakt"
-            className="hover:text-phorium-accent transition-colors"
+            className="transition hover:text-phorium-dark hover:underline underline-offset-2"
           >
             Kontakt
           </Link>
 
-          <Link
-  href="/personvern"
-  className="hover:text-[#C8B77A] transition-colors"
->
-  Personvern & vilkår
-</Link>
-
-
-  
+          <Link 
+            href="/priser"
+            className="transition hover:text-phorium-dark hover:underline underline-offset-2"
+          >
+            Priser
+          </Link>
         </div>
       </div>
     </footer>

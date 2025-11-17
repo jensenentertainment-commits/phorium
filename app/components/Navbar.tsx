@@ -57,25 +57,11 @@ export default function Navbar() {
               pathname === item.href ||
               (item.isApp && pathname.startsWith("/studio"));
 
-            const baseClasses =
-              "px-2 py-1 rounded-full transition-all whitespace-nowrap";
-
-            const activeClasses = item.isApp
-              ? "bg-phorium-dark text-white shadow-sm"
-              : "bg-phorium-dark text-white shadow-sm";
-
-            const inactiveClasses = item.isApp
-              ? "border border-phorium-off/40 text-[#3E3A30] hover:border-phorium-dark hover:bg-phorium-off/40 hover:text-phorium-dark"
-              : "text-[#3E3A30] hover:text-phorium-dark hover:bg-phorium-accent/60";
-
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={[
-                  baseClasses,
-                  active ? activeClasses : inactiveClasses,
-                ].join(" ")}
+                className={`btn-nav ${active ? "btn-nav-active" : ""}`}
               >
                 {item.label}
               </Link>
