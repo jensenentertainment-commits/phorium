@@ -50,10 +50,11 @@ export function middleware(req: NextRequest) {
     return res;
   }
 
-  // 5) Alle andre → til /maintenance
-  url.pathname = "/maintenance";
-  url.search = "";
-  return NextResponse.rewrite(url);
+  // 5) Alle andre → redirect til /maintenance
+url.pathname = "/maintenance";
+url.search = "";
+return NextResponse.redirect(url);
+
 }
 
 export const config = {
