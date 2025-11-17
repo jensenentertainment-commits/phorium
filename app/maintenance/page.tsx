@@ -1,96 +1,143 @@
-import type { Metadata } from "next";
-
-export const metadata: Metadata = {
-  title: "Phorium – kommer snart",
-  description: "Vi bygger en AI-plattform for norske nettbutikker.",
-};
+// app/maintenance/page.tsx
 
 export default function MaintenancePage() {
   return (
-    <main className="min-h-screen bg-[#131510] text-[#ECE8DA] flex items-center justify-center px-4">
-      <div className="relative w-full max-w-3xl mx-auto">
-        {/* Bakgrunnsglow */}
-        <div className="pointer-events-none absolute -inset-20 opacity-40 blur-3xl">
-          <div className="h-full w-full bg-[radial-gradient(circle_at_top,#C8B77A33_0,#131510_55%,#000000_100%)]" />
+    <main className="min-h-screen pb-20 bg-[#EEE3D3] flex items-center justify-center relative overflow-hidden">
+
+      {/* Store bakgrunnsblokken som matcher forsiden */}
+      <div className="absolute inset-0 bg-[#003F3C] rounded-b-[32px] sm:rounded-b-[42px] md:rounded-b-[60px]" />
+
+      {/* Glow som matcher forsiden */}
+      <div className="absolute inset-0 opacity-60 pointer-events-none">
+        <div className="absolute -top-64 left-1/2 -translate-x-1/2 w-[90vw] h-[90vw] bg-[#072E2B] blur-[140px] rounded-full" />
+      </div>
+
+      {/* Innhold */}
+      <div className="relative z-10 px-6 sm:px-10 w-full max-w-6xl mx-auto pt-28">
+
+        {/* Topp-tag */}
+        <div className="inline-flex items-center gap-2 mb-6 rounded-full border border-[#D6C07455] bg-[#072E2B] px-4 py-1 text-[11px] tracking-[0.22em] uppercase text-[#D6C074]">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#D6C074]" />
+          <span>AI bygget for norske nettbutikker</span>
         </div>
 
-        {/* Kort */}
-        <section className="relative border border-[#3B4032]/70 bg-[#1C2017]/95 backdrop-blur-sm rounded-3xl px-6 sm:px-10 py-10 sm:py-12 shadow-[0_0_60px_rgba(0,0,0,0.6)]">
-          {/* Topp-tag */}
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#C8B77A33] bg-[#11130E] px-3 py-1 text-[11px] tracking-[0.22em] uppercase text-[#C8B77A] mb-5">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#C8B77A]" />
-            <span>Phorium for nettbutikker</span>
+        {/* Heading */}
+        <h1 className="text-4xl sm:text-5xl md:text-6xl font-semibold leading-tight tracking-tight text-[#F5F2E7] mb-5 max-w-3xl">
+          Tekst og bannere som
+          <span className="block text-[#D6C074]">
+            snart er klare for butikken din
+          </span>
+        </h1>
+
+        {/* Intro */}
+        <p className="text-[#D9D5C8] text-lg max-w-2xl leading-relaxed mb-10">
+          Vi gjør klar neste versjon av Phorium – et fokusert AI-verktøy for norske nettbutikker.
+          Plattformen er midlertidig lukket mens vi tester med et lite utvalg butikker.
+        </p>
+
+        {/* 2-kolonners layout som minner om forsiden */}
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.4fr)] gap-8 items-start">
+
+          {/* Venstre side – “Hvorfor Phorium” */}
+          <div className="space-y-5 text-sm text-[#F5F2E7]/85">
+            <div className="space-y-2">
+              <p className="text-[11px] tracking-[0.22em] uppercase text-[#D9D5C8]">
+                HVORFOR PHORIUM?
+              </p>
+              <h2 className="text-xl font-semibold text-[#F5F2E7]">
+                Mindre tomme felter. Mer ferdig innhold.
+              </h2>
+            </div>
+
+            <ul className="space-y-3">
+              <li className="flex gap-3">
+                <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-[#D6C074]" />
+                <p>
+                  Produkttekster som er skrevet for å selge, ikke bare beskrive.
+                </p>
+              </li>
+              <li className="flex gap-3">
+                <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-[#D6C074]" />
+                <p>
+                  Bannere og kampanjebilder klare for bruk i Shopify og andre nettbutikker.
+                </p>
+              </li>
+              <li className="flex gap-3">
+                <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-[#D6C074]" />
+                <p>
+                  Norsk språk, norske referanser og trygg håndtering av merkevaren din.
+                </p>
+              </li>
+            </ul>
           </div>
 
-          {/* Heading */}
-          <h1 className="text-3xl sm:text-4xl md:text-[2.6rem] font-semibold tracking-tight leading-tight">
-            Vi skrur på neste generasjon
-            <span className="block text-[#C8B77A]">
-              AI-plattform for norske nettbutikker
-            </span>
-          </h1>
+          {/* Høyre side – kort + kodefelt */}
+          <div className="space-y-4">
+            {/* Kort som matcher hero-kortet på forsiden */}
+            <div className="rounded-3xl bg-[#072E2B]/95 border border-[#0B3835] shadow-[0_0_60px_rgba(0,0,0,0.45)] p-6 sm:p-7">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-[11px] tracking-[0.2em] uppercase text-[#D9D5C8]">
+                  Phorium status
+                </p>
+                <span className="px-3 py-1 rounded-full text-[10px] bg-[#EEE3D3]/10 text-[#EEE3D3] border border-[#EEE3D3]/20">
+                  Privat beta
+                </span>
+              </div>
 
-          {/* Intro */}
-          <p className="mt-4 text-sm sm:text-base text-[#ECE8DA]/75 max-w-xl">
-            Phorium er et fokusert AI-verktøy for nettbutikker som vil jobbe
-            raskere med tekst, bilder og kampanjer – uten å miste den norske
-            tonen på veien.
-          </p>
+              <div className="space-y-3 text-sm text-[#F5F2E7]/80">
+                <p>
+                  Phorium testes nå med et begrenset antall nettbutikker. Vi justerer språk,
+                  forslag og arbeidsflyt basert på ekte bruk i hverdagen.
+                </p>
+                <p>
+                  Når vi er fornøyde, åpner vi for flere – først invitert beta, deretter
+                  en bredere lansering i Norge.
+                </p>
+              </div>
+            </div>
 
-          {/* “Hva som kommer” */}
-          <div className="mt-7 grid gap-4 text-sm sm:text-[13px] text-[#ECE8DA]/80">
-            <div className="flex items-start gap-3">
-              <span className="mt-[4px] h-1.5 w-1.5 rounded-full bg-[#C8B77A]" />
-              <p>
-                <span className="font-medium text-[#ECE8DA]">Tekst som treffer. </span>
-                Produkttekster, kampanjer og e-postutkast tilpasset norske kunder –
-                på sekunder.
-              </p>
-            </div>
-            <div className="flex items-start gap-3">
-              <span className="mt-[4px] h-1.5 w-1.5 rounded-full bg-[#C8B77A]" />
-              <p>
-                <span className="font-medium text-[#ECE8DA]">Bilder og bannere klare for nettbutikk. </span>
-                Generer og tilpass kampanjebilder, headers og produktvisualer rettet mot nordisk design.
-              </p>
-            </div>
-            <div className="flex items-start gap-3">
-              <span className="mt-[4px] h-1.5 w-1.5 rounded-full bg-[#C8B77A]" />
-              <p>
-                <span className="font-medium text-[#ECE8DA]">Dyp Shopify-integrasjon. </span>
-                Phorium skal forstå butikken din – ikke bare prompten din.
+            {/* Kode-innlogging – matcher stil */}
+            <div className="rounded-3xl bg-[#072E2B]/90 border border-[#0B3835] p-5 sm:p-6 flex flex-col gap-4">
+              <div>
+                <p className="text-[11px] tracking-[0.2em] uppercase text-[#D9D5C8] mb-1">
+                  HAR DU FÅTT TILGANG?
+                </p>
+                <p className="text-sm text-[#F5F2E7]/85">
+                  Skriv inn tilgangskoden du har fått fra oss for å åpne Phorium.
+                </p>
+              </div>
+
+              <form
+                method="GET"
+                action="/"
+                className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center"
+              >
+                <input
+                  type="text"
+                  name="code"
+                  placeholder="Tilgangskode"
+                  className="flex-1 rounded-full border border-[#EEE3D3]/40 bg-[#031F1E] px-4 py-2 text-sm text-[#F5F2E7] placeholder:text-[#D9D5C8]/60 outline-none focus:border-[#D6C074] focus:ring-1 focus:ring-[#D6C074]/70"
+                  autoComplete="off"
+                />
+                <button
+                  type="submit"
+                  className="rounded-full px-5 py-2 text-sm font-medium bg-[#D6C074] text-[#17211C] hover:brightness-105 transition"
+                >
+                  Åpne Phorium
+                </button>
+              </form>
+
+              <p className="text-[11px] text-[#D9D5C8]/70">
+                Har du ikke fått kode ennå? Vi åpner for flere butikker senere.
               </p>
             </div>
           </div>
+        </div>
 
-          {/* Beta-info / glimt i øyet */}
-          <div className="mt-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="text-[11px] sm:text-xs text-[#ECE8DA]/70">
-              <p className="font-medium text-[#ECE8DA]">
-                Siden er midlertidig lukket mens vi tester internt.
-              </p>
-              <p className="mt-1">
-                Et lite utvalg butikker har tidlig tilgang.  
-                Resten av Norge slipper inn snart – vi lover å ikke bruke{" "}
-                <span className="italic">altfor</span> mange versjoner før lansering.
-              </p>
-            </div>
-
-            <div className="shrink-0 text-right text-[11px] sm:text-xs text-[#ECE8DA]/60">
-              <p className="uppercase tracking-[0.18em]">Status</p>
-              <p className="mt-1 font-medium text-[#C8B77A]">Under utvikling · Privat beta</p>
-            </div>
-          </div>
-
-          {/* Footer-linje */}
-          <div className="mt-8 pt-5 border-t border-[#3B4032]/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-[10px] sm:text-[11px] text-[#ECE8DA]/55">
-            <span>© {new Date().getFullYear()} Phorium. Bygget i Norge for nettbutikker.</span>
-            <span className="sm:text-right">
-              Har du fått beta-tilgang?  
-              <span className="ml-1 text-[#C8B77A]">Logg inn via din personlige lenke.</span>
-            </span>
-          </div>
-        </section>
+        {/* Liten footer-linje */}
+        <div className="text-[#F5F2E7]/50 text-xs mt-12">
+          © {new Date().getFullYear()} Phorium – under utvikling
+        </div>
       </div>
     </main>
   );

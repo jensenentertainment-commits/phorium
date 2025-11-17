@@ -1,7 +1,8 @@
+// middleware.ts (ligger i rotmappa, samme nivå som app/)
+
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-// Sider som skal være tilgjengelige selv når siden er låst
 const PUBLIC_PATHS = [
   "/maintenance",
   "/favicon.ico",
@@ -17,7 +18,13 @@ export function middleware(req: NextRequest) {
   const accessCookie = req.cookies.get("phorium_access")?.value;
   const codeFromUrl = searchParams.get("code");
 
-  // 1) Tillat statiske Next.js filer, bilder og offentlige ruter
+  // 1) Lokalt → alltid tilgang
+  const localHosts = ["localhost", "127.0.0.1", "::1"];
+  if (localHosts.includes(req.nextUrl.hostname)) {
+    return NextResponse.next();
+  }
+
+  // 2) Tillat statiske filer + maintenance
   if (
     PUBLIC_PATHS.includes(pathname) ||
     pathname.startsWith("/_next") ||
@@ -27,12 +34,12 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2) Hvis cookie er satt → full tilgang
+  // 3) Cookie → full tilgang
   if (accessCookie === "granted") {
     return NextResponse.next();
   }
 
-  // 3) Hvis riktig kode i URL → gi cookie og gi tilgang
+  // 4) Riktig kode i URL → sett cookie og slipp inn
   if (maintenanceCode && codeFromUrl === maintenanceCode) {
     const res = NextResponse.redirect(new URL("/", req.url));
     res.cookies.set("phorium_access", "granted", {
@@ -43,7 +50,7 @@ export function middleware(req: NextRequest) {
     return res;
   }
 
-  // 4) Ellers → send alle til maintenance
+  // 5) Alle andre → til /maintenance
   url.pathname = "/maintenance";
   url.search = "";
   return NextResponse.rewrite(url);
