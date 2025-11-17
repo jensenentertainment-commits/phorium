@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 const CHANGELOG_MESSAGES = [
   "Justerer promptmotoren for norske produktnavn.",
@@ -14,7 +14,7 @@ const CHANGELOG_MESSAGES = [
 const STATUS_MESSAGES = [
   "Klargjør skrivehumør …",
   "Laster butikkdata og produkttyper …",
-  "Tunings av overskrifter og undertitler …",
+  "Tuner overskrifter og undertitler …",
   "Fjerner overflødig buzzwords …",
   "Finpusser norsk grammatikk …",
   "Tester nye banner-layouts …",
@@ -27,7 +27,7 @@ export default function MaintenancePage() {
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [code, setCode] = useState("");
 
-  // Load attempts from localStorage (for litt humor ved flere forsøk)
+  // Les forsøk fra localStorage
   useEffect(() => {
     if (typeof window === "undefined") return;
     const stored = window.localStorage.getItem("phorium_attempts");
@@ -69,26 +69,20 @@ export default function MaintenancePage() {
     return () => clearInterval(interval);
   }, []);
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!code.trim()) return;
+  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    if (!code.trim()) {
+      e.preventDefault();
+      return;
+    }
 
-    // Oppdater lokal attempts (bare for jokes)
     const nextAttempts = attempts + 1;
     setAttempts(nextAttempts);
     if (typeof window !== "undefined") {
-      window.localStorage.setItem(
-        "phorium_attempts",
-        String(nextAttempts),
-      );
+      window.localStorage.setItem("phorium_attempts", String(nextAttempts));
     }
 
-    // Portal-effekt før redirect
+    // viser bare portal-effekten – lar browseren gjøre GET /?code=...
     setIsUnlocking(true);
-
-    setTimeout(() => {
-      window.location.href = `/?code=${encodeURIComponent(code.trim())}`;
-    }, 550);
   }
 
   const attemptsMessage =
@@ -102,7 +96,6 @@ export default function MaintenancePage() {
 
   return (
     <main className="min-h-screen pb-20 bg-[#EEE3D3] flex items-center justify-center relative overflow-hidden">
-
       {/* Store bakgrunnsblokken som matcher forsiden */}
       <div className="absolute inset-0 bg-[#003F3C] rounded-b-[32px] sm:rounded-b-[42px] md:rounded-b-[60px]" />
 
@@ -120,7 +113,6 @@ export default function MaintenancePage() {
 
       {/* Innhold */}
       <div className="relative z-10 px-6 sm:px-10 w-full max-w-6xl mx-auto pt-28">
-
         {/* Topp-tag */}
         <div className="inline-flex items-center gap-2 mb-6 rounded-full border border-[#D6C07455] bg-[#072E2B] px-4 py-1 text-[11px] tracking-[0.22em] uppercase text-[#D6C074]">
           <span className="h-1.5 w-1.5 rounded-full bg-[#D6C074]" />
@@ -137,8 +129,9 @@ export default function MaintenancePage() {
 
         {/* Intro */}
         <p className="text-[#D9D5C8] text-lg max-w-2xl leading-relaxed mb-8">
-          Vi gjør klar neste versjon av Phorium – et fokusert AI-verktøy for norske nettbutikker.
-          Plattformen er midlertidig lukket mens vi tester med et lite utvalg butikker.
+          Vi gjør klar neste versjon av Phorium – et fokusert AI-verktøy for
+          norske nettbutikker. Plattformen er midlertidig lukket mens vi tester
+          med et lite utvalg butikker.
         </p>
 
         {/* Liten “Hva jobber vi med nå?”-linje */}
@@ -154,7 +147,6 @@ export default function MaintenancePage() {
 
         {/* 2-kolonners layout */}
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.4fr)] gap-8 items-start">
-
           {/* Venstre: “Hvorfor Phorium” */}
           <div className="space-y-5 text-sm text-[#F5F2E7]/85">
             <div className="space-y-2">
@@ -170,19 +162,22 @@ export default function MaintenancePage() {
               <li className="flex gap-3">
                 <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-[#D6C074]" />
                 <p>
-                  Produkttekster som er skrevet for å selge, ikke bare beskrive.
+                  Produkttekster som er skrevet for å selge, ikke bare
+                  beskrive.
                 </p>
               </li>
               <li className="flex gap-3">
                 <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-[#D6C074]" />
                 <p>
-                  Bannere og kampanjebilder klare for bruk i Shopify og andre nettbutikker.
+                  Bannere og kampanjebilder klare for bruk i Shopify og andre
+                  nettbutikker.
                 </p>
               </li>
               <li className="flex gap-3">
                 <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-[#D6C074]" />
                 <p>
-                  Norsk språk, norske referanser og trygg håndtering av merkevaren din.
+                  Norsk språk, norske referanser og trygg håndtering av
+                  merkevaren din.
                 </p>
               </li>
             </ul>
@@ -215,12 +210,13 @@ export default function MaintenancePage() {
 
               <div className="space-y-3 text-sm text-[#F5F2E7]/80">
                 <p>
-                  Phorium testes nå med et begrenset antall nettbutikker. Vi justerer språk,
-                  forslag og arbeidsflyt basert på ekte bruk i hverdagen.
+                  Phorium testes nå med et begrenset antall nettbutikker. Vi
+                  justerer språk, forslag og arbeidsflyt basert på ekte bruk i
+                  hverdagen.
                 </p>
                 <p>
-                  Når vi er fornøyde, åpner vi for flere – først invitert beta, deretter
-                  en bredere lansering i Norge.
+                  Når vi er fornøyde, åpner vi for flere – først invitert beta,
+                  deretter en bredere lansering i Norge.
                 </p>
               </div>
             </div>
@@ -232,11 +228,14 @@ export default function MaintenancePage() {
                   HAR DU FÅTT TILGANG?
                 </p>
                 <p className="text-sm text-[#F5F2E7]/85">
-                  Skriv inn tilgangskoden du har fått fra oss for å åpne Phorium.
+                  Skriv inn tilgangskoden du har fått fra oss for å åpne
+                  Phorium.
                 </p>
               </div>
 
               <form
+                method="GET"
+                action="/"
                 onSubmit={handleSubmit}
                 className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center"
               >
@@ -259,7 +258,9 @@ export default function MaintenancePage() {
               </form>
 
               {attemptsMessage && (
-                <p className="text-[11px] text-[#D9D5C8]/75">{attemptsMessage}</p>
+                <p className="text-[11px] text-[#D9D5C8]/75">
+                  {attemptsMessage}
+                </p>
               )}
             </div>
           </div>
@@ -267,7 +268,7 @@ export default function MaintenancePage() {
 
         {/* Liten footer-linje */}
         <div className="text-[#F5F2E7]/50 text-xs mt-12">
-          © {new Date().getFullYear()} Phorium – under utvikling av Jensen Digital
+          © {new Date().getFullYear()} Phorium – under utvikling
         </div>
       </div>
     </main>
