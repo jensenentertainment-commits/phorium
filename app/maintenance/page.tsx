@@ -267,7 +267,7 @@ export default function MaintenancePage() {
 
         {/* Liten footer-linje */}
         <div className="text-[#F5F2E7]/50 text-xs mt-12">
-          © {new Date().getFullYear()} Phorium – under utvikling
+          © {new Date().getFullYear()} Phorium – under utvikling av Jensen Digital
         </div>
       </div>
     </main>
