@@ -1,8 +1,5 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabaseClient";
-import { getShopifySession } from "@/lib/shopifySession";
-
-const SHOPIFY_API_VERSION = "2024-01";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -41,26 +38,43 @@ export async function GET(req: Request) {
     );
   }
 
-  // 👉 Lagre i Supabase
-  const { error: dbError } = await supabase
-    .from("connected_stores")
-    .upsert({
-      shop,
-      access_token: tokenData.access_token,
-      installed_at: new Date().toISOString(),
-    });
+  // 👉 Prøv å lagre i Supabase – men ikke stopp hvis det feiler
+  try {
+    const { error: dbError } = await supabase
+      .from("connected_stores")
+      .upsert({
+        shop,
+        access_token: tokenData.access_token,
+        installed_at: new Date().toISOString(),
+      });
 
-  if (dbError) {
-    console.error("DB SAVE ERROR:", dbError);
-    return NextResponse.json(
-      { error: "Failed to save store connection" },
-      { status: 500 }
-    );
+    if (dbError) {
+      console.error("DB SAVE ERROR (ignoreres i MVP):", dbError);
+    }
+  } catch (err) {
+    console.error("DB EXCEPTION (ignoreres i MVP):", err);
   }
 
   console.log("SHOPIFY ACCESS TOKEN:", tokenData.access_token);
 
-  return NextResponse.redirect(
-    `${process.env.SHOPIFY_APP_URL}/studio/koble-nettbutikk?connected=1`
-  );
+  // 👉 Sett cookies som /api/shopify/products kan lese
+  const isProd = process.env.NODE_ENV === "production";
+  const redirectUrl = `${process.env.SHOPIFY_APP_URL}/studio/koble-nettbutikk?connected=1`;
+  const response = NextResponse.redirect(redirectUrl);
+
+  response.cookies.set("phorium_shop", shop, {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: "lax",
+    path: "/",
+  });
+
+  response.cookies.set("phorium_token", tokenData.access_token, {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: "lax",
+    path: "/",
+  });
+
+  return response;
 }

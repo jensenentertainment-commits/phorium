@@ -1,5 +1,5 @@
 // lib/shopifySession.ts
-import { supabase } from "@/lib/supabaseClient";
+import { cookies } from "next/headers";
 
 export type ShopifySession = {
   shop: string;
@@ -7,31 +7,20 @@ export type ShopifySession = {
 };
 
 /**
- * Henter siste tilkoblede Shopify-butikk fra connected_stores.
- * Foreløpig antar vi én butikk.
+ * Leser Shopify-session fra cookies.
+ * Settes i /api/shopify/callback etter OAuth.
  */
 export async function getShopifySession(): Promise<ShopifySession | null> {
-  const { data, error } = await supabase
-    .from("connected_stores")
-    .select("shop, access_token, installed_at")
-    .order("installed_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const cookieStore = cookies();
+  const shop = cookieStore.get("phorium_shop")?.value;
+  const accessToken = cookieStore.get("phorium_token")?.value;
 
-  if (error) {
-    console.error(
-      "Feil ved henting av Shopify-session fra Supabase:",
-      error
-    );
-    return null;
-  }
-
-  if (!data?.shop || !data?.access_token) {
+  if (!shop || !accessToken) {
     return null;
   }
 
   return {
-    shop: data.shop,
-    accessToken: data.access_token,
+    shop,
+    accessToken,
   };
 }

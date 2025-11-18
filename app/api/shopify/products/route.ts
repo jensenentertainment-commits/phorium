@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getShopifySession } from "@/lib/shopifySessions";
+import { getShopifySession } from "@/lib/shopifySession";
 
 const SHOPIFY_API_VERSION = "2024-01";
 
@@ -11,9 +11,10 @@ export async function GET(req: Request) {
       return NextResponse.json(
         {
           success: false,
-          error: "Ingen tilkoblet Shopify-butikk funnet (connected_stores er tom).",
+          error:
+            "Ingen aktiv Shopify-tilkobling. Koble til nettbutikk på nytt via Phorium Studio.",
         },
-        { status: 401 },
+        { status: 401 }
       );
     }
 
@@ -26,7 +27,7 @@ export async function GET(req: Request) {
     params.set("limit", String(Math.min(Math.max(limit, 1), 50)));
     params.set(
       "fields",
-      "id,title,handle,status,created_at,updated_at,variants,image,images",
+      "id,title,handle,status,created_at,updated_at,variants,image,images"
     );
 
     const url = `https://${shop}/admin/api/${SHOPIFY_API_VERSION}/products.json?${params.toString()}`;
@@ -49,7 +50,7 @@ export async function GET(req: Request) {
           status: res.status,
           details: text.slice(0, 300),
         },
-        { status: 500 },
+        { status: 500 }
       );
     }
 
@@ -88,7 +89,7 @@ export async function GET(req: Request) {
         error: "Uventet feil ved henting av produkter.",
         details: err?.message,
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
