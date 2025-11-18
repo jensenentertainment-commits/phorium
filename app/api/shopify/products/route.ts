@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getShopifySession } from "@/app/lib/shopifySession";
+import { getShopifySession } from "@/lib/shopifySessions";
 
 const SHOPIFY_API_VERSION = "2024-01";
 

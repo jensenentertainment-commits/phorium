@@ -1,4 +1,4 @@
-// app/lib/shopifySession.ts
+// lib/shopifySession.ts
 import { supabase } from "@/lib/supabaseClient";
 
 export type ShopifySession = {
@@ -7,8 +7,8 @@ export type ShopifySession = {
 };
 
 /**
- * Henter siste tilkoblede butikk fra connected_stores.
- * For nå antar vi at det kun er én butikk per Phorium-bruker.
+ * Henter siste tilkoblede Shopify-butikk fra connected_stores.
+ * Foreløpig antar vi én butikk.
  */
 export async function getShopifySession(): Promise<ShopifySession | null> {
   const { data, error } = await supabase
@@ -19,7 +19,10 @@ export async function getShopifySession(): Promise<ShopifySession | null> {
     .maybeSingle();
 
   if (error) {
-    console.error("Feil ved henting av Shopify-session fra Supabase:", error);
+    console.error(
+      "Feil ved henting av Shopify-session fra Supabase:",
+      error
+    );
     return null;
   }
 
