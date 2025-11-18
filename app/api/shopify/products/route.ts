@@ -1,24 +1,35 @@
 import { NextResponse } from "next/server";
-import { getShopifySession } from "@/lib/shopifySession";
 
 const SHOPIFY_API_VERSION = "2024-01";
 
+function getCookieFromHeader(
+  header: string | null,
+  name: string,
+): string | null {
+  if (!header) return null;
+  const cookies = header.split(";").map((c) => c.trim());
+  const match = cookies.find((c) => c.startsWith(name + "="));
+  if (!match) return null;
+  return decodeURIComponent(match.split("=").slice(1).join("="));
+}
+
 export async function GET(req: Request) {
   try {
-    const session = await getShopifySession();
+    // 👇 Les cookies direkte fra requesten
+    const cookieHeader = req.headers.get("cookie");
+    const shop = getCookieFromHeader(cookieHeader, "phorium_shop");
+    const accessToken = getCookieFromHeader(cookieHeader, "phorium_token");
 
-    if (!session) {
+    if (!shop || !accessToken) {
       return NextResponse.json(
         {
           success: false,
           error:
             "Ingen aktiv Shopify-tilkobling. Koble til nettbutikk på nytt via Phorium Studio.",
         },
-        { status: 401 }
+        { status: 401 },
       );
     }
-
-    const { shop, accessToken } = session;
 
     const { searchParams } = new URL(req.url);
     const limit = Number(searchParams.get("limit") ?? "20");
@@ -27,7 +38,7 @@ export async function GET(req: Request) {
     params.set("limit", String(Math.min(Math.max(limit, 1), 50)));
     params.set(
       "fields",
-      "id,title,handle,status,created_at,updated_at,variants,image,images"
+      "id,title,handle,status,created_at,updated_at,variants,image,images",
     );
 
     const url = `https://${shop}/admin/api/${SHOPIFY_API_VERSION}/products.json?${params.toString()}`;
@@ -50,7 +61,7 @@ export async function GET(req: Request) {
           status: res.status,
           details: text.slice(0, 300),
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -89,7 +100,7 @@ export async function GET(req: Request) {
         error: "Uventet feil ved henting av produkter.",
         details: err?.message,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
