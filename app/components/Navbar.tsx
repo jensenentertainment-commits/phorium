@@ -38,17 +38,22 @@ export default function Navbar() {
       className={[
         "fixed top-0 left-0 right-0 z-40 border-b bg-[#F5E9D8]/90 backdrop-blur-xl transition-shadow",
         "border-phorium-off/30",
-        scrolled ? "shadow-[0_4px_18px_rgba(0,0,0,0.08)]" : "shadow-none",
+        scrolled ? "shadow-[0_4px_18px_rgba(0,0,0,0.18)]" : "shadow-none",
       ].join(" ")}
     >
       <nav className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group">
-          <div className="h-6 w-6 rounded-full bg-phorium-dark shadow-[0_0_0_2px_rgba(28,31,24,0.12)] transition-transform group-hover:scale-[1.05]" />
-          <span className="text-sm font-semibold uppercase tracking-[0.14em] text-phorium-dark">
-            Phorium
-          </span>
-        </Link>
+  <img
+    src="/favicon.ico"
+    alt="Phorium logo"
+    className="h-10 w-10 object-contain transition-transform group-hover:scale-[1.05]"
+  />
+  <span className="text-sm font-semibold uppercase tracking-[0.14em] text-phorium-dark">
+    Phorium
+  </span>
+</Link>
+
 
         {/* Desktop-nav */}
         <div className="hidden items-center gap-3 text-[12px] sm:flex">

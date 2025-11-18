@@ -13,7 +13,7 @@
   --color-phorium-off: #DCD8CA;
 
   /* Bakgrunn / foreground for hele siden */
-  --color-background: #F5E9D8;
+  --color-background: #1A4242;
   --color-foreground: #11140F;
 
   /* Overflate til kort/sekjoner (kan brukes i Studio) */
@@ -478,4 +478,54 @@ h4 {
   padding: 0.7rem 1.4rem;
   font-size: 0.9rem;
   font-weight: 600;
+}
+
+/* Globale knapper i navbaren */
+.btn-nav {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0.35rem 0.9rem; /* litt slankere */
+  border-radius: 9999px;
+
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+
+  background: transparent;              /* går i ett med navbaren */
+  color: #3E3A30;
+  border: 0px solid transparent;        /* ingen synlig kant */
+
+  transition:
+    background-color 150ms ease,
+    color 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    transform 150ms ease;
+}
+
+/* “Løft” ved hover */
+.btn-nav:hover {
+  background: #f7edde;                  /* nesten lik navbar, men bittelitt lysere */
+  border-color: rgba(24, 27, 21, 0.08); /* subtil kant */
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.10);
+  transform: translateY(-1px);          /* løfter seg litt ut */
+}
+
+/* Aktiv side – ser ut som den allerede er løftet ut */
+.btn-nav-active {
+  background: #181B15;                  /* phorium-dark */
+  color: #F5E9D8;                       /* phorium-light */
+  border-color: rgba(24, 27, 21, 0.35);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22);
+  transform: translateY(-1px);
+}
+
+/* Litt ekstra respons ved hover selv om den er aktiv */
+.btn-nav-active:hover {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.26);
 }

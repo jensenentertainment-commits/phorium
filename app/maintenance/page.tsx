@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 
 const CHANGELOG_MESSAGES = [
   "Justerer promptmotoren for norske produktnavn.",
@@ -23,19 +23,6 @@ const STATUS_MESSAGES = [
 export default function MaintenancePage() {
   const [changelog, setChangelog] = useState(CHANGELOG_MESSAGES[0]);
   const [statusText, setStatusText] = useState(STATUS_MESSAGES[0]);
-  const [attempts, setAttempts] = useState(0);
-  const [isUnlocking, setIsUnlocking] = useState(false);
-  const [code, setCode] = useState("");
-
-  // Les forsøk fra localStorage
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const stored = window.localStorage.getItem("phorium_attempts");
-    if (stored) {
-      const n = Number(stored);
-      if (!Number.isNaN(n)) setAttempts(n);
-    }
-  }, []);
 
   // Roterende changelog-linje
   useEffect(() => {
@@ -69,31 +56,6 @@ export default function MaintenancePage() {
     return () => clearInterval(interval);
   }, []);
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    if (!code.trim()) {
-      e.preventDefault();
-      return;
-    }
-
-    const nextAttempts = attempts + 1;
-    setAttempts(nextAttempts);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("phorium_attempts", String(nextAttempts));
-    }
-
-    // viser bare portal-effekten – lar browseren gjøre GET /?code=...
-    setIsUnlocking(true);
-  }
-
-  const attemptsMessage =
-    attempts >= 5
-      ? "Du liker tydeligvis å prøve deg. AI-en heier på deg, men koden må fortsatt være riktig 😅"
-      : attempts >= 3
-      ? "Ikke riktig kode ennå. Caps Lock er av, sant?"
-      : attempts >= 1
-      ? "Hvis koden ikke fungerer, gi oss et hint – eller sjekk at du skrev den helt likt."
-      : "";
-
   return (
     <main className="min-h-screen pb-20 bg-[#EEE3D3] flex items-center justify-center relative overflow-hidden">
       {/* Store bakgrunnsblokken som matcher forsiden */}
@@ -103,13 +65,6 @@ export default function MaintenancePage() {
       <div className="absolute inset-0 opacity-60 pointer-events-none">
         <div className="absolute -top-64 left-1/2 -translate-x-1/2 w-[90vw] h-[90vw] bg-[#072E2B] blur-[140px] rounded-full animate-[pulse_16s_ease-in-out_infinite]" />
       </div>
-
-      {/* Unlock-portal overlay */}
-      {isUnlocking && (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/70 z-20">
-          <div className="w-40 h-40 sm:w-56 sm:h-56 rounded-full border border-[#D6C074] shadow-[0_0_60px_rgba(214,192,116,0.8)] animate-[ping_0.6s_ease-out_1]" />
-        </div>
-      )}
 
       {/* Innhold */}
       <div className="relative z-10 px-6 sm:px-10 w-full max-w-6xl mx-auto pt-28">
@@ -195,9 +150,9 @@ export default function MaintenancePage() {
             </div>
           </div>
 
-          {/* Høyre: statuskort + kodefelt */}
+          {/* Høyre: statuskort + “Hva kommer” */}
           <div className="space-y-4">
-            {/* Kort */}
+            {/* Kort: Phorium status */}
             <div className="rounded-3xl bg-[#072E2B]/95 border border-[#0B3835] shadow-[0_0_60px_rgba(0,0,0,0.45)] p-6 sm:p-7">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-[11px] tracking-[0.2em] uppercase text-[#D9D5C8]">
@@ -221,54 +176,36 @@ export default function MaintenancePage() {
               </div>
             </div>
 
-            {/* Kode-innlogging */}
+            {/* Kort: Hva som kommer */}
             <div className="rounded-3xl bg-[#072E2B]/90 border border-[#0B3835] p-5 sm:p-6 flex flex-col gap-4">
               <div>
                 <p className="text-[11px] tracking-[0.2em] uppercase text-[#D9D5C8] mb-1">
-                  HAR DU FÅTT TILGANG?
+                  HVA SOM KOMMER
                 </p>
                 <p className="text-sm text-[#F5F2E7]/85">
-                  Skriv inn tilgangskoden du har fått fra oss for å åpne
-                  Phorium.
+                  Fokus er på å gjøre det enkelt å gå fra “tomt felt” til ferdige tekster
+                  og bannere – uten at det føles som ren AI-generisk tekst.
                 </p>
               </div>
 
-              <form
-                method="GET"
-                action="/"
-                onSubmit={handleSubmit}
-                className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center"
-              >
-                <input
-                  type="text"
-                  name="code"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  placeholder="Tilgangskode"
-                  className="flex-1 rounded-full border border-[#EEE3D3]/40 bg-[#031F1E] px-4 py-2 text-sm text-[#F5F2E7] placeholder:text-[#D9D5C8]/60 outline-none focus:border-[#D6C074] focus:ring-2 focus:ring-[#D6C074]/60 transition-shadow"
-                  autoComplete="off"
-                />
-                <button
-                  type="submit"
-                  className="rounded-full px-5 py-2 text-sm font-medium bg-[#D6C074] text-[#17211C] hover:brightness-105 transition disabled:opacity-60 disabled:cursor-not-allowed"
-                  disabled={!code.trim() || isUnlocking}
-                >
-                  Åpne Phorium
-                </button>
-              </form>
+              <ul className="space-y-2 text-sm text-[#F5F2E7]/80">
+                <li>• Egen modul for produkttekst og kategoritekst.</li>
+                <li>• Generering av kampanjebannere til nettbutikk.</li>
+                <li>• Bedre forståelse av din merkevare og tone-of-voice.</li>
+                <li>• Fokusert på norske butikker og norsk språk.</li>
+              </ul>
 
-              {attemptsMessage && (
-                <p className="text-[11px] text-[#D9D5C8]/75">
-                  {attemptsMessage}
-                </p>
-              )}
+              <p className="text-[11px] text-[#D9D5C8]/75">
+                Når vi er klare for flere testbutikker, vil vi annonsere det
+                via Phorium og direkte til utvalgte samarbeidspartnere.
+              </p>
             </div>
           </div>
         </div>
 
         {/* Liten footer-linje */}
         <div className="text-[#F5F2E7]/50 text-xs mt-12">
-          © {new Date().getFullYear()} Phorium – under utvikling
+          © {new Date().getFullYear()} Phorium – under utvikling av Jensen Digital
         </div>
       </div>
     </main>
