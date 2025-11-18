@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabaseClient";
+import { getShopifySession } from "@/lib/shopifySession";
 
+const SHOPIFY_API_VERSION = "2024-01";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
