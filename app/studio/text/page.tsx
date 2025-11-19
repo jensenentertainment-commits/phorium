@@ -5,6 +5,19 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Copy, Check, RotateCcw } from "lucide-react";
 import { useSearchParams } from "next/navigation";
+type ShopifyProduct = {
+  id: number;
+  title: string;
+  handle: string;
+  image?: { src: string };
+};
+
+const searchParams = useSearchParams();
+const productIdFromUrl = searchParams.get("productId");
+
+const [linkedProduct, setLinkedProduct] = useState<ShopifyProduct | null>(null);
+const [productLoading, setProductLoading] = useState(false);
+const [productError, setProductError] = useState<string | null>(null);
 
 
 type HistoryItem = {
@@ -82,6 +95,35 @@ export default function PhoriumTextPage() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+  if (!productIdFromUrl) return;
+
+  async function fetchProduct() {
+    try {
+      setProductLoading(true);
+      setProductError(null);
+
+      const res = await fetch(`/api/shopify/product?id=${productIdFromUrl}`, {
+        cache: "no-store",
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        throw new Error(data.error || "Kunne ikke hente produkt.");
+      }
+
+      setLinkedProduct(data.product);
+    } catch (err: any) {
+      setProductError(err?.message || "Feil ved henting av produkt.");
+    } finally {
+      setProductLoading(false);
+    }
+  }
+
+  fetchProduct();
+}, [productIdFromUrl]);
+
 
   // Hent historikk + sjekk om nettbutikk er koblet
   useEffect(() => {
@@ -219,6 +261,45 @@ export default function PhoriumTextPage() {
             </p>
           )}
         </div>
+
+{productIdFromUrl && (
+  <div className="mt-4 mb-5 rounded-xl border border-[#A39C84]/40 bg-[#11140F] px-3 py-3 text-[12px]">
+    {productLoading && (
+      <p className="text-[#ECE8DA]/80">
+        Henter produktdata fra Shopify …
+      </p>
+    )}
+
+    {productError && (
+      <p className="text-red-300">
+        Klarte ikke å hente produkt: {productError}
+      </p>
+    )}
+
+    {linkedProduct && !productLoading && (
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="text-[11px] text-[#ECE8DA]/60">
+            Jobber mot produkt:
+          </div>
+          <div className="text-[13px] font-semibold text-[#C8B77A]">
+            {linkedProduct.title}
+          </div>
+          <div className="text-[11px] text-[#ECE8DA]/60">
+            Handle: {linkedProduct.handle} · ID: {linkedProduct.id}
+          </div>
+        </div>
+        {linkedProduct.image?.src && (
+          <img
+            src={linkedProduct.image.src}
+            alt={linkedProduct.title}
+            className="h-12 w-12 rounded-lg border border-[#A39C84]/40 object-cover"
+          />
+        )}
+      </div>
+    )}
+  </div>
+)}
 
         {/* Kredittindikator (dummy) */}
         <div className="mt-6 sm:mt-0">
