@@ -10,40 +10,64 @@ import {
   ChevronRight,
 } from "lucide-react";
 
-function StoreConnectionBadge() {
-  const [connected, setConnected] = React.useState(false);
-  const [label, setLabel] = React.useState("");
+type StatusResponse = {
+  connected: boolean;
+  shop?: string;
+};
+
+export default function DashboardHubPage() {
+  const [status, setStatus] = React.useState<StatusResponse | null>(null);
+  const [statusLoading, setStatusLoading] = React.useState(true);
 
   React.useEffect(() => {
-    try {
-      const raw = localStorage.getItem("phorium_store_profile");
-      if (!raw) return;
-      const data = JSON.parse(raw);
-      if (data?.url) {
-        setConnected(true);
-        setLabel(`${data.platform || "Butikk"} · ${data.url}`);
+    async function fetchStatus() {
+      try {
+        const res = await fetch("/api/shopify/status", { cache: "no-store" });
+        if (!res.ok) throw new Error("Status-feil");
+        const data: StatusResponse = await res.json();
+        setStatus(data);
+      } catch {
+        setStatus({ connected: false });
+      } finally {
+        setStatusLoading(false);
       }
-    } catch {}
+    }
+
+    fetchStatus();
   }, []);
 
-  if (connected) {
+  // Lager en badge basert på status (samme stil som før, men nå live)
+  function renderStatusBadge() {
+    if (statusLoading) {
+      return (
+        <div className="inline-flex items-center gap-2 rounded-full border border-phorium-off/40 bg-phorium-dark px-3 py-1.5 text-[11px] text-phorium-light/80">
+          <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-yellow-400/80 shadow-[0_0_8px_rgba(255,255,0,0.6)]" />
+          <span>Sjekker Shopify-tilkobling …</span>
+        </div>
+      );
+    }
+
+    if (status?.connected && status.shop) {
+      return (
+        <div className="inline-flex items-center gap-2 rounded-full border border-phorium-accent/60 bg-phorium-accent/15 px-3 py-1.5 text-[11px] text-phorium-accent/95">
+          <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.7)]" />
+          <span className="font-semibold">Nettbutikk koblet</span>
+          <span className="text-phorium-light/90">
+            Shopify · {status.shop}
+          </span>
+        </div>
+      );
+    }
+
     return (
-      <div className="inline-flex items-center gap-2 rounded-full border border-phorium-accent/60 bg-phorium-accent/15 px-3 py-1.5 text-[11px] text-phorium-accent/95">
-        <span>✅ Nettbutikk koblet</span>
-        <span className="text-phorium-light/90">{label}</span>
+      <div className="inline-flex items-center gap-2 rounded-full border border-phorium-off/40 bg-phorium-dark px-3 py-1.5 text-[11px] text-phorium-light/80">
+        <span className="h-2.5 w-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.7)]" />
+        <span className="font-semibold">Ikke koblet</span>
+        <span className="opacity-80">Koble til for best resultater</span>
       </div>
     );
   }
 
-  return (
-    <div className="inline-flex items-center gap-2 rounded-full border border-phorium-off/40 bg-phorium-dark px-3 py-1.5 text-[11px] text-phorium-light/80">
-      <span>🟠 Ikke koblet</span>
-      <span className="opacity-80">Koble til for best resultater</span>
-    </div>
-  );
-}
-
-export default function DashboardHubPage() {
   return (
     <>
       {/* Header */}
@@ -53,14 +77,17 @@ export default function DashboardHubPage() {
             Phorium Studio
           </h1>
           <p className="mt-1 text-[13px] text-phorium-light/80 sm:text-[14px]">
-            Hub for alt innhold: norsk tekst, bannere, produktscener — tunet for nettbutikker.
+            Hub for alt innhold: norsk tekst, bannere, produktscener — tunet for
+            nettbutikker.
           </p>
         </div>
 
         {/* Høyreside: status + kreditter */}
         <div className="flex flex-col items-start gap-2 sm:items-end">
-          <StoreConnectionBadge />
-          <div className="text-[11px] text-phorium-accent/90">Kreditter igjen</div>
+          {renderStatusBadge()}
+          <div className="text-[11px] text-phorium-accent/90">
+            Kreditter igjen
+          </div>
           <div className="text-[14px]">
             <span className="font-semibold text-phorium-light">994</span>
             <span className="text-phorium-light/55"> / 1000</span>
@@ -95,7 +122,8 @@ export default function DashboardHubPage() {
                   Phorium Tekst
                 </h2>
                 <p className="mt-1 text-[13px] text-phorium-light/80">
-                  Produkt- og kategoritekster på norsk, med meta-felt og riktig tone.
+                  Produkt- og kategoritekster på norsk, med meta-felt og riktig
+                  tone.
                 </p>
               </div>
             </div>
@@ -133,25 +161,20 @@ export default function DashboardHubPage() {
         </Link>
       </div>
 
-     {/* CTA */}
-<div className="flex flex-wrap items-center gap-3">
-  <Link
-    href="/studio/koble-nettbutikk"
-    className="btn btn-primary btn-lg inline-flex items-center gap-2"
-  >
-    <Link2 className="h-4 w-4" />
-    Koble til nettbutikk
-  </Link>
+      {/* CTA */}
+      <div className="flex flex-wrap items-center gap-3">
+        <Link
+          href="/studio/koble-nettbutikk"
+          className="btn btn-primary btn-lg inline-flex items-center gap-2"
+        >
+          <Link2 className="h-4 w-4" />
+          Koble til nettbutikk
+        </Link>
 
-  <Link
-    href="/guide"
-    className="btn btn-secondary btn-lg"
-  >
-    Brukerguide
-  </Link>
-</div>
-
+        <Link href="/guide" className="btn btn-secondary btn-lg">
+          Brukerguide
+        </Link>
+      </div>
     </>
   );
 }
-

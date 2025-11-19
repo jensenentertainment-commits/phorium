@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
+import OpenAI from "openai";
 
 const SHOPIFY_API_VERSION = "2024-01";
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY!,
+});
 
 function getCookieFromHeader(
   header: string | null,
@@ -30,172 +35,150 @@ export async function POST(req: Request) {
       );
     }
 
-    const body = await req.json().catch(() => null);
+    const body = await req.json();
+    const { productId, tone = "nøytral" } = body;
 
-    if (!body || !body.productId) {
+    if (!productId) {
       return NextResponse.json(
-        { success: false, error: "Mangler productId i body." },
+        { success: false, error: "Mangler productId" },
         { status: 400 },
       );
     }
 
-    const productId = body.productId as number;
-    const tone = (body.tone as string | undefined) ?? "nøytral";
-
     // 1) Hent produktet fra Shopify
-    const productUrl = `https://${shop}/admin/api/${SHOPIFY_API_VERSION}/products/${productId}.json`;
-
-    const productRes = await fetch(productUrl, {
-      headers: {
-        "X-Shopify-Access-Token": accessToken,
-        "Content-Type": "application/json",
+    const productRes = await fetch(
+      `https://${shop}/admin/api/${SHOPIFY_API_VERSION}/products/${productId}.json`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "X-Shopify-Access-Token": accessToken,
+        },
+        cache: "no-store",
       },
-      cache: "no-store",
-    });
+    );
 
     if (!productRes.ok) {
-      const text = await productRes.text().catch(() => "");
-      console.error("Shopify product error:", productRes.status, text);
+      const txt = await productRes.text();
+      console.error("Shopify product error:", txt);
       return NextResponse.json(
         {
           success: false,
           error: "Kunne ikke hente produkt fra Shopify.",
-          status: productRes.status,
-          details: text.slice(0, 300),
+          details: txt,
         },
         { status: 500 },
       );
     }
 
-    const productData = await productRes.json();
-    const product = productData?.product;
+    const { product } = await productRes.json();
 
-    if (!product) {
-      return NextResponse.json(
-        { success: false, error: "Fant ikke produktdata." },
-        { status: 404 },
-      );
-    }
+    const coreProductData = {
+      id: product.id,
+      title: product.title,
+      handle: product.handle,
+      product_type: product.product_type,
+      tags: product.tags,
+      vendor: product.vendor,
+      status: product.status,
+      options: product.options,
+      variants: product.variants?.map((v: any) => ({
+        id: v.id,
+        title: v.title,
+        sku: v.sku,
+        price: v.price,
+        compare_at_price: v.compare_at_price,
+      })),
+      body_html: product.body_html,
+    };
 
-    const title = product.title as string;
-    const bodyHtml = (product.body_html as string) ?? "";
-    const handle = product.handle as string;
-    const variants = product.variants ?? [];
-    const firstVariant = variants[0] ?? null;
-    const price = firstVariant?.price ?? null;
-
-    const plainDescription = bodyHtml
-      .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/<\/p>/gi, "\n\n")
-      .replace(/<[^>]+>/g, "")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim();
-
-    // 2) Kall OpenAI for å generere tekstpakke
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json(
-        { success: false, error: "OPENAI_API_KEY mangler på server." },
-        { status: 500 },
-      );
-    }
-
-    const prompt = `
-Du er en norsk tekstforfatter for nettbutikker. Du skriver klart, selgende og strukturert.
-
-Du skal lage en komplett tekstpakke for dette produktet:
-
-Tittel: ${title}
-Handle: ${handle}
-Pris (kan være tom): ${price ?? "ukjent"}
-Eksisterende beskrivelse (kan være tom):
-"""${plainDescription || "Ingen beskrivelse"}"""
-
-Tone: ${tone}. Skriv på naturlig norsk (Norge), ikke for pompøst.
-
-Returner svaret ditt som ren JSON med følgende nøkler:
-- description: Lang, godt strukturert produktbeskrivelse (2–4 avsnitt).
-- shortDescription: Kort versjon (1–3 setninger).
-- seoTitle: En SEO-tittel på maks ca. 60 tegn.
-- metaDescription: En meta description på maks ca. 155 tegn.
-- tags: En liste (array) med 5–12 relevante tags (enkle ord eller korte uttrykk).
-- bullets: En liste (array) med 3–7 punktlister fordeler/egenskaper.
-
-VIKTIG:
-- Ikke bruk markdown, bare innholdet.
-- Ikke skriv kommentarer, bare gyldig JSON.
-`;
-
-    const completionRes = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4.1-mini",
-        messages: [
-          {
-            role: "system",
-            content: "Du er en assistent som kun svarer med gyldig JSON.",
-          },
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-        temperature: 0.6,
-      }),
+    // 2) Kall OpenAI med norsk, strukturert prompt
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      response_format: { type: "json_object" },
+      temperature: 0.6,
+      messages: [
+        {
+          role: "system",
+          content:
+            "Du er Phorium – en norsk AI-tekstforfatter spesialisert på nettbutikker. " +
+            "Du skriver naturlig norsk, unngår klisjeer, og tilpasser deg butikkens stil. " +
+            "Du svarer alltid som ren JSON uten ekstra tekst.",
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            instruksjon:
+              "Lag en komplett tekstpakke for et Shopify-produkt. Alt skal være på flytende norsk, tilpasset e-handel.",
+            tone,
+            produktdata: coreProductData,
+            format: {
+              description:
+                "Hovedbeskrivelse til Shopify-produktet. 2–5 korte avsnitt, lettlest, fokus på fordeler.",
+              shortDescription:
+                "Kort versjon / ingress. 1–2 setninger som kan brukes i lister eller som intro.",
+              bullets:
+                "Liste med 3–7 punkt. Hvert punkt kort og konkret, maks én setning.",
+              seoTitle:
+                "SEO-tittel (max ca. 60 tegn). Skal både være klikkvennlig og inneholde viktige søkeord.",
+              metaDescription:
+                "Meta description (max ca. 155 tegn). Selgende, men ikke overdrevent, og beskriver produktet konkret.",
+              adPrimaryText:
+                "Primær annonsetekst (f.eks. til Meta Ads). 1–3 setninger, litt mer punch enn vanlig produkttekst.",
+              adHeadline:
+                "Kort annonseoverskrift (f.eks. til Meta/Google). Max ca. 40 tegn.",
+              adDescription:
+                "Kort beskrivelse til annonsen. 1–2 setninger. Supplerer overskriften.",
+              socialCaption:
+                "Forslag til SoMe-caption for f.eks. Instagram/TikTok. 1–3 setninger.",
+              hashtags:
+                "Liste med relevante norske/engelske hashtags. 3–10 stk.",
+              tags:
+                "Liste med Shopify-tags. Ikke duplikater, ikke for generiske (unngå bare 'tilbud', 'nyhet').",
+            },
+            output_schema: {
+              description: "string",
+              shortDescription: "string",
+              bullets: "string[]",
+              seoTitle: "string",
+              metaDescription: "string",
+              adPrimaryText: "string",
+              adHeadline: "string",
+              adDescription: "string",
+              socialCaption: "string",
+              hashtags: "string[]",
+              tags: "string[]",
+            },
+          }),
+        },
+      ],
     });
 
-    if (!completionRes.ok) {
-      const text = await completionRes.text().catch(() => "");
-      console.error("OpenAI error:", completionRes.status, text);
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Kunne ikke generere tekst fra OpenAI.",
-          status: completionRes.status,
-          details: text.slice(0, 300),
-        },
-        { status: 500 },
-      );
-    }
-
-    const completionData = await completionRes.json();
-    const rawContent =
-      completionData.choices?.[0]?.message?.content ?? "{}";
-
-    let parsed: any = null;
+    let parsed: any = {};
     try {
-      parsed = JSON.parse(rawContent);
+      parsed = JSON.parse(completion.choices[0].message.content || "{}");
     } catch (e) {
-      console.error("JSON parse error:", e, rawContent);
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Kunne ikke tolke JSON-svaret fra OpenAI.",
-        },
-        { status: 500 },
-      );
+      console.error("JSON parse error from OpenAI:", e);
     }
 
+    // 3) Returner strukturert resultat til frontend
     return NextResponse.json({
       success: true,
-      productId,
-      title,
-      handle,
       result: {
-        description: parsed.description ?? "",
-        shortDescription: parsed.shortDescription ?? "",
-        seoTitle: parsed.seoTitle ?? "",
-        metaDescription: parsed.metaDescription ?? "",
-        tags: parsed.tags ?? [],
-        bullets: parsed.bullets ?? [],
+        description: parsed.description || "",
+        shortDescription: parsed.shortDescription || "",
+        bullets: parsed.bullets || [],
+        seoTitle: parsed.seoTitle || "",
+        metaDescription: parsed.metaDescription || "",
+        adPrimaryText: parsed.adPrimaryText || "",
+        adHeadline: parsed.adHeadline || "",
+        adDescription: parsed.adDescription || "",
+        socialCaption: parsed.socialCaption || "",
+        hashtags: parsed.hashtags || [],
+        tags: parsed.tags || [],
       },
     });
   } catch (err: any) {
-    console.error("generate-product-text route error:", err);
+    console.error("generate-product-text error:", err);
     return NextResponse.json(
       {
         success: false,
