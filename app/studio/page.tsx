@@ -161,20 +161,33 @@ export default function DashboardHubPage() {
         </Link>
       </div>
 
-      {/* CTA */}
+            {/* CTA */}
       <div className="flex flex-wrap items-center gap-3">
-        <Link
-          href="/studio/koble-nettbutikk"
-          className="btn btn-primary btn-lg inline-flex items-center gap-2"
-        >
-          <Link2 className="h-4 w-4" />
-          Koble til nettbutikk
-        </Link>
+        {status?.connected ? (
+          // Når Shopify er koblet → vis "Gå til produkter"
+          <Link
+            href="/studio/produkter"
+            className="btn btn-primary btn-lg inline-flex items-center gap-2"
+          >
+            <Link2 className="h-4 w-4" />
+            Gå til produkter
+          </Link>
+        ) : (
+          // Når ikke koblet (eller mens vi ikke har fått status) → "Koble til nettbutikk"
+          <Link
+            href="/studio/koble-nettbutikk"
+            className="btn btn-primary btn-lg inline-flex items-center gap-2"
+          >
+            <Link2 className="h-4 w-4" />
+            Koble til nettbutikk
+          </Link>
+        )}
 
         <Link href="/guide" className="btn btn-secondary btn-lg">
           Brukerguide
         </Link>
       </div>
+
     </>
   );
 }

@@ -644,6 +644,7 @@ export default function VisualsPage() {
             Velg modus, skriv kort – Phorium tilpasser alt til butikken din.
           </p>
         </div>
+       
         <div className="flex flex-col items-start gap-1 sm:items-end">
           <div className="text-[11px] text-phorium-accent/90">
             Kreditter igjen

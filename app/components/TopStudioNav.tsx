@@ -80,8 +80,8 @@ export default function TopStudioNav() {
         </nav>
 
         {/* Høyre: liten status-prikk */}
-        <div className="flex items-center">
-  <ShopifyStatusDot className="ml-4" />
+        <div className="ml-4 pl-4 border-l border-phorium-off/20">
+  <ShopifyStatusDot />
 </div>
 
       </div>

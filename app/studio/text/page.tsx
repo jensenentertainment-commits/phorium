@@ -3,7 +3,7 @@
 import { Suspense } from "react";
 import { motion } from "framer-motion";
 import PhoriumTextForm from "@/app/components/PhoriumTextForm";
-import ShopifyStatusBadgeFull from "@/app/components/ShopifyStatusBadgeFull";
+
 
 export default function TextPage() {
   return (
@@ -24,9 +24,7 @@ export default function TextPage() {
             Shopify-produkt for å få ferdig tekstpakke.
           </p>
         </div>
-<div className="flex justify-end mb-3">
-  <ShopifyStatusBadgeFull />
-</div>
+
 
         {/* Kreditt-indikator med animasjon som Visuals */}
         <div className="flex flex-col items-start gap-1 sm:items-end">
