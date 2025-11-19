@@ -11,42 +11,8 @@ export default function TextPage() {
 
       <section className="mx-auto max-w-6xl px-4">
         <div className="rounded-3xl border border-phorium-off/25 bg-phorium-surface px-6 py-9 text-phorium-light shadow-[0_24px_90px_rgba(0,0,0,0.65)] sm:px-10">
-          {/* Top navigation */}
-          <div className="mb-8 flex flex-wrap gap-3 text-[11px]">
-            <Link
-              href="/studio"
-              className="inline-flex items-center gap-2 rounded-full border border-phorium-off/35 bg-phorium-dark px-3 py-1.5 text-phorium-light/80"
-            >
-              <Home className="h-3.5 w-3.5 text-phorium-accent" />
-              Studio-oversikt
-            </Link>
-
-            <Link
-              href="/studio/text"
-              className="inline-flex items-center gap-2 rounded-full bg-phorium-accent px-3 py-1.5 text-[11px] font-semibold text-phorium-dark shadow-sm transition hover:bg-phorium-accent/90"
-            >
-              <FileText className="h-3.5 w-3.5 text-phorium-dark" />
-              Tekst
-            </Link>
-
-            <Link
-              href="/studio/visuals"
-              className="inline-flex items-center gap-2 rounded-full border border-phorium-off/35 bg-phorium-dark px-3 py-1.5 text-phorium-light/80 transition hover:border-phorium-accent hover:text-phorium-accent"
-            >
-              <ImageIcon className="h-3.5 w-3.5 text-phorium-accent" />
-              Visuals
-            </Link>
-
-            <Link
-              href="/studio/koble-nettbutikk"
-              className="inline-flex items-center gap-2 rounded-full border border-phorium-off/35 bg-phorium-dark px-3 py-1.5 text-phorium-accent transition hover:border-phorium-accent hover:text-phorium-light"
-            >
-              <Link2 className="h-3.5 w-3.5 text-phorium-accent" />
-              Koble til nettbutikk
-            </Link>
-          </div>
-
-          {/* Header */}
+         
+ {/* Header */}
           <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="mb-1.5 text-3xl font-semibold tracking-tight sm:text-4xl">

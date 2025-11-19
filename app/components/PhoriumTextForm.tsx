@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import PhoriumLoader from "./PhoriumLoader";
 
 export default function PhoriumTextForm() {
   const [productName, setProductName] = useState("");
@@ -11,15 +13,14 @@ export default function PhoriumTextForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // --- Shopify-kontekst ---
+  // Shopify-kontekst
   const searchParams = useSearchParams();
   const productIdFromUrl = searchParams.get("productId");
+  const isShopifyMode = !!productIdFromUrl;
 
   const [linkedProduct, setLinkedProduct] = useState<any | null>(null);
   const [productLoading, setProductLoading] = useState(false);
   const [productError, setProductError] = useState<string | null>(null);
-
-  const isShopifyMode = !!productIdFromUrl;
 
   // Hent produkt hvis vi har productId
   useEffect(() => {
@@ -41,7 +42,6 @@ export default function PhoriumTextForm() {
 
         setLinkedProduct(data.product);
 
-        // Lås produktnavnet til Shopify-tittel
         if (data.product?.title) {
           setProductName(data.product.title);
         }
@@ -56,8 +56,9 @@ export default function PhoriumTextForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productIdFromUrl]);
 
-  // --- Manuell generering (uten Shopify-produkt) ---
+  // Manuell generering (uten Shopify-produkt)
   async function handleGenerateManual() {
+    if (!productName.trim()) return;
     setLoading(true);
     setError(null);
     setResult(null);
@@ -81,13 +82,13 @@ export default function PhoriumTextForm() {
         setResult(data.data);
       }
     } catch {
-      setError("Kunne ikke kontakte API-et.");
+      setError("Kunne ikke kontakte Phorium Core.");
     } finally {
       setLoading(false);
     }
   }
 
-  // --- Generering basert på Shopify-produkt ---
+  // Generering basert på Shopify-produkt
   async function handleGenerateFromProduct() {
     if (!productIdFromUrl) return;
 
@@ -130,22 +131,21 @@ export default function PhoriumTextForm() {
     }
   }
 
-  return (
-    <div className="max-w-2xl w-full mx-auto bg-[#2A2E26]/95 border border-[#A39C84]/40 rounded-2xl p-6 space-y-4">
-      <h2 className="text-xl font-semibold text-[#ECE8DA]">
-        Phorium Tekstgenerator
-      </h2>
-      <p className="text-[12px] text-[#ECE8DA]/70">
-        {isShopifyMode
-          ? "Du har åpnet et produkt fra Shopify. Juster tone og kategori – Phorium bruker produktdata direkte."
-          : "Fyll inn produktnavn, kategori og tone – Phorium lager en ferdig tekstpakke på norsk."}
-      </p>
+  const primaryButtonLabel = isShopifyMode
+    ? "Generer tekst fra Shopify-produkt"
+    : "Generer tekst";
 
-      {/* 🔹 Produktkort når vi kommer fra Shopify */}
+  const handlePrimaryClick = isShopifyMode
+    ? handleGenerateFromProduct
+    : handleGenerateManual;
+
+  return (
+    <div className="mt-4">
+      {/* Shopify-produkt header */}
       {isShopifyMode && (
-        <div className="rounded-xl border border-[#A39C84]/40 bg-[#11140F] px-3 py-3 text-[12px] mb-1.5">
+        <div className="mb-4 rounded-2xl border border-phorium-off/35 bg-phorium-dark px-4 py-3 text-[12px]">
           {productLoading && (
-            <p className="text-[#ECE8DA]/80">
+            <p className="text-phorium-light/85">
               Henter produktdata fra Shopify …
             </p>
           )}
@@ -159,13 +159,13 @@ export default function PhoriumTextForm() {
           {linkedProduct && !productLoading && (
             <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="text-[11px] text-[#ECE8DA]/60">
+                <div className="text-[11px] text-phorium-light/60">
                   Jobber mot produkt:
                 </div>
-                <div className="text-[13px] font-semibold text-[#C8B77A]">
+                <div className="text-[13px] font-semibold text-phorium-accent">
                   {linkedProduct.title}
                 </div>
-                <div className="text-[11px] text-[#ECE8DA]/60">
+                <div className="text-[11px] text-phorium-light/60">
                   Handle: {linkedProduct.handle} · ID: {linkedProduct.id}
                 </div>
               </div>
@@ -173,7 +173,7 @@ export default function PhoriumTextForm() {
                 <img
                   src={linkedProduct.image.src}
                   alt={linkedProduct.title}
-                  className="h-12 w-12 rounded-lg border border-[#A39C84]/40 object-cover"
+                  className="h-12 w-12 rounded-lg border border-phorium-off/40 object-cover"
                 />
               )}
             </div>
@@ -181,109 +181,164 @@ export default function PhoriumTextForm() {
         </div>
       )}
 
-      {/* FELTENE */}
-      {!isShopifyMode && (
-        <input
-          type="text"
-          value={productName}
-          onChange={(e) => setProductName(e.target.value)}
-          placeholder="Produktnavn (obligatorisk)"
-          className="w-full px-3 py-2 rounded-lg bg-[#11140F] text-[#ECE8DA] text-sm border border-[#A39C84]/40 focus:outline-none focus:border-[#C8B77A]"
-        />
-      )}
+      {/* Grid: input venstre, resultat høyre */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Venstre side – input */}
+        <div className="rounded-2xl border border-phorium-off/35 bg-phorium-dark/90 px-5 py-4">
+          <h3 className="mb-2 text-sm font-semibold text-phorium-light">
+            Hva ønsker du å generere?
+          </h3>
 
-      {isShopifyMode && (
-        <div className="text-[11px] text-[#ECE8DA]/55">
-          Produktnavn er låst til:{" "}
-          <span className="text-[#ECE8DA] font-medium">
-            {productName || linkedProduct?.title || "Ukjent produkt"}
-          </span>
-        </div>
-      )}
+          {!isShopifyMode && (
+            <div className="mb-3">
+              <label className="mb-1 block text-[11px] text-phorium-light/70">
+                Produktnavn*
+              </label>
+              <input
+                type="text"
+                value={productName}
+                onChange={(e) => setProductName(e.target.value)}
+                placeholder="F.eks. «Rustfri termokopp 1L – sort»"
+                className="w-full rounded-xl border border-phorium-off/40 bg-phorium-surface px-3 py-2 text-[13px] text-phorium-light outline-none placeholder:text-phorium-light/45 focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/18"
+              />
+            </div>
+          )}
 
-      <input
-        type="text"
-        value={category}
-        onChange={(e) => setCategory(e.target.value)}
-        placeholder="Kategori (valgfritt)"
-        className="w-full px-3 py-2 rounded-lg bg-[#11140F] text-[#ECE8DA] text-sm border border-[#A39C84]/40 focus:outline-none focus:border-[#C8B77A]"
-      />
+          {isShopifyMode && (
+            <p className="mb-3 text-[11px] text-phorium-light/65">
+              Produktnavn er låst til:{" "}
+              <span className="font-semibold text-phorium-accent">
+                {productName || linkedProduct?.title || "Ukjent produkt"}
+              </span>
+            </p>
+          )}
 
-      <input
-        type="text"
-        value={tone}
-        onChange={(e) => setTone(e.target.value)}
-        placeholder="Tone (f.eks. moderne, teknisk, humoristisk)"
-        className="w-full px-3 py-2 rounded-lg bg-[#11140F] text-[#ECE8DA] text-sm border border-[#A39C84]/40 focus:outline-none focus:border-[#C8B77A]"
-      />
+          <div className="mb-3">
+            <label className="mb-1 block text-[11px] text-phorium-light/70">
+              Kategori (valgfritt)
+            </label>
+            <input
+              type="text"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              placeholder="F.eks. «Kjøkken & servering», «Hund» osv."
+              className="w-full rounded-xl border border-phorium-off/40 bg-phorium-surface px-3 py-2 text-[13px] text-phorium-light outline-none placeholder:text-phorium-light/45 focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/18"
+            />
+          </div>
 
-      {/* Knapper – avhenger av om vi har Shopify-produkt */}
-      <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-        {!isShopifyMode && (
+          <div className="mb-4">
+            <label className="mb-1 block text-[11px] text-phorium-light/70">
+              Tone
+            </label>
+            <input
+              type="text"
+              value={tone}
+              onChange={(e) => setTone(e.target.value)}
+              placeholder="F.eks. moderne, teknisk, humoristisk, eksklusiv …"
+              className="w-full rounded-xl border border-phorium-off/40 bg-phorium-surface px-3 py-2 text-[13px] text-phorium-light outline-none placeholder:text-phorium-light/45 focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/18"
+            />
+          </div>
+
           <button
-            onClick={handleGenerateManual}
-            disabled={loading || !productName}
-            className="w-full py-2.5 rounded-full bg-[#C8B77A] text-[#2A2E26] text-sm font-semibold hover:bg-[#E3D8AC] transition disabled:opacity-60"
+            onClick={handlePrimaryClick}
+            disabled={loading || (!isShopifyMode && !productName.trim())}
+            className="w-full rounded-full bg-phorium-accent px-6 py-2.5 text-[13px] font-semibold text-phorium-dark shadow-md transition hover:bg-phorium-accent/90 disabled:opacity-60"
           >
-            {loading ? "Genererer..." : "Generer tekst"}
+            {loading ? "Genererer tekst …" : primaryButtonLabel}
           </button>
-        )}
 
-        {isShopifyMode && (
-          <>
-            <button
-              onClick={handleGenerateFromProduct}
-              disabled={loading}
-              className="w-full py-2.5 rounded-full bg-[#C8B77A] text-[#2A2E26] text-sm font-semibold hover:bg-[#E3D8AC] transition disabled:opacity-60"
-            >
-              {loading
-                ? "Genererer fra Shopify-produkt…"
-                : "Generer tekst fra Shopify-produkt"}
-            </button>
-          </>
-        )}
-      </div>
+          <p className="mt-2 text-[10px] text-phorium-light/55">
+            Tips: Når du åpner fra Shopify-produktlisten, fylles mye ut
+            automatisk.
+          </p>
+        </div>
 
-      {error && (
-        <p className="text-red-400 text-[12px] bg-red-900/30 rounded-lg p-2">
-          {error}
-        </p>
-      )}
+        {/* Høyre side – resultat */}
+        <div className="rounded-2xl border border-phorium-off/35 bg-phorium-dark/90 px-5 py-4">
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-phorium-light">
+              Resultat
+            </h3>
+          </div>
 
-      {result && (
-        <div className="mt-4 bg-[#11140F] border border-[#A39C84]/40 rounded-xl p-4 text-left space-y-2 text-[#ECE8DA]/90 text-sm">
-          {result.title && (
-            <p className="text-[#C8B77A] font-semibold">{result.title}</p>
-          )}
-          {result.description && <p>{result.description}</p>}
+          <div className="min-h-[220px] rounded-xl border border-phorium-off/35 bg-phorium-surface/95 px-4 py-3 text-[13px] text-phorium-light">
+            {loading && (
+              <div className="flex h-full items-center justify-center">
+                <PhoriumLoader label="Genererer tekst … finpusser ordvalg og SEO" />
+              </div>
+            )}
 
-          {Array.isArray(result.bullets) && result.bullets.length > 0 && (
-            <ul className="mt-2 list-disc pl-4 text-[12px] text-[#ECE8DA]/85">
-              {result.bullets.map((b: string, i: number) => (
-                <li key={i}>{b}</li>
-              ))}
-            </ul>
-          )}
-
-          <div className="text-[11px] text-[#ECE8DA]/60 border-t border-[#A39C84]/30 pt-2 mt-2 space-y-1">
-            {result.meta_title && (
-              <p>
-                <strong>Meta-tittel:</strong> {result.meta_title}
+            {!loading && !result && !error && (
+              <p className="text-[12px] text-phorium-light/70">
+                Når du genererer, vises ferdig produkttekst, bullet points og
+                meta her – klar til å lime inn i Shopify.
               </p>
             )}
-            {result.meta_description && (
-              <p>
-                <strong>Meta-beskrivelse:</strong> {result.meta_description}
-              </p>
+
+            {!loading && error && (
+              <p className="text-[12px] text-red-300">{error}</p>
             )}
-            {Array.isArray(result.tags) && result.tags.length > 0 && (
-              <p>
-                <strong>Tags:</strong> {result.tags.join(", ")}
-              </p>
-            )}
+
+            <AnimatePresence>
+              {!loading && result && !error && (
+                <motion.div
+                  key={result.title || "result"}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 4 }}
+                  transition={{ duration: 0.22 }}
+                  className="space-y-2"
+                >
+                  {result.title && (
+                    <p className="text-[14px] font-semibold text-phorium-accent">
+                      {result.title}
+                    </p>
+                  )}
+
+                  {result.description && <p>{result.description}</p>}
+
+                  {Array.isArray(result.bullets) &&
+                    result.bullets.length > 0 && (
+                      <div className="pt-2">
+                        <p className="mb-1 text-[11px] font-semibold text-phorium-light/70">
+                          Bullet points:
+                        </p>
+                        <ul className="list-disc pl-4 text-[12px] text-phorium-light/90">
+                          {result.bullets.map((b: string, i: number) => (
+                            <li key={i}>{b}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                  <div className="mt-3 border-t border-phorium-off/30 pt-2 text-[11px] text-phorium-light/70 space-y-1">
+                    {result.meta_title && (
+                      <p>
+                        <span className="font-semibold">Meta-tittel: </span>
+                        {result.meta_title}
+                      </p>
+                    )}
+                    {result.meta_description && (
+                      <p>
+                        <span className="font-semibold">
+                          Meta-beskrivelse:{" "}
+                        </span>
+                        {result.meta_description}
+                      </p>
+                    )}
+                    {Array.isArray(result.tags) && result.tags.length > 0 && (
+                      <p>
+                        <span className="font-semibold">Tags: </span>
+                        {result.tags.join(", ")}
+                      </p>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
