@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { Home, FileText, Image as ImageIcon, Link2 } from "lucide-react";
-import PhoriumTextForm from "@/components/PhoriumTextForm";
+import PhoriumTextForm from "@/app/components/PhoriumTextForm";
+
 
 export default function TextPage() {
   return (
