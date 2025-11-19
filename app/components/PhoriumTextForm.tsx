@@ -13,14 +13,12 @@ type GeneratedResult = {
   meta_description?: string;
   bullets?: string[];
   tags?: string[];
-  seo_keywords?: string[]; // 👈 nye SEO-nøkkelord
   ad_primary?: string;
   ad_headline?: string;
   ad_description?: string;
   social_caption?: string;
   social_hashtags?: string[];
 };
-
 
 type ActiveTab = "product" | "seo" | "ads" | "some";
 
@@ -42,6 +40,9 @@ export default function PhoriumTextForm() {
   const [linkedProduct, setLinkedProduct] = useState<any | null>(null);
   const [productLoading, setProductLoading] = useState(false);
   const [productError, setProductError] = useState<string | null>(null);
+
+  // Kopi-status
+  const [copiedTab, setCopiedTab] = useState<ActiveTab | null>(null);
 
   // Hent produkt hvis vi har productId
   useEffect(() => {
@@ -107,7 +108,7 @@ export default function PhoriumTextForm() {
       if (!data.success) {
         setError(data.error || "Ukjent feil");
       } else {
-        // Holder denne som "enkel modus"
+        // Enkel modus
         setResult({
           title: data.data.title,
           description: data.data.description,
@@ -124,7 +125,7 @@ export default function PhoriumTextForm() {
     }
   }
 
-  // --- Generering basert på Shopify-produkt (ny, rikelig respons) ---
+  // --- Generering basert på Shopify-produkt (rik struktur) ---
   async function handleGenerateFromProduct() {
     if (!productIdFromUrl) return;
 
@@ -150,23 +151,22 @@ export default function PhoriumTextForm() {
       const r = data.result;
 
       const mapped: GeneratedResult = {
-  title:
-    linkedProduct?.title ||
-    productName ||
-    "Generert produkttekst",
-  description: r.description || "",
-  shortDescription: r.shortDescription || "",
-  meta_title: r.seoTitle || "",
-  meta_description: r.metaDescription || "",
-  bullets: r.bullets || [],
-  tags: r.tags || [],
-  seo_keywords: r.seoKeywords || r.keywords || [], // 👈 prøver begge navn
-  ad_primary: r.adPrimaryText || "",
-  ad_headline: r.adHeadline || "",
-  ad_description: r.adDescription || "",
-  social_caption: r.socialCaption || "",
-  social_hashtags: r.hashtags || [],
-};
+        title:
+          linkedProduct?.title ||
+          productName ||
+          "Generert produkttekst",
+        description: r.description || "",
+        shortDescription: r.shortDescription || "",
+        meta_title: r.seoTitle || "",
+        meta_description: r.metaDescription || "",
+        bullets: r.bullets || [],
+        tags: r.tags || [],
+        ad_primary: r.adPrimaryText || "",
+        ad_headline: r.adHeadline || "",
+        ad_description: r.adDescription || "",
+        social_caption: r.socialCaption || "",
+        social_hashtags: r.hashtags || [],
+      };
 
       setResult(mapped);
       setActiveTab("product");
@@ -192,16 +192,79 @@ export default function PhoriumTextForm() {
       setTone("Kort, konsis og tydelig. Unngå unødvendige ord.");
     } else if (preset === "lengre") {
       setTone(
-        "Litt lengre og mer forklarende, men fortsatt lettlest og oversiktlig."
+        "Litt lengre og mer forklarende, men fortsatt lettlest og oversiktlig.",
       );
     } else if (preset === "teknisk") {
       setTone(
-        "Mer teknisk og faglig, men fortsatt forståelig for vanlige kunder."
+        "Mer teknisk og faglig, men fortsatt forståelig for vanlige kunder.",
       );
     } else if (preset === "leken") {
       setTone(
-        "Litt leken og uformell tone, men ikke barnslig eller useriøs."
+        "Litt leken og uformell tone, men ikke barnslig eller useriøs.",
       );
+    }
+  }
+
+  // Kopier innhold fra aktiv fane
+  async function handleCopyActiveTab() {
+    if (!result) return;
+
+    let text = "";
+
+    if (activeTab === "product") {
+      const parts: string[] = [];
+      if (result.title) parts.push(result.title);
+      if (result.shortDescription) parts.push("", result.shortDescription);
+      if (result.description) parts.push("", result.description);
+      if (Array.isArray(result.bullets) && result.bullets.length > 0) {
+        parts.push(
+          "",
+          "• " + result.bullets.join("\n• "),
+        );
+      }
+      text = parts.join("\n");
+    } else if (activeTab === "seo") {
+      const parts: string[] = [];
+      parts.push(`SEO-tittel: ${result.meta_title || "—"}`);
+      parts.push(`Meta-beskrivelse: ${result.meta_description || "—"}`);
+      if (Array.isArray(result.tags) && result.tags.length > 0) {
+        parts.push("", "Tags:", result.tags.join(", "));
+      }
+      text = parts.join("\n");
+    } else if (activeTab === "ads") {
+      const parts: string[] = [];
+      parts.push("Primær annonsetekst:");
+      parts.push(result.ad_primary || "—");
+      parts.push("", "Annonseoverskrift:");
+      parts.push(result.ad_headline || "—");
+      parts.push("", "Annonsebeskrivelse:");
+      parts.push(result.ad_description || "—");
+      text = parts.join("\n");
+    } else if (activeTab === "some") {
+      const parts: string[] = [];
+      parts.push("Caption:");
+      parts.push(result.social_caption || "—");
+      if (
+        Array.isArray(result.social_hashtags) &&
+        result.social_hashtags.length > 0
+      ) {
+        parts.push(
+          "",
+          "Hashtags:",
+          result.social_hashtags
+            .map((h) => (h.startsWith("#") ? h : `#${h}`))
+            .join(" "),
+        );
+      }
+      text = parts.join("\n");
+    }
+
+    try {
+      await navigator.clipboard.writeText(text || "");
+      setCopiedTab(activeTab);
+      setTimeout(() => setCopiedTab(null), 1800);
+    } catch {
+      // bare la det være stille feil – kunne evt. satt error
     }
   }
 
@@ -264,8 +327,8 @@ export default function PhoriumTextForm() {
                 type="text"
                 value={productName}
                 onChange={(e) => setProductName(e.target.value)}
-                placeholder="F.eks. «Rustfri termokopp 1L – sort»"
-                className="w-full rounded-xl border border-phorium-off/40 bg-[#F3EEE2] text-phorium-dark px-3 py-2 text-[13px] placeholder:text-phorium-dark/40 outline-none focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/25"
+                placeholder='F.eks. «Rustfri termokopp 1L – sort»'
+                className="w-full rounded-xl border border-phorium-off/40 bg-[#F3EEE2] px-3 py-2 text-[13px] text-phorium-dark placeholder:text-phorium-dark/40 outline-none focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/25"
               />
             </div>
           )}
@@ -288,8 +351,8 @@ export default function PhoriumTextForm() {
               type="text"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              placeholder="F.eks. «Kjøkken & servering», «Hund», «Interiør» …"
-              className="w-full rounded-xl border border-phorium-off/40 bg-[#F3EEE2] text-phorium-dark px-3 py-2 text-[13px] placeholder:text-phorium-dark/40 outline-none focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/25"
+              placeholder='F.eks. «Kjøkken & servering», «Hund», «Interiør» …'
+              className="w-full rounded-xl border border-phorium-off/40 bg-[#F3EEE2] px-3 py-2 text-[13px] text-phorium-dark placeholder:text-phorium-dark/40 outline-none focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/25"
             />
           </div>
 
@@ -302,7 +365,7 @@ export default function PhoriumTextForm() {
               value={tone}
               onChange={(e) => setTone(e.target.value)}
               placeholder="F.eks. moderne, teknisk, humoristisk, eksklusiv …"
-              className="w-full rounded-xl border border-phorium-off/40 bg-[#F3EEE2] text-phorium-dark px-3 py-2 text-[13px] placeholder:text-phorium-dark/40 outline-none focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/25"
+              className="w-full rounded-xl border border-phorium-off/40 bg-[#F3EEE2] px-3 py-2 text-[13px] text-phorium-dark placeholder:text-phorium-dark/40 outline-none focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/25"
             />
           </div>
 
@@ -356,10 +419,31 @@ export default function PhoriumTextForm() {
 
         {/* Høyre side – resultat m. tabs */}
         <div className="rounded-2xl border border-phorium-off/35 bg-phorium-dark/80 px-5 py-5">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-phorium-light">
-              Resultat
-            </h3>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-semibold text-phorium-light">
+                Resultat
+              </h3>
+              {isShopifyMode && linkedProduct && (
+                <p className="mt-0.5 text-[10px] text-phorium-light/55">
+                  Basert på Shopify-produkt:{" "}
+                  <span className="font-medium text-phorium-accent/95">
+                    {linkedProduct.title}
+                  </span>
+                </p>
+              )}
+            </div>
+
+            {/* Kopier aktiv fane */}
+            {result && !loading && (
+              <button
+                type="button"
+                onClick={handleCopyActiveTab}
+                className="rounded-full border border-phorium-off/40 bg-phorium-dark px-3 py-1 text-[10px] text-phorium-light/80 hover:border-phorium-accent hover:text-phorium-accent"
+              >
+                {copiedTab === activeTab ? "Kopiert ✔" : "Kopier aktiv fane"}
+              </button>
+            )}
           </div>
 
           {/* Tabs */}
@@ -419,108 +503,81 @@ export default function PhoriumTextForm() {
                   className="space-y-2"
                 >
                   {/* Produkt-tab */}
-                 {activeTab === "product" && (
-  <>
-    {result.title && (
-      <p className="text-[14px] font-semibold text-phorium-dark">
-        {result.title}
-      </p>
-    )}
+                  {activeTab === "product" && (
+                    <>
+                      {result.title && (
+                        <p className="text-[14px] font-semibold text-phorium-dark">
+                          {result.title}
+                        </p>
+                      )}
 
-    {result.shortDescription && (
-      <div className="mt-1 mb-2 rounded-md bg-phorium-dark/5 px-2 py-1">
-        <p className="text-[11px] font-semibold text-phorium-dark/70">
-          Kort versjon:
-        </p>
-        <p className="text-[12px] text-phorium-dark/80">
-          {result.shortDescription}
-        </p>
-      </div>
-    )}
+                      {result.shortDescription && (
+                        <p className="text-[12px] text-phorium-dark/80">
+                          {result.shortDescription}
+                        </p>
+                      )}
 
-    {result.description && (
-      <motion.div
-        initial={{
-          backgroundColor: "rgba(200,183,122,0.18)",
-        }}
-        animate={{
-          backgroundColor: justGenerated
-            ? "rgba(200,183,122,0.08)"
-            : "rgba(0,0,0,0)",
-        }}
-        transition={{ duration: 0.8 }}
-        className="rounded-md px-2 py-1 -mx-2"
-      >
-        <p>{result.description}</p>
-      </motion.div>
-    )}
+                      {result.description && (
+                        <motion.div
+                          initial={{
+                            backgroundColor: "rgba(200,183,122,0.18)",
+                          }}
+                          animate={{
+                            backgroundColor: justGenerated
+                              ? "rgba(200,183,122,0.08)"
+                              : "rgba(0,0,0,0)",
+                          }}
+                          transition={{ duration: 0.8 }}
+                          className="-mx-2 rounded-md px-2 py-1"
+                        >
+                          <p>{result.description}</p>
+                        </motion.div>
+                      )}
 
-    {Array.isArray(result.bullets) && result.bullets.length > 0 && (
-      <div className="pt-2">
-        <p className="mb-1 text-[11px] font-semibold text-phorium-dark/80">
-          Bullet points:
-        </p>
-        <ul className="list-disc pl-4 text-[12px]">
-          {result.bullets.map((b, i) => (
-            <li key={i}>{b}</li>
-          ))}
-        </ul>
-      </div>
-    )}
-  </>
-)}
+                      {Array.isArray(result.bullets) &&
+                        result.bullets.length > 0 && (
+                          <div className="pt-2">
+                            <p className="mb-1 text-[11px] font-semibold text-phorium-dark/80">
+                              Bullet points:
+                            </p>
+                            <ul className="list-disc pl-4 text-[12px]">
+                              {result.bullets.map((b, i) => (
+                                <li key={i}>{b}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                    </>
+                  )}
 
-
+                  {/* SEO-tab */}
                   {activeTab === "seo" && (
-  <div className="space-y-3 text-[12px]">
-    <div>
-      <p className="text-[11px] font-semibold text-phorium-dark/80">
-        SEO-tittel
-      </p>
-      <p>{result.meta_title || "—"}</p>
-    </div>
-
-    <div>
-      <p className="text-[11px] font-semibold text-phorium-dark/80">
-        Meta-beskrivelse
-      </p>
-      <p>{result.meta_description || "—"}</p>
-    </div>
-
-    <div>
-      <p className="text-[11px] font-semibold text-phorium-dark/80">
-        Tags
-      </p>
-      <p>
-        {Array.isArray(result.tags) && result.tags.length > 0
-          ? result.tags.join(", ")
-          : "—"}
-      </p>
-    </div>
-
-    <div>
-      <p className="mb-1 text-[11px] font-semibold text-phorium-dark/80">
-        SEO-nøkkelord (forslag)
-      </p>
-      {Array.isArray(result.seo_keywords) &&
-      result.seo_keywords.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5">
-          {result.seo_keywords.map((kw, i) => (
-            <span
-              key={kw + i}
-              className="inline-flex items-center rounded-full border border-phorium-off/40 bg-white/70 px-2.5 py-0.5 text-[10px] text-phorium-dark/90"
-            >
-              {kw}
-            </span>
-          ))}
-        </div>
-      ) : (
-        <p className="text-[11px] text-phorium-dark/60">—</p>
-      )}
-    </div>
-  </div>
-)}
-
+                    <div className="space-y-2 text-[12px]">
+                      <div>
+                        <p className="text-[11px] font-semibold text-phorium-dark/80">
+                          SEO-tittel
+                        </p>
+                        <p>{result.meta_title || "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold text-phorium-dark/80">
+                          Meta-beskrivelse
+                        </p>
+                        <p>{result.meta_description || "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold text-phorium-dark/80">
+                          Tags
+                        </p>
+                        <p>
+                          {Array.isArray(result.tags) &&
+                          result.tags.length > 0
+                            ? result.tags.join(", ")
+                            : "—"}
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Ads-tab */}
                   {activeTab === "ads" && (
@@ -564,7 +621,7 @@ export default function PhoriumTextForm() {
                           result.social_hashtags.length > 0
                             ? result.social_hashtags
                                 .map((h) =>
-                                  h.startsWith("#") ? h : `#${h}`
+                                  h.startsWith("#") ? h : `#${h}`,
                                 )
                                 .join(" ")
                             : "—"}
