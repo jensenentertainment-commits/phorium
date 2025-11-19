@@ -1,0 +1,134 @@
+// app/api/shopify/save-product-text/route.ts
+import { NextResponse } from "next/server";
+
+const SHOPIFY_API_VERSION = "2024-01";
+
+function getCookieFromHeader(
+  header: string | null,
+  name: string,
+): string | null {
+  if (!header) return null;
+  const cookies = header.split(";").map((c) => c.trim());
+  const match = cookies.find((c) => c.startsWith(name + "="));
+  if (!match) return null;
+  return decodeURIComponent(match.split("=").slice(1).join("="));
+}
+
+export async function POST(req: Request) {
+  try {
+    const cookieHeader = req.headers.get("cookie");
+    const shop = getCookieFromHeader(cookieHeader, "phorium_shop");
+    const accessToken = getCookieFromHeader(cookieHeader, "phorium_token");
+
+    if (!shop || !accessToken) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Ingen aktiv Shopify-tilkobling. Koble til nettbutikk på nytt via Phorium Studio.",
+        },
+        { status: 401 },
+      );
+    }
+
+    const body = await req.json();
+
+    const productId = Number(body.productId);
+    const result = body.result;
+
+    if (!productId || !result) {
+      return NextResponse.json(
+        { success: false, error: "Mangler productId eller result." },
+        { status: 400 },
+      );
+    }
+
+    // Bygg body_html basert på generert tekst
+    const parts: string[] = [];
+
+    if (result.title) {
+      parts.push(`<h1>${result.title}</h1>`);
+    }
+
+    if (result.shortDescription) {
+      parts.push(`<p>${result.shortDescription}</p>`);
+    }
+
+    if (result.description) {
+      parts.push(`<p>${result.description}</p>`);
+    }
+
+    if (Array.isArray(result.bullets) && result.bullets.length > 0) {
+      const bulletsHtml = result.bullets
+        .map((b: string) => `<li>${b}</li>`)
+        .join("");
+      parts.push(`<ul>${bulletsHtml}</ul>`);
+    }
+
+    const bodyHtml = parts.join("\n");
+
+    const tags = Array.isArray(result.tags) ? result.tags.join(", ") : undefined;
+
+    const payload: any = {
+      product: {
+        id: productId,
+        body_html: bodyHtml,
+      },
+    };
+
+    // SEO-felter (Shopify REST)
+    if (result.meta_title) {
+      payload.product.metafields_global_title_tag = result.meta_title;
+    }
+    if (result.meta_description) {
+      payload.product.metafields_global_description_tag =
+        result.meta_description;
+    }
+
+    if (tags) {
+      payload.product.tags = tags;
+    }
+
+    const url = `https://${shop}/admin/api/${SHOPIFY_API_VERSION}/products/${productId}.json`;
+
+    const res = await fetch(url, {
+      method: "PUT",
+      headers: {
+        "X-Shopify-Access-Token": accessToken,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      console.error("Shopify save error:", text);
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Shopify avviste oppdateringen.",
+          details: text.slice(0, 500),
+        },
+        { status: 500 },
+      );
+    }
+
+    const data = await res.json();
+
+    return NextResponse.json({
+      success: true,
+      product: data.product,
+    });
+  } catch (err: any) {
+    console.error("Unexpected save error:", err);
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Uventet feil ved lagring til Shopify.",
+        details: err?.message,
+      },
+      { status: 500 },
+    );
+  }
+}

@@ -32,6 +32,10 @@ export default function PhoriumTextForm() {
   const [justGenerated, setJustGenerated] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>("product");
 
+  // 🔹 NYTT: lagring til Shopify
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+
   // Shopify-kontekst
   const searchParams = useSearchParams();
   const productIdFromUrl = searchParams.get("productId");
@@ -40,9 +44,6 @@ export default function PhoriumTextForm() {
   const [linkedProduct, setLinkedProduct] = useState<any | null>(null);
   const [productLoading, setProductLoading] = useState(false);
   const [productError, setProductError] = useState<string | null>(null);
-
-  // Kopi-status
-  const [copiedTab, setCopiedTab] = useState<ActiveTab | null>(null);
 
   // Hent produkt hvis vi har productId
   useEffect(() => {
@@ -91,6 +92,7 @@ export default function PhoriumTextForm() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setSaveMessage(null);
 
     try {
       const res = await fetch("/api/generate-text", {
@@ -108,7 +110,6 @@ export default function PhoriumTextForm() {
       if (!data.success) {
         setError(data.error || "Ukjent feil");
       } else {
-        // Enkel modus
         setResult({
           title: data.data.title,
           description: data.data.description,
@@ -125,13 +126,14 @@ export default function PhoriumTextForm() {
     }
   }
 
-  // --- Generering basert på Shopify-produkt (rik struktur) ---
+  // --- Generering basert på Shopify-produkt ---
   async function handleGenerateFromProduct() {
     if (!productIdFromUrl) return;
 
     setLoading(true);
     setError(null);
     setResult(null);
+    setSaveMessage(null);
 
     try {
       const res = await fetch("/api/shopify/generate-product-text", {
@@ -178,6 +180,41 @@ export default function PhoriumTextForm() {
     }
   }
 
+  // 🔹 NYTT: lagre direkte til Shopify
+  async function handleSaveToShopify() {
+    if (!productIdFromUrl || !result) return;
+
+    try {
+      setSaveLoading(true);
+      setSaveMessage(null);
+
+      const res = await fetch("/api/shopify/save-product-text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: Number(productIdFromUrl),
+          result,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        setSaveMessage(
+          data.error || "Kunne ikke lagre til Shopify. Prøv igjen."
+        );
+      } else {
+        setSaveMessage("✅ Teksten er lagret i Shopify-produktet.");
+      }
+    } catch (err: any) {
+      setSaveMessage(
+        err?.message || "Uventet feil ved lagring til Shopify."
+      );
+    } finally {
+      setSaveLoading(false);
+    }
+  }
+
   const primaryButtonLabel = isShopifyMode
     ? "Generer tekst fra Shopify-produkt"
     : "Generer tekst";
@@ -186,7 +223,7 @@ export default function PhoriumTextForm() {
     ? handleGenerateFromProduct
     : handleGenerateManual;
 
-  // små helpers for refine-raden – bare setter tone-presets
+  // små helpers for refine-raden
   function setTonePreset(preset: "kortere" | "lengre" | "teknisk" | "leken") {
     if (preset === "kortere") {
       setTone("Kort, konsis og tydelig. Unngå unødvendige ord.");
@@ -202,69 +239,6 @@ export default function PhoriumTextForm() {
       setTone(
         "Litt leken og uformell tone, men ikke barnslig eller useriøs.",
       );
-    }
-  }
-
-  // Kopier innhold fra aktiv fane
-  async function handleCopyActiveTab() {
-    if (!result) return;
-
-    let text = "";
-
-    if (activeTab === "product") {
-      const parts: string[] = [];
-      if (result.title) parts.push(result.title);
-      if (result.shortDescription) parts.push("", result.shortDescription);
-      if (result.description) parts.push("", result.description);
-      if (Array.isArray(result.bullets) && result.bullets.length > 0) {
-        parts.push(
-          "",
-          "• " + result.bullets.join("\n• "),
-        );
-      }
-      text = parts.join("\n");
-    } else if (activeTab === "seo") {
-      const parts: string[] = [];
-      parts.push(`SEO-tittel: ${result.meta_title || "—"}`);
-      parts.push(`Meta-beskrivelse: ${result.meta_description || "—"}`);
-      if (Array.isArray(result.tags) && result.tags.length > 0) {
-        parts.push("", "Tags:", result.tags.join(", "));
-      }
-      text = parts.join("\n");
-    } else if (activeTab === "ads") {
-      const parts: string[] = [];
-      parts.push("Primær annonsetekst:");
-      parts.push(result.ad_primary || "—");
-      parts.push("", "Annonseoverskrift:");
-      parts.push(result.ad_headline || "—");
-      parts.push("", "Annonsebeskrivelse:");
-      parts.push(result.ad_description || "—");
-      text = parts.join("\n");
-    } else if (activeTab === "some") {
-      const parts: string[] = [];
-      parts.push("Caption:");
-      parts.push(result.social_caption || "—");
-      if (
-        Array.isArray(result.social_hashtags) &&
-        result.social_hashtags.length > 0
-      ) {
-        parts.push(
-          "",
-          "Hashtags:",
-          result.social_hashtags
-            .map((h) => (h.startsWith("#") ? h : `#${h}`))
-            .join(" "),
-        );
-      }
-      text = parts.join("\n");
-    }
-
-    try {
-      await navigator.clipboard.writeText(text || "");
-      setCopiedTab(activeTab);
-      setTimeout(() => setCopiedTab(null), 1800);
-    } catch {
-      // bare la det være stille feil – kunne evt. satt error
     }
   }
 
@@ -328,7 +302,7 @@ export default function PhoriumTextForm() {
                 value={productName}
                 onChange={(e) => setProductName(e.target.value)}
                 placeholder='F.eks. «Rustfri termokopp 1L – sort»'
-                className="w-full rounded-xl border border-phorium-off/40 bg-[#F3EEE2] px-3 py-2 text-[13px] text-phorium-dark placeholder:text-phorium-dark/40 outline-none focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/25"
+                className="w-full rounded-xl border border-phorium-off/40 bg-[#F3EEE2] text-phorium-dark px-3 py-2 text-[13px] placeholder:text-phorium-dark/40 outline-none focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/25"
               />
             </div>
           )}
@@ -352,7 +326,7 @@ export default function PhoriumTextForm() {
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               placeholder='F.eks. «Kjøkken & servering», «Hund», «Interiør» …'
-              className="w-full rounded-xl border border-phorium-off/40 bg-[#F3EEE2] px-3 py-2 text-[13px] text-phorium-dark placeholder:text-phorium-dark/40 outline-none focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/25"
+              className="w-full rounded-xl border border-phorium-off/40 bg-[#F3EEE2] text-phorium-dark px-3 py-2 text-[13px] placeholder:text-phorium-dark/40 outline-none focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/25"
             />
           </div>
 
@@ -365,7 +339,7 @@ export default function PhoriumTextForm() {
               value={tone}
               onChange={(e) => setTone(e.target.value)}
               placeholder="F.eks. moderne, teknisk, humoristisk, eksklusiv …"
-              className="w-full rounded-xl border border-phorium-off/40 bg-[#F3EEE2] px-3 py-2 text-[13px] text-phorium-dark placeholder:text-phorium-dark/40 outline-none focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/25"
+              className="w-full rounded-xl border border-phorium-off/40 bg-[#F3EEE2] text-phorium-dark px-3 py-2 text-[13px] placeholder:text-phorium-dark/40 outline-none focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/25"
             />
           </div>
 
@@ -417,33 +391,12 @@ export default function PhoriumTextForm() {
           </p>
         </div>
 
-        {/* Høyre side – resultat m. tabs */}
+        {/* Høyre side – resultat m. tabs + lagre-knapp */}
         <div className="rounded-2xl border border-phorium-off/35 bg-phorium-dark/80 px-5 py-5">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <div>
-              <h3 className="text-sm font-semibold text-phorium-light">
-                Resultat
-              </h3>
-              {isShopifyMode && linkedProduct && (
-                <p className="mt-0.5 text-[10px] text-phorium-light/55">
-                  Basert på Shopify-produkt:{" "}
-                  <span className="font-medium text-phorium-accent/95">
-                    {linkedProduct.title}
-                  </span>
-                </p>
-              )}
-            </div>
-
-            {/* Kopier aktiv fane */}
-            {result && !loading && (
-              <button
-                type="button"
-                onClick={handleCopyActiveTab}
-                className="rounded-full border border-phorium-off/40 bg-phorium-dark px-3 py-1 text-[10px] text-phorium-light/80 hover:border-phorium-accent hover:text-phorium-accent"
-              >
-                {copiedTab === activeTab ? "Kopiert ✔" : "Kopier aktiv fane"}
-              </button>
-            )}
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-phorium-light">
+              Resultat
+            </h3>
           </div>
 
           {/* Tabs */}
@@ -473,6 +426,29 @@ export default function PhoriumTextForm() {
               SoMe
             </TabButton>
           </div>
+
+          {/* 🔹 NYTT: lagre-rad (kun Shopify-modus) */}
+          {isShopifyMode && result && !loading && !error && (
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <p className="text-[10px] text-phorium-light/60">
+                Fornøyd? Lagre hele pakken direkte inn i Shopify-produktet.
+              </p>
+              <button
+                type="button"
+                onClick={handleSaveToShopify}
+                disabled={saveLoading}
+                className="rounded-full border border-phorium-accent/70 bg-phorium-accent px-3.5 py-1.5 text-[11px] font-semibold text-phorium-dark shadow-sm transition hover:bg-phorium-accent/90 disabled:opacity-60"
+              >
+                {saveLoading ? "Lagrer …" : "Lagre i Shopify"}
+              </button>
+            </div>
+          )}
+
+          {saveMessage && (
+            <p className="mb-2 text-[10px] text-phorium-light/75">
+              {saveMessage}
+            </p>
+          )}
 
           <div className="min-h-[230px] rounded-xl border border-phorium-off/30 bg-[#F7F2E8] px-4 py-3 text-[13px] text-phorium-dark">
             {loading && (
