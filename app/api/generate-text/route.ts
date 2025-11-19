@@ -2,81 +2,107 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 
-const client = new OpenAI({
+const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json().catch(() => ({}));
-    const { productName, category, tone, extra } = body;
+    const body = await req.json();
+    const productName = (body.productName as string | undefined) || "";
+    const category = (body.category as string | undefined) || "";
+    const tone = (body.tone as string | undefined) || "nøytral";
 
-    if (!productName) {
+    if (!productName.trim()) {
       return NextResponse.json(
-        { error: "productName is required" },
-        { status: 400 }
+        {
+          success: false,
+          error: "Produktnavn mangler.",
+        },
+        { status: 400 },
       );
     }
 
-    const prompt = `
-Du er Phorium, en norsk AI-assistent for kommersielle nettbutikker.
+    const systemPrompt = `
+Du er Phorium, en norsk tekstmotor for nettbutikker.
 
-Oppgave:
-Skriv en presis, salgbar og troverdig produkttekst basert på fakta.
-Unngå floskler og tull, ingen funnet opp funksjoner.
+Du skal lage en kompakt tekstpakke for et produkt, med dette formatet:
 
-Input:
-- Produktnavn: ${productName}
-- Kategori: ${category || "ikke oppgitt"}
-- Tone: ${tone || "nøktern, kommersiell, tydelig"}
-- Ekstra info: ${extra || "ingen"}
-
-Format:
-Svar KUN som gyldig JSON med følgende felter:
 {
-  "title": "...",
-  "description": "...",
-  "meta_title": "...",
-  "meta_description": "..."
+  "title": "Produktnavn optimalisert for salg",
+  "description": "Hovedbeskrivelse, 1–3 avsnitt",
+  "meta_title": "SEO-tittel (maks ca. 60 tegn)",
+  "meta_description": "Meta-beskrivelse (ca. 140–160 tegn)"
 }
-    `.trim();
 
-    const completion = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: prompt }],
+VIKTIG:
+- Svar kun med ett JSON-objekt (ingen ekstra tekst, ingen forklaringer).
+- Skriv på god norsk, tilpasset nettbutikk.
+- Tilpass tone til parameteren som sendes inn.
+`;
+
+    const userPromptLines = [
+      `Produktnavn: ${productName}`,
+      category ? `Kategori: ${category}` : "",
+      `Tone: ${tone}`,
+    ].filter(Boolean);
+
+    const userPrompt = userPromptLines.join("\n");
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
       response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: systemPrompt.trim() },
+        { role: "user", content: userPrompt.trim() },
+      ],
     });
 
-    const raw = completion.choices[0]?.message?.content || "{}";
-    const data = JSON.parse(raw);
+    const raw = completion.choices[0].message.content;
 
+    if (!raw) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Tomt svar fra Phorium Core.",
+        },
+        { status: 500 },
+      );
+    }
+
+    let parsed: any;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      const cleaned = raw
+        .replace(/```json/gi, "")
+        .replace(/```/g, "")
+        .trim();
+      parsed = JSON.parse(cleaned);
+    }
+
+    // Frontend-en din forventer data.data.* i "manuell" modus
     return NextResponse.json(
       {
         success: true,
-        source: "phorium-core",
-        input: { productName, category, tone },
-        data,
+        data: {
+          title: parsed.title || productName,
+          description: parsed.description || "",
+          meta_title: parsed.meta_title || parsed.title || productName,
+          meta_description: parsed.meta_description || "",
+        },
       },
-      { status: 200 }
+      { status: 200 },
     );
-  } catch (error: any) {
-    console.error("generate-text error:", error);
+  } catch (err: any) {
+    console.error("Feil i /api/generate-text:", err);
     return NextResponse.json(
       {
         success: false,
-        error: "Kunne ikke generere tekst nå.",
-        details: error?.message || String(error),
+        error: "Uventet feil i tekstgeneratoren.",
+        details: String(err?.message || err),
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
-}
-
-// Valgfritt: behold GET for rask sanity-check i nettleser
-export async function GET() {
-  return NextResponse.json({
-    status: "ok",
-    route: "/api/generate-text",
-    note: "Bruk POST med JSON-body for å generere tekst.",
-  });
 }

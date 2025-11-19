@@ -13,12 +13,14 @@ type GeneratedResult = {
   meta_description?: string;
   bullets?: string[];
   tags?: string[];
+  seo_keywords?: string[]; // 👈 nye SEO-nøkkelord
   ad_primary?: string;
   ad_headline?: string;
   ad_description?: string;
   social_caption?: string;
   social_hashtags?: string[];
 };
+
 
 type ActiveTab = "product" | "seo" | "ads" | "some";
 
@@ -148,22 +150,23 @@ export default function PhoriumTextForm() {
       const r = data.result;
 
       const mapped: GeneratedResult = {
-        title:
-          linkedProduct?.title ||
-          productName ||
-          "Generert produkttekst",
-        description: r.description || "",
-        shortDescription: r.shortDescription || "",
-        meta_title: r.seoTitle || "",
-        meta_description: r.metaDescription || "",
-        bullets: r.bullets || [],
-        tags: r.tags || [],
-        ad_primary: r.adPrimaryText || "",
-        ad_headline: r.adHeadline || "",
-        ad_description: r.adDescription || "",
-        social_caption: r.socialCaption || "",
-        social_hashtags: r.hashtags || [],
-      };
+  title:
+    linkedProduct?.title ||
+    productName ||
+    "Generert produkttekst",
+  description: r.description || "",
+  shortDescription: r.shortDescription || "",
+  meta_title: r.seoTitle || "",
+  meta_description: r.metaDescription || "",
+  bullets: r.bullets || [],
+  tags: r.tags || [],
+  seo_keywords: r.seoKeywords || r.keywords || [], // 👈 prøver begge navn
+  ad_primary: r.adPrimaryText || "",
+  ad_headline: r.adHeadline || "",
+  ad_description: r.adDescription || "",
+  social_caption: r.socialCaption || "",
+  social_hashtags: r.hashtags || [],
+};
 
       setResult(mapped);
       setActiveTab("product");
@@ -416,81 +419,108 @@ export default function PhoriumTextForm() {
                   className="space-y-2"
                 >
                   {/* Produkt-tab */}
-                  {activeTab === "product" && (
-                    <>
-                      {result.title && (
-                        <p className="text-[14px] font-semibold text-phorium-dark">
-                          {result.title}
-                        </p>
-                      )}
+                 {activeTab === "product" && (
+  <>
+    {result.title && (
+      <p className="text-[14px] font-semibold text-phorium-dark">
+        {result.title}
+      </p>
+    )}
 
-                      {result.shortDescription && (
-                        <p className="text-[12px] text-phorium-dark/80">
-                          {result.shortDescription}
-                        </p>
-                      )}
+    {result.shortDescription && (
+      <div className="mt-1 mb-2 rounded-md bg-phorium-dark/5 px-2 py-1">
+        <p className="text-[11px] font-semibold text-phorium-dark/70">
+          Kort versjon:
+        </p>
+        <p className="text-[12px] text-phorium-dark/80">
+          {result.shortDescription}
+        </p>
+      </div>
+    )}
 
-                      {result.description && (
-                        <motion.div
-                          initial={{
-                            backgroundColor: "rgba(200,183,122,0.18)",
-                          }}
-                          animate={{
-                            backgroundColor: justGenerated
-                              ? "rgba(200,183,122,0.08)"
-                              : "rgba(0,0,0,0)",
-                          }}
-                          transition={{ duration: 0.8 }}
-                          className="rounded-md px-2 py-1 -mx-2"
-                        >
-                          <p>{result.description}</p>
-                        </motion.div>
-                      )}
+    {result.description && (
+      <motion.div
+        initial={{
+          backgroundColor: "rgba(200,183,122,0.18)",
+        }}
+        animate={{
+          backgroundColor: justGenerated
+            ? "rgba(200,183,122,0.08)"
+            : "rgba(0,0,0,0)",
+        }}
+        transition={{ duration: 0.8 }}
+        className="rounded-md px-2 py-1 -mx-2"
+      >
+        <p>{result.description}</p>
+      </motion.div>
+    )}
 
-                      {Array.isArray(result.bullets) &&
-                        result.bullets.length > 0 && (
-                          <div className="pt-2">
-                            <p className="mb-1 text-[11px] font-semibold text-phorium-dark/80">
-                              Bullet points:
-                            </p>
-                            <ul className="list-disc pl-4 text-[12px]">
-                              {result.bullets.map((b, i) => (
-                                <li key={i}>{b}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                    </>
-                  )}
+    {Array.isArray(result.bullets) && result.bullets.length > 0 && (
+      <div className="pt-2">
+        <p className="mb-1 text-[11px] font-semibold text-phorium-dark/80">
+          Bullet points:
+        </p>
+        <ul className="list-disc pl-4 text-[12px]">
+          {result.bullets.map((b, i) => (
+            <li key={i}>{b}</li>
+          ))}
+        </ul>
+      </div>
+    )}
+  </>
+)}
 
-                  {/* SEO-tab */}
+
                   {activeTab === "seo" && (
-                    <div className="space-y-2 text-[12px]">
-                      <div>
-                        <p className="text-[11px] font-semibold text-phorium-dark/80">
-                          SEO-tittel
-                        </p>
-                        <p>{result.meta_title || "—"}</p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] font-semibold text-phorium-dark/80">
-                          Meta-beskrivelse
-                        </p>
-                        <p>{result.meta_description || "—"}</p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] font-semibold text-phorium-dark/80">
-                          Tags
-                        </p>
-                        <p>
-                          {Array.isArray(result.tags) &&
-                          result.tags.length > 0
-                            ? result.tags.join(", ")
-                            : "—"}
-                        </p>
-                      </div>
-                    </div>
-                  )}
+  <div className="space-y-3 text-[12px]">
+    <div>
+      <p className="text-[11px] font-semibold text-phorium-dark/80">
+        SEO-tittel
+      </p>
+      <p>{result.meta_title || "—"}</p>
+    </div>
+
+    <div>
+      <p className="text-[11px] font-semibold text-phorium-dark/80">
+        Meta-beskrivelse
+      </p>
+      <p>{result.meta_description || "—"}</p>
+    </div>
+
+    <div>
+      <p className="text-[11px] font-semibold text-phorium-dark/80">
+        Tags
+      </p>
+      <p>
+        {Array.isArray(result.tags) && result.tags.length > 0
+          ? result.tags.join(", ")
+          : "—"}
+      </p>
+    </div>
+
+    <div>
+      <p className="mb-1 text-[11px] font-semibold text-phorium-dark/80">
+        SEO-nøkkelord (forslag)
+      </p>
+      {Array.isArray(result.seo_keywords) &&
+      result.seo_keywords.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {result.seo_keywords.map((kw, i) => (
+            <span
+              key={kw + i}
+              className="inline-flex items-center rounded-full border border-phorium-off/40 bg-white/70 px-2.5 py-0.5 text-[10px] text-phorium-dark/90"
+            >
+              {kw}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <p className="text-[11px] text-phorium-dark/60">—</p>
+      )}
+    </div>
+  </div>
+)}
+
 
                   {/* Ads-tab */}
                   {activeTab === "ads" && (
