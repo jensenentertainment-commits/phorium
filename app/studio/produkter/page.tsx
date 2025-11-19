@@ -246,7 +246,7 @@ export default function ProdukterPage() {
                       href={`/studio/text?productId=${selectedProduct.id}`}
                       className="inline-flex items-center gap-1.5 rounded-full bg-phorium-accent px-5 py-2 text-[11px] font-semibold text-phorium-dark shadow-sm transition hover:bg-phorium-accent/90"
                     >
-                      ✍️ Bruk dette produktet i tekststudio
+                      Bruk dette produktet i tekststudio
                     </Link>
                   </div>
                 </div>

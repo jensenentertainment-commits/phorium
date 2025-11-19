@@ -19,6 +19,7 @@ export default function PhoriumTextForm() {
   const [productLoading, setProductLoading] = useState(false);
   const [productError, setProductError] = useState<string | null>(null);
 
+  // Hent produkt fra /api/shopify/product når productId finnes
   useEffect(() => {
     async function fetchProduct() {
       if (!productIdFromUrl) return;
@@ -37,7 +38,8 @@ export default function PhoriumTextForm() {
         }
 
         setLinkedProduct(data.product);
-        // Fyll inn produktnavn automatisk hvis tomt
+
+        // Fyll automatisk inn produktnavn hvis feltet er tomt
         if (!productName) {
           setProductName(data.product.title || "");
         }
@@ -52,7 +54,7 @@ export default function PhoriumTextForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productIdFromUrl]);
 
-  // --- Manuell generering (slik du hadde) ---
+  // --- Manuell generering (slik du hadde før) ---
   async function handleGenerate() {
     setLoading(true);
     setError(null);
@@ -76,14 +78,14 @@ export default function PhoriumTextForm() {
       } else {
         setResult(data.data);
       }
-    } catch (err: any) {
+    } catch {
       setError("Kunne ikke kontakte API-et.");
     } finally {
       setLoading(false);
     }
   }
 
-  // --- Ny: Generer tekst basert på Shopify-produkt ---
+  // --- NY: Generer tekst basert på Shopify-produkt ---
   async function handleGenerateFromProduct() {
     if (!productIdFromUrl) return;
 
@@ -108,7 +110,7 @@ export default function PhoriumTextForm() {
 
       const r = data.result;
 
-      // Mapper JSON-pakken fra generate-product-text til formatet du allerede viser
+      // Mapper tekstpakken til samme struktur som du viste fra før
       setResult({
         title:
           linkedProduct?.title ||
@@ -134,10 +136,10 @@ export default function PhoriumTextForm() {
       </h2>
       <p className="text-[12px] text-[#ECE8DA]/70">
         Fyll inn produktnavn og generer tekst – eller åpne et produkt fra
-        Shopify og la Phorium gjøre resten.
+        Shopify og la Phorium bruke ekte produktdata.
       </p>
 
-      {/* Produktkontekst fra Shopify */}
+      {/* 🔹 VIS HVILKET PRODUKT DU JOBBER MED */}
       {productIdFromUrl && (
         <div className="rounded-xl border border-[#A39C84]/40 bg-[#11140F] px-3 py-3 text-[12px]">
           {productLoading && (
@@ -202,6 +204,7 @@ export default function PhoriumTextForm() {
         className="w-full px-3 py-2 rounded-lg bg-[#11140F] text-[#ECE8DA] text-sm border border-[#A39C84]/40 focus:outline-none focus:border-[#C8B77A]"
       />
 
+      {/* Knapper */}
       <div className="mt-2 flex flex-col gap-2 sm:flex-row">
         <button
           onClick={handleGenerate}
