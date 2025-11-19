@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Copy, Check, RotateCcw } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+
 
 type HistoryItem = {
   prompt: string;
