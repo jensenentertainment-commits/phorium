@@ -11,7 +11,7 @@ export default function PhoriumTextForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // --- Shopify produkt-kontekst (fra URL) ---
+  // --- Shopify-kontekst ---
   const searchParams = useSearchParams();
   const productIdFromUrl = searchParams.get("productId");
 
@@ -19,7 +19,9 @@ export default function PhoriumTextForm() {
   const [productLoading, setProductLoading] = useState(false);
   const [productError, setProductError] = useState<string | null>(null);
 
-  // Hent produkt fra /api/shopify/product når productId finnes
+  const isShopifyMode = !!productIdFromUrl;
+
+  // Hent produkt hvis vi har productId
   useEffect(() => {
     async function fetchProduct() {
       if (!productIdFromUrl) return;
@@ -39,9 +41,9 @@ export default function PhoriumTextForm() {
 
         setLinkedProduct(data.product);
 
-        // Fyll automatisk inn produktnavn hvis feltet er tomt
-        if (!productName) {
-          setProductName(data.product.title || "");
+        // Lås produktnavnet til Shopify-tittel
+        if (data.product?.title) {
+          setProductName(data.product.title);
         }
       } catch (err: any) {
         setProductError(err?.message || "Feil ved henting av produkt.");
@@ -54,8 +56,8 @@ export default function PhoriumTextForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productIdFromUrl]);
 
-  // --- Manuell generering (slik du hadde før) ---
-  async function handleGenerate() {
+  // --- Manuell generering (uten Shopify-produkt) ---
+  async function handleGenerateManual() {
     setLoading(true);
     setError(null);
     setResult(null);
@@ -85,7 +87,7 @@ export default function PhoriumTextForm() {
     }
   }
 
-  // --- NY: Generer tekst basert på Shopify-produkt ---
+  // --- Generering basert på Shopify-produkt ---
   async function handleGenerateFromProduct() {
     if (!productIdFromUrl) return;
 
@@ -110,7 +112,6 @@ export default function PhoriumTextForm() {
 
       const r = data.result;
 
-      // Mapper tekstpakken til samme struktur som du viste fra før
       setResult({
         title:
           linkedProduct?.title ||
@@ -130,18 +131,19 @@ export default function PhoriumTextForm() {
   }
 
   return (
-    <div className="max-w-lg w-full mx-auto bg-[#2A2E26]/95 border border-[#A39C84]/40 rounded-2xl p-6 space-y-4">
+    <div className="max-w-2xl w-full mx-auto bg-[#2A2E26]/95 border border-[#A39C84]/40 rounded-2xl p-6 space-y-4">
       <h2 className="text-xl font-semibold text-[#ECE8DA]">
         Phorium Tekstgenerator
       </h2>
       <p className="text-[12px] text-[#ECE8DA]/70">
-        Fyll inn produktnavn og generer tekst – eller åpne et produkt fra
-        Shopify og la Phorium bruke ekte produktdata.
+        {isShopifyMode
+          ? "Du har åpnet et produkt fra Shopify. Juster tone og kategori – Phorium bruker produktdata direkte."
+          : "Fyll inn produktnavn, kategori og tone – Phorium lager en ferdig tekstpakke på norsk."}
       </p>
 
-      {/* 🔹 VIS HVILKET PRODUKT DU JOBBER MED */}
-      {productIdFromUrl && (
-        <div className="rounded-xl border border-[#A39C84]/40 bg-[#11140F] px-3 py-3 text-[12px]">
+      {/* 🔹 Produktkort når vi kommer fra Shopify */}
+      {isShopifyMode && (
+        <div className="rounded-xl border border-[#A39C84]/40 bg-[#11140F] px-3 py-3 text-[12px] mb-1.5">
           {productLoading && (
             <p className="text-[#ECE8DA]/80">
               Henter produktdata fra Shopify …
@@ -179,14 +181,25 @@ export default function PhoriumTextForm() {
         </div>
       )}
 
-      {/* Skjema */}
-      <input
-        type="text"
-        value={productName}
-        onChange={(e) => setProductName(e.target.value)}
-        placeholder="Produktnavn (obligatorisk)"
-        className="w-full px-3 py-2 rounded-lg bg-[#11140F] text-[#ECE8DA] text-sm border border-[#A39C84]/40 focus:outline-none focus:border-[#C8B77A]"
-      />
+      {/* FELTENE */}
+      {!isShopifyMode && (
+        <input
+          type="text"
+          value={productName}
+          onChange={(e) => setProductName(e.target.value)}
+          placeholder="Produktnavn (obligatorisk)"
+          className="w-full px-3 py-2 rounded-lg bg-[#11140F] text-[#ECE8DA] text-sm border border-[#A39C84]/40 focus:outline-none focus:border-[#C8B77A]"
+        />
+      )}
+
+      {isShopifyMode && (
+        <div className="text-[11px] text-[#ECE8DA]/55">
+          Produktnavn er låst til:{" "}
+          <span className="text-[#ECE8DA] font-medium">
+            {productName || linkedProduct?.title || "Ukjent produkt"}
+          </span>
+        </div>
+      )}
 
       <input
         type="text"
@@ -204,23 +217,31 @@ export default function PhoriumTextForm() {
         className="w-full px-3 py-2 rounded-lg bg-[#11140F] text-[#ECE8DA] text-sm border border-[#A39C84]/40 focus:outline-none focus:border-[#C8B77A]"
       />
 
-      {/* Knapper */}
+      {/* Knapper – avhenger av om vi har Shopify-produkt */}
       <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-        <button
-          onClick={handleGenerate}
-          disabled={loading || !productName}
-          className="w-full py-2.5 rounded-full bg-[#C8B77A] text-[#2A2E26] text-sm font-semibold hover:bg-[#E3D8AC] transition disabled:opacity-60"
-        >
-          {loading ? "Genererer..." : "Generer tekst (manuell)"}
-        </button>
+        {!isShopifyMode && (
+          <button
+            onClick={handleGenerateManual}
+            disabled={loading || !productName}
+            className="w-full py-2.5 rounded-full bg-[#C8B77A] text-[#2A2E26] text-sm font-semibold hover:bg-[#E3D8AC] transition disabled:opacity-60"
+          >
+            {loading ? "Genererer..." : "Generer tekst"}
+          </button>
+        )}
 
-        <button
-          onClick={handleGenerateFromProduct}
-          disabled={loading || !productIdFromUrl}
-          className="w-full py-2.5 rounded-full border border-[#C8B77A] text-[#C8B77A] text-sm font-semibold hover:bg-[#C8B77A]/10 transition disabled:opacity-40"
-        >
-          Generer tekst fra Shopify-produkt
-        </button>
+        {isShopifyMode && (
+          <>
+            <button
+              onClick={handleGenerateFromProduct}
+              disabled={loading}
+              className="w-full py-2.5 rounded-full bg-[#C8B77A] text-[#2A2E26] text-sm font-semibold hover:bg-[#E3D8AC] transition disabled:opacity-60"
+            >
+              {loading
+                ? "Genererer fra Shopify-produkt…"
+                : "Generer tekst fra Shopify-produkt"}
+            </button>
+          </>
+        )}
       </div>
 
       {error && (
