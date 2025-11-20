@@ -16,9 +16,9 @@ type Product = {
   updatedAt: string;
   plainDescription?: string;
   hasDescription?: boolean;
-  optimizationScore?: number;          // 0, 33, 66, 100
-  optimizationLabel?: string;          // "33% AI-optimalisert"
-  optimizationCharacters?: number;     // antall tegn
+  optimizationScore?: number;      // 0, 33, 66, 100
+  optimizationLabel?: string;      // "33% AI-optimalisert"
+  optimizationCharacters?: number; // antall tegn
 };
 
 type ApiResponse = {
@@ -31,10 +31,29 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"any" | "active" | "draft" | "archived">("any");
   const [onlyLowScore, setOnlyLowScore] = useState(false);
   const [onlyMissingText, setOnlyMissingText] = useState(false);
+
+  // Brukes til "Åpne i Shopify"
+  const [shopDomain, setShopDomain] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Les butikkdomene fra cookie (samme som i Visuals/Text)
+    if (typeof document === "undefined") return;
+    try {
+      const parts = document.cookie.split(";").map((c) => c.trim());
+      const match = parts.find((c) => c.startsWith("phorium_shop="));
+      if (match) {
+        const value = decodeURIComponent(match.split("=").slice(1).join("="));
+        setShopDomain(value);
+      }
+    } catch {
+      // stille feil
+    }
+  }, []);
 
   useEffect(() => {
     async function fetchProducts() {
@@ -77,13 +96,10 @@ export default function ProductsPage() {
     }
 
     fetchProducts();
-  }, [statusFilter, onlyMissingText, onlyLowScore]); // search kan trigges med egen knapp om du vil
+  }, [statusFilter, onlyMissingText, onlyLowScore]); // search trigges via manualFetch
 
   function handleSearchSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // Trigger useEffect via "dummy" toggling av onlyLowScore (småhack) eller
-    // enklere: kall fetch direkte. Vi gjør det enklere:
-    // For nå: vi lar search trigge ved form-submit via ny useEffect:
     manualFetch();
   }
 
@@ -133,7 +149,8 @@ export default function ProductsPage() {
   }
 
   function scoreBackground(score?: number) {
-    if (score === undefined || score === null) return "bg-red-500/15 border-red-500/40";
+    if (score === undefined || score === null)
+      return "bg-red-500/15 border-red-500/40";
     if (score < 33) return "bg-red-500/15 border-red-500/40";
     if (score < 66) return "bg-amber-400/15 border-amber-400/40";
     if (score < 100) return "bg-lime-400/15 border-lime-400/40";
@@ -184,7 +201,9 @@ export default function ProductsPage() {
                 <select
                   value={statusFilter}
                   onChange={(e) =>
-                    setStatusFilter(e.target.value as "any" | "active" | "draft" | "archived")
+                    setStatusFilter(
+                      e.target.value as "any" | "active" | "draft" | "archived",
+                    )
                   }
                   className="rounded-full border border-phorium-off/40 bg-phorium-dark px-3 py-1.5 text-[11px] text-phorium-light/85 outline-none focus:border-phorium-accent"
                 >
@@ -196,7 +215,7 @@ export default function ProductsPage() {
 
                 <button
                   type="submit"
-                  className="rounded-full bg-phorium-accent px-4 py-1.5 text-[11px] font-semibold text-phorium-dark shadow-md hover:bg-phorium-accent/90"
+                  className="btn btn-primary btn-sm"
                 >
                   Oppdater liste
                 </button>
@@ -235,8 +254,8 @@ export default function ProductsPage() {
           <div className="mt-3 flex items-start gap-2 text-[11px] text-phorium-light/70">
             <AlertTriangle className="mt-[2px] h-3.5 w-3.5 text-amber-300" />
             <p>
-              Phorium måler kun <span className="font-semibold">tekstlengde og fylde</span> –
-              ikke hvor “god” teksten er. Jobben din er å gjøre den bra –{" "}
+              Phorium måler kun <span className="font-semibold">tekstlengde og fylde</span> – ikke
+              hvor “god” teksten er. Jobben din er å gjøre den bra –{" "}
               <span className="text-phorium-accent/95">
                 Phorium sørger for at ingenting er tomt eller halvhjertet.
               </span>
@@ -296,7 +315,9 @@ export default function ProductsPage() {
                           />
                         ) : (
                           <div className="flex h-full w-full items-center justify-center text-[10px] text-phorium-light/50">
-                            Ingen<br />bilde
+                            Ingen
+                            <br />
+                            bilde
                           </div>
                         )}
                       </div>
@@ -361,17 +382,28 @@ export default function ProductsPage() {
                       <div className="flex flex-wrap justify-end gap-2 text-[11px]">
                         <Link
                           href={`/studio/text?productId=${p.id}`}
-                          className="rounded-full bg-phorium-accent px-3.5 py-1.5 font-semibold text-phorium-dark shadow-md hover:bg-phorium-accent/90"
+                          className="btn btn-primary btn-sm"
                         >
                           Åpne i tekststudio
                         </Link>
+
                         <Link
-                          href={`https://${process.env.NEXT_PUBLIC_SHOPIFY_DOMAIN || ""}/admin/products/${p.id}`}
-                          target="_blank"
-                          className="rounded-full border border-phorium-off/40 bg-phorium-surface px-3.5 py-1.5 text-phorium-light/85 hover:border-phorium-accent hover:text-phorium-accent"
+                          href={`/studio/visuals?productId=${p.id}`}
+                          className="btn btn-ghost btn-sm"
                         >
-                          Åpne i Shopify
+                          Åpne i Visuals
                         </Link>
+
+                        {(shopDomain || process.env.NEXT_PUBLIC_SHOPIFY_DOMAIN) && (
+                          <a
+                            href={`https://${shopDomain || process.env.NEXT_PUBLIC_SHOPIFY_DOMAIN}/admin/products/${p.id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="btn btn-secondary btn-sm"
+                          >
+                            Åpne i Shopify
+                          </a>
+                        )}
                       </div>
                     </div>
                   </div>
