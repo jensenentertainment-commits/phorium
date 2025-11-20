@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search } from "lucide-react";
 import PhoriumLoader from "./PhoriumLoader";
+
 
 type GeneratedResult = {
   title?: string;
@@ -383,46 +384,84 @@ export default function PhoriumTextForm() {
 
   return (
     <div className="mt-4 space-y-4">
-      {/* Shopify-produkt header */}
-      {isShopifyMode && (
-        <div className="rounded-2xl border border-phorium-off/35 bg-phorium-dark px-4 py-3 text-[12px]">
-          {productLoading && (
-            <p className="text-phorium-light/85">
-              Henter produktdata fra Shopify …
-            </p>
-          )}
+    {/* Shopify-produkt header */}
+{isShopifyMode && (
+  <div className="rounded-2xl border border-phorium-off/35 bg-phorium-dark px-4 py-3 text-[12px]">
+    {productLoading && (
+      <p className="text-phorium-light/85">
+        Henter produktdata fra Shopify …
+      </p>
+    )}
 
-          {productError && (
-            <p className="text-red-300">
-              Klarte ikke å hente produkt: {productError}
-            </p>
-          )}
+    {productError && (
+      <p className="text-red-300">
+        Klarte ikke å hente produkt: {productError}
+      </p>
+    )}
 
-          {linkedProduct && !productLoading && (
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-[11px] text-phorium-light/60">
-                  Jobber mot produkt:
-                </div>
-                <div className="text-[13px] font-semibold text-phorium-accent">
-                  {linkedProduct.title}
-                </div>
-                <div className="text-[11px] text-phorium-light/60">
-                  Handle: {linkedProduct.handle} · ID:{" "}
-                  {linkedProduct.id}
-                </div>
-              </div>
-              {linkedProduct.image?.src && (
-                <img
-                  src={linkedProduct.image.src}
-                  alt={linkedProduct.title}
-                  className="h-12 w-12 rounded-lg border border-phorium-off/40 object-cover"
-                />
-              )}
-            </div>
-          )}
+    {linkedProduct && !productLoading && !productError && (
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="text-[11px] text-phorium-light/60">
+            Jobber mot produkt:
+          </div>
+          <div className="text-[13px] font-semibold text-phorium-accent">
+            {linkedProduct.title}
+          </div>
+          <div className="text-[11px] text-phorium-light/60">
+            Handle: {linkedProduct.handle} · ID: {linkedProduct.id}
+          </div>
         </div>
-      )}
+
+        <div className="flex items-center gap-3">
+          {linkedProduct.image?.src && (
+            <img
+              src={linkedProduct.image.src}
+              alt={linkedProduct.title}
+              className="h-12 w-12 rounded-lg border border-phorium-off/40 object-cover"
+            />
+          )}
+
+          <Link
+            href="/studio/produkter"
+            className="rounded-full border border-phorium-off/40 px-3 py-1.5 text-[11px] font-medium text-phorium-light/80 transition hover:border-phorium-accent hover:text-phorium-accent"
+          >
+            Bytt produkt
+          </Link>
+        </div>
+      </div>
+    )}
+  </div>
+)}
+
+{!isShopifyMode && (
+  <div className="rounded-2xl border border-phorium-off/25 bg-phorium-dark/70 px-4 py-3 text-[12px]">
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <div className="text-[11px] font-semibold text-phorium-light/80">
+          Ingen Shopify-produkt valgt
+        </div>
+        <div className="text-[11px] text-phorium-light/60">
+          Velg et produkt fra nettbutikken din for å få auto-utfylte forslag.
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <Link
+          href="/studio/produkter"
+          className="rounded-full bg-phorium-accent px-3 py-1.5 text-[11px] font-semibold text-phorium-dark shadow-sm hover:bg-phorium-accent/90"
+        >
+          Velg produkt
+        </Link>
+        <Link
+          href="/studio/koble-nettbutikk"
+          className="rounded-full border border-phorium-off/35 px-3 py-1.5 text-[11px] text-phorium-light/75 hover:border-phorium-accent hover:text-phorium-accent"
+        >
+          Koble nettbutikk
+        </Link>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* Grid: input venstre, resultat høyre */}
       <div className="grid gap-6 lg:grid-cols-2">
