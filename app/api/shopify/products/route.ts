@@ -19,6 +19,29 @@ function stripHtml(input: string | null | undefined): string {
   return input.replace(/<[^>]+>/g, "").trim();
 }
 
+// Grov Phorium-score basert på hvor "rik" teksten er.
+// NB: Krever at vi henter body_html i Shopify-kallet (se lenger ned).
+function computeOptimizationScore(p: any) {
+  const rawHtml = (p.body_html || "") as string;
+
+  // Fjern HTML-tag’er før vi måler tekstlengde
+  const plain = rawHtml.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+  const len = plain.length;
+
+  let score = 0;
+
+  if (len > 40) score = 33;
+  if (len > 160) score = 66;
+  if (len > 320) score = 100;
+
+  let label = "0% AI-optimalisert";
+  if (score === 33) label = "33% AI-optimalisert";
+  if (score === 66) label = "66% AI-optimalisert";
+  if (score === 100) label = "100% AI-optimalisert";
+
+  return { score, label, characters: len };
+}
+
 export async function GET(req: Request) {
   try {
     const cookieHeader = req.headers.get("cookie");
@@ -43,13 +66,21 @@ export async function GET(req: Request) {
     const onlyMissingDescription =
       (searchParams.get("missing_description") || "0") === "1";
 
-    const url = new URL(
-      `https://${shop}/admin/api/${SHOPIFY_API_VERSION}/products.json`,
-    );
-    url.searchParams.set("limit", String(limit));
-    if (status !== "any") {
-      url.searchParams.set("status", status);
-    }
+  const url = new URL(
+  `https://${shop}/admin/api/${SHOPIFY_API_VERSION}/products.json`,
+);
+url.searchParams.set("limit", String(limit));
+
+if (status !== "any") {
+  url.searchParams.set("status", status);
+}
+
+// 👇 VIKTIG – hent mer data fra Shopify
+url.searchParams.set(
+  "fields",
+  "id,title,handle,status,created_at,updated_at,variants,image,images,body_html,tags"
+);
+
 
     const res = await fetch(url.toString(), {
       headers: {
@@ -93,23 +124,34 @@ export async function GET(req: Request) {
     }
 
     const mapped = products.map((p: any) => {
-      const price =
-        p.variants && p.variants.length > 0
-          ? p.variants[0].price
-          : undefined;
+  const price =
+    p.variants && p.variants.length > 0
+      ? p.variants[0].price
+      : undefined;
 
-      return {
-        id: p.id,
-        title: p.title,
-        handle: p.handle,
-        status: p.status,
-        price,
-        image: p.image?.src || null,
-        createdAt: p.created_at,
-        updatedAt: p.updated_at,
-        hasDescription: !!stripHtml(p.body_html),
-      };
-    });
+  const plainDescription = stripHtml(p.body_html);
+  const optimization = computeOptimizationScore(p);
+
+  return {
+    id: p.id,
+    title: p.title,
+    handle: p.handle,
+    status: p.status,
+    price,
+    image: p.image?.src || null,
+    createdAt: p.created_at,
+    updatedAt: p.updated_at,
+
+    // Nytt
+    plainDescription,
+    hasDescription: plainDescription.length > 0,
+
+    optimizationScore: optimization.score,
+    optimizationLabel: optimization.label,
+    optimizationCharacters: optimization.characters,
+  };
+});
+
 
     return NextResponse.json({
       success: true,
