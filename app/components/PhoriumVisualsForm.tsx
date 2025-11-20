@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { RotateCcw, Palette, Download } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import PhoriumLoader from "./PhoriumLoader";
 
 type HistoryItem = {
   prompt: string;
@@ -35,47 +36,6 @@ const DEFAULT_BRAND: BrandProfile = {
   accentColor: "#ECE8DA",
   tone: "nøytral",
 };
-
-function PhoriumLoader({
-  label = "Genererer … finpusser lys, kontrast og detaljer",
-}: {
-  label?: string;
-}) {
-  return (
-    <div className="flex flex-col items-center gap-3">
-      <motion.div className="relative h-10 w-10" aria-label="Laster">
-        <motion.div
-          className="absolute inset-0 rounded-full border-2 border-phorium-accent/70 border-t-transparent"
-          animate={{ rotate: 360 }}
-          transition={{ repeat: Infinity, ease: "linear", duration: 0.8 }}
-        />
-        <motion.div
-          className="absolute inset-2 rounded-full border border-phorium-accent/40"
-          animate={{ scale: [1, 1.1, 1] }}
-          transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }}
-        />
-      </motion.div>
-
-      <p className="text-center text-[12.5px] text-phorium-accent/95">
-        {label}
-      </p>
-
-      <div className="h-2 w-48 overflow-hidden rounded-full border border-phorium-off/40 bg-phorium-dark">
-        <motion.div
-          className="h-full bg-phorium-accent"
-          initial={{ x: "-100%" }}
-          animate={{ x: "100%" }}
-          transition={{ repeat: Infinity, duration: 1.8, ease: "easeInOut" }}
-          style={{ width: "55%" }}
-        />
-      </div>
-
-      <p className="text-[10px] tracking-wide text-phorium-light/55">
-        Phorium Core aktiv …
-      </p>
-    </div>
-  );
-}
 
 export default function PhoriumVisualsForm() {
   // Shopify-kontekst
@@ -129,6 +89,9 @@ export default function PhoriumVisualsForm() {
     headline: string;
     subline?: string;
   } | null>(null);
+
+  // 🆕 Valgt bildestørrelse for standardbilde
+  const [imageSize, setImageSize] = useState("1024x1024");
 
   const [showSafeZone, setShowSafeZone] = useState(false);
 
@@ -323,7 +286,7 @@ export default function PhoriumVisualsForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: contextPrefix() + trimmed,
-          size: "1024x1024",
+          size: imageSize, // 🧷 bruker valgt størrelse
         }),
       });
 
@@ -745,16 +708,19 @@ export default function PhoriumVisualsForm() {
                     Bytt produkt
                   </Link>
 
-                  {shopDomain && productIdFromUrl && (
-                    <a
-                      href={`https://${shopDomain}/admin/products/${productIdFromUrl}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="btn btn-sm btn-secondary"
-                    >
-                      Åpne i Shopify
-                    </a>
-                  )}
+                  {(shopDomain || process.env.NEXT_PUBLIC_SHOPIFY_DOMAIN) &&
+                    productIdFromUrl && (
+                      <a
+                        href={`https://${
+                          shopDomain || process.env.NEXT_PUBLIC_SHOPIFY_DOMAIN
+                        }/admin/products/${productIdFromUrl}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn btn-sm btn-secondary"
+                      >
+                        Åpne i Shopify
+                      </a>
+                    )}
                 </div>
               </div>
             </div>
@@ -839,33 +805,72 @@ export default function PhoriumVisualsForm() {
             className="h-32 w-full resize-none rounded-2xl border border-phorium-accent/40 bg-phorium-light px-4 py-3 text-[14px] text-phorium-dark outline-none placeholder:text-[#8F8A7A] focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/18"
           />
 
-          <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
-            {["Produktfoto", "Livsstil", "Kampanjebanner", "Bakgrunn", "Mockup"].map(
-              (label) => (
-                <button
-                  key={label}
-                  type="button"
-                  className="btn btn-sm btn-ghost"
-                  onClick={() =>
-                    setPrompt(
-                      `Lag et ${label.toLowerCase()} i fotorealistisk stil. Profesjonelt lys, høy oppløsning.`,
-                    )
-                  }
-                >
-                  {label}
-                </button>
-              ),
-            )}
+          {/* Rad: presets + størrelse */}
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-[11px]">
+            <div className="flex flex-wrap gap-2">
+              {["Produktfoto", "Livsstil", "Kampanjebanner", "Bakgrunn", "Mockup"].map(
+                (label) => (
+                  <button
+                    key={label}
+                    type="button"
+                    className="btn btn-sm btn-ghost"
+                    onClick={() =>
+                      setPrompt(
+                        `Lag et ${label.toLowerCase()} i fotorealistisk stil. Profesjonelt lys, høy oppløsning.`,
+                      )
+                    }
+                  >
+                    {label}
+                  </button>
+                ),
+              )}
+            </div>
+
+            {/* Størrelse-velger m/ kvadrat + rektangulær */}
+            <div className="flex items-center gap-2">
+              <span className="text-phorium-light/60">Størrelse:</span>
+              <select
+                value={imageSize}
+                onChange={(e) => setImageSize(e.target.value)}
+                className="rounded-full border border-phorium-off/40 bg-phorium-dark px-3 py-1.5 text-[11px] text-phorium-light/85 outline-none focus:border-phorium-accent"
+              >
+                {/* Kvadratiske – typisk produkt */}
+                <option value="1024x1024">
+                  1024×1024 – Produkt (kvadrat)
+                </option>
+                <option value="768x768">768×768 – Mindre kvadrat</option>
+
+                {/* Rektangulære produktbilder */}
+                <option value="1600x1200">
+                  1600×1200 – Liggende produktfoto
+                </option>
+                <option value="1200x1600">
+                  1200×1600 – Stående produktfoto
+                </option>
+
+                {/* Kampanje / SoMe */}
+                <option value="1200x628">
+                  1200×628 – Banner / hero
+                </option>
+                <option value="1080x1920">
+                  1080×1920 – Story / Reel
+                </option>
+              </select>
+            </div>
           </div>
+
+          <p className="mt-1 text-[10px] text-phorium-light/55">
+            Tips: Til vanlige produktbilder i Shopify fungerer 1024×1024 eller
+            et lett liggende format som 1600×1200 veldig bra.
+          </p>
+
           <button
             type="button"
             onClick={handleGenerate}
             disabled={isBusy || imageCooldown > 0}
             className="btn btn-primary btn-lg mt-4 w-full disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
           >
-            {imageCooldown > 0
-              ? `Vent ${imageCooldown}s`
-              : "Generer bilde"}
+            {imageCooldown > 0 ? `Vent ${imageCooldown}s` : "Generer bilde"}
           </button>
         </div>
       )}
