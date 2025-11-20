@@ -21,7 +21,6 @@ function getCookieFromHeader(
 
 function stripHtml(input: string | null | undefined): string {
   if (!input) return "";
-  // veldig enkel "strip HTML"
   return input.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
 }
 
@@ -60,7 +59,7 @@ export async function POST(req: Request) {
         headers: {
           "X-Shopify-Access-Token": accessToken,
           "Content-Type": "application/json",
-          "Accept": "application/json",
+          Accept: "application/json",
         },
         cache: "no-store",
       },
@@ -94,6 +93,8 @@ export async function POST(req: Request) {
     const title: string = product.title || "";
     const bodyHtml: string = product.body_html || "";
     const bodyText = stripHtml(bodyHtml);
+    const hasExistingDescription = bodyText.length > 0;
+
     const productType: string = product.product_type || "";
     const tagsRaw: string = product.tags || "";
     const tags = tagsRaw
@@ -122,16 +123,26 @@ export async function POST(req: Request) {
           : `${minPrice.toFixed(2)}–${maxPrice.toFixed(2)} kr`
         : undefined;
 
+    // Ta med noen få bildelenker (kan hjelpe modellen med kontekst på stil/bruk)
+    const images = Array.isArray(product.images)
+      ? product.images.slice(0, 3).map((img: any) => ({
+          src: img.src,
+          alt: img.alt || "",
+        }))
+      : [];
+
     // Bygg kontekst til modellen
     const context = {
       title,
       bodyText,
+      hasExistingDescription,
       productType,
       tags,
       handle,
       vendor,
       options,
       priceSummary,
+      images,
       tone,
     };
 
@@ -153,7 +164,12 @@ Du får et produkt fra en Shopify-butikk. Skriv en komplett tekstpakke for nettb
 Produktdata (JSON):
 ${JSON.stringify(context, null, 2)}
 
-Krav til output (SVAR KUN SOM JSON-OBJEKT):
+Viktig om eksisterende tekst:
+- hasExistingDescription = ${hasExistingDescription ? "true" : "false"}.
+- Hvis true: Forbedre og stram opp eksisterende tekst (bodyText). Behold fakta, men skriv den om til mer kommersiell, lesbar og strukturert tekst.
+- Hvis false: Skriv en helt ny tekst fra bunnen av, basert på tittel, produktType, tags, pris og annet du har.
+
+Krav til output (SVAR KUN SOM JSON-OBJEKT – INGEN forklarende tekst rundt):
 
 {
   "description": "Hovedbeskrivelse for produktsiden, 2–4 korte avsnitt.",
@@ -177,8 +193,9 @@ Krav til output (SVAR KUN SOM JSON-OBJEKT):
 
 Tone-krav:
 - Tilpass teksten til tonefeltet brukeren har valgt: "${tone}".
-- Unngå «AI-stemning» og klisjeer. Skriv som en menneskelig, kommersiell tekstforfatter.
-- Ikke finn opp tekniske detaljer som ikke står i produktet; hold deg til det som er sannsynlig og trygt å anta.
+- Unngå «AI-stemning» og overbruk av klisjeer som "perfekt til", "må-ha", "magisk", osv.
+- Skriv som en menneskelig, kommersiell tekstforfatter for en norsk nettbutikk.
+- Ikke finn opp tekniske detaljer du ikke har dekning for; hold deg til det som er sannsynlig og trygt å anta.
         `,
         },
       ],
@@ -211,10 +228,7 @@ Tone-krav:
       );
     }
 
-    // 3) Returner i formatet PhoriumTextForm forventer:
-    //  description, shortDescription, seoTitle, metaDescription,
-    //  bullets, tags, adPrimaryText, adHeadline, adDescription,
-    //  socialCaption, hashtags
+    // 3) Returner i formatet PhoriumTextForm forventer
     return NextResponse.json({
       success: true,
       result: {
