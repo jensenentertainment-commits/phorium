@@ -1,4 +1,4 @@
-// app/api/shopify/save-product-text/route.ts
+// app/api/shopify/save-product-text/route.ts 
 import { NextResponse } from "next/server";
 
 const SHOPIFY_API_VERSION = "2024-01";
@@ -31,7 +31,14 @@ export async function POST(req: Request) {
       );
     }
 
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
+
+    if (!body) {
+      return NextResponse.json(
+        { success: false, error: "Mangler JSON-body i requesten." },
+        { status: 400 },
+      );
+    }
 
     const productId = Number(body.productId);
     const result = body.result;
@@ -67,7 +74,9 @@ export async function POST(req: Request) {
 
     const bodyHtml = parts.join("\n");
 
-    const tags = Array.isArray(result.tags) ? result.tags.join(", ") : undefined;
+    const tags = Array.isArray(result.tags)
+      ? result.tags.join(", ")
+      : undefined;
 
     const payload: any = {
       product: {
@@ -91,7 +100,7 @@ export async function POST(req: Request) {
 
     const url = `https://${shop}/admin/api/${SHOPIFY_API_VERSION}/products/${productId}.json`;
 
-    const res = await fetch(url, {
+    const shopifyRes = await fetch(url, {
       method: "PUT",
       headers: {
         "X-Shopify-Access-Token": accessToken,
@@ -101,24 +110,36 @@ export async function POST(req: Request) {
       body: JSON.stringify(payload),
     });
 
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("Shopify save error:", text);
+    // Les råtekst først, for å unngå at res.json() kaster
+    const rawText = await shopifyRes.text();
+
+    if (!shopifyRes.ok) {
+      console.error("Shopify save error:", rawText);
       return NextResponse.json(
         {
           success: false,
           error: "Shopify avviste oppdateringen.",
-          details: text.slice(0, 500),
+          details: rawText.slice(0, 500),
         },
-        { status: 500 },
+        { status: shopifyRes.status },
       );
     }
 
-    const data = await res.json();
+    // Shopify kan svare med tom body eller ikke-helt-JSON → myk parsing
+    let data: any = {};
+    if (rawText) {
+      try {
+        data = JSON.parse(rawText);
+      } catch (e) {
+        console.warn(
+          "Shopify svarte 200, men ikke ren JSON. Ignorerer parse-feil.",
+        );
+      }
+    }
 
     return NextResponse.json({
       success: true,
-      product: data.product,
+      product: data.product ?? null,
     });
   } catch (err: any) {
     console.error("Unexpected save error:", err);
