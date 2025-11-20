@@ -1,4 +1,4 @@
-// app/api/shopify/brand-profile/route.ts
+// app/api/shopify/auto-brand-profile/route.ts
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 
@@ -8,6 +8,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
 
+/** Hent cookie-verdi fra header */
 function getCookieFromHeader(
   header: string | null,
   name: string,
@@ -19,12 +20,22 @@ function getCookieFromHeader(
   return decodeURIComponent(match.split("=").slice(1).join("="));
 }
 
+/** Veldig enkel HTML → tekst */
 function stripHtml(input: string | null | undefined): string {
   if (!input) return "";
-  return input.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+  return input.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
-export async function GET(req: Request) {
+/** Sikkert fallback-hex */
+function safeHex(value: unknown, fallback: string): string {
+  if (typeof value !== "string") return fallback;
+  const v = value.trim();
+  // enkel sjekk på #RRGGBB
+  if (/^#[0-9a-fA-F]{6}$/.test(v)) return v;
+  return fallback;
+}
+
+export async function POST(req: Request) {
   try {
     const cookieHeader = req.headers.get("cookie");
     const shop = getCookieFromHeader(cookieHeader, "phorium_shop");
@@ -41,13 +52,12 @@ export async function GET(req: Request) {
       );
     }
 
-    // 1) Hent shop-info
+    // 1) Hent grunnleggende shop-info
     const shopRes = await fetch(
       `https://${shop}/admin/api/${SHOPIFY_API_VERSION}/shop.json`,
       {
         headers: {
           "X-Shopify-Access-Token": accessToken,
-          "Content-Type": "application/json",
           Accept: "application/json",
         },
         cache: "no-store",
@@ -56,7 +66,7 @@ export async function GET(req: Request) {
 
     if (!shopRes.ok) {
       const txt = await shopRes.text().catch(() => "");
-      console.error("Shopify shop error:", shopRes.status, txt);
+      console.error("Shopify shop.json error:", shopRes.status, txt);
       return NextResponse.json(
         {
           success: false,
@@ -69,67 +79,105 @@ export async function GET(req: Request) {
 
     const shopJson = await shopRes.json();
     const shopData = shopJson.shop;
-    if (!shopData) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Uventet respons fra Shopify – mangler shop-felt.",
-        },
-        { status: 500 },
-      );
-    }
 
-    const shopName: string = shopData.name || "";
-    const shopDomain: string = shopData.myshopify_domain || shopData.domain || "";
-    const shopEmail: string = shopData.email || "";
-    const primaryLocale: string = shopData.primary_locale || "";
-    const currency: string = shopData.currency || "";
-    const country: string = shopData.country_name || shopData.country || "";
-
-    // 2) Hent noen produkter (for å se bransje / stil)
+    // 2) Hent et lite utvalg produkter (for tone / bransje)
     const productsRes = await fetch(
-      `https://${shop}/admin/api/${SHOPIFY_API_VERSION}/products.json?limit=8`,
+      `https://${shop}/admin/api/${SHOPIFY_API_VERSION}/products.json?limit=12&fields=title,product_type,body_html,tags,handle`,
       {
         headers: {
           "X-Shopify-Access-Token": accessToken,
-          "Content-Type": "application/json",
           Accept: "application/json",
         },
         cache: "no-store",
       },
     );
 
-    let products: any[] = [];
+    let productsSample: any[] = [];
     if (productsRes.ok) {
-      const productsJson = await productsRes.json();
-      products = Array.isArray(productsJson.products)
-        ? productsJson.products
-        : [];
+      const pJson = await productsRes.json();
+      if (Array.isArray(pJson.products)) {
+        productsSample = pJson.products.map((p: any) => ({
+          title: p.title || "",
+          product_type: p.product_type || "",
+          handle: p.handle || "",
+          tags: typeof p.tags === "string" ? p.tags : "",
+          body_text: stripHtml(p.body_html),
+        }));
+      }
+    } else {
+      const txt = await productsRes.text().catch(() => "");
+      console.warn("Shopify products.json error:", productsRes.status, txt);
     }
 
-    const productSnapshot = products.map((p) => ({
-      title: p.title,
-      product_type: p.product_type,
-      tags: (p.tags || "")
-        .split(",")
-        .map((t: string) => t.trim())
-        .filter(Boolean),
-      vendor: p.vendor,
-      bodyText: stripHtml(p.body_html),
-    }));
+    // 3) (Valgfritt) Prøv å hente theme settings (vi sender rå-data til modellen)
+    let themeSettings: any = null;
+    try {
+      const themesRes = await fetch(
+        `https://${shop}/admin/api/${SHOPIFY_API_VERSION}/themes.json`,
+        {
+          headers: {
+            "X-Shopify-Access-Token": accessToken,
+            Accept: "application/json",
+          },
+          cache: "no-store",
+        },
+      );
 
-    // 3) Bygg kontekst til modellen
+      if (themesRes.ok) {
+        const themesJson = await themesRes.json();
+        const themes: any[] = Array.isArray(themesJson.themes)
+          ? themesJson.themes
+          : [];
+        const liveTheme =
+          themes.find((t) => t.role === "main") ||
+          themes.find((t) => t.role === "live") ||
+          themes[0];
+
+        if (liveTheme) {
+          const assetRes = await fetch(
+            `https://${shop}/admin/api/${SHOPIFY_API_VERSION}/themes/${liveTheme.id}/assets.json?asset[key]=config/settings_data.json&theme_id=${liveTheme.id}`,
+            {
+              headers: {
+                "X-Shopify-Access-Token": accessToken,
+                Accept: "application/json",
+              },
+              cache: "no-store",
+            },
+          );
+
+          if (assetRes.ok) {
+            const assetJson = await assetRes.json();
+            const asset = assetJson.asset;
+            if (asset?.value) {
+              try {
+                themeSettings = JSON.parse(asset.value);
+              } catch {
+                themeSettings = asset.value; // send som rå-streng
+              }
+            }
+          }
+        }
+      }
+    } catch (themeErr) {
+      console.warn("Klarte ikke å hente theme settings:", themeErr);
+    }
+
+    // 4) Bygg kontekst som sendes til OpenAI
     const context = {
-      shopName,
-      shopDomain,
-      shopEmail,
-      primaryLocale,
-      currency,
-      country,
-      products: productSnapshot,
+      shop: {
+        name: shopData?.name || "",
+        domain: shopData?.domain || "",
+        myshopify_domain: shopData?.myshopify_domain || "",
+        country: shopData?.country_name || "",
+        country_code: shopData?.country_code || "",
+        currency: shopData?.currency || "",
+        email: shopData?.email || "",
+      },
+      productsSample,
+      themeSettings,
     };
 
-    // 4) Kall OpenAI for å lage både storeProfile + brandProfile
+    // 5) Kall OpenAI for å generere brandprofil
     const completion = await openai.chat.completions.create({
       model: "gpt-4.1-mini",
       response_format: { type: "json_object" },
@@ -137,52 +185,42 @@ export async function GET(req: Request) {
         {
           role: "system",
           content:
-            "Du analyserer norske nettbutikker (primært Shopify) og lager en kort brandprofil. Svar ALLTID kun med gyldig JSON uten ekstra tekst.",
+            "Du er en norsk merkevare-strateg for Shopify-butikker. Du analyserer butikkdata og foreslår en kort, praktisk brandprofil som kan brukes av et AI-verktøy til å skrive tekster og lage bilder.",
         },
         {
           role: "user",
           content: `
-Du får info om en nettbutikk (fra Shopify) og noen av produktene.
-Du skal lage to ting:
+Du får info om en Shopify-butikk: butikkinfo, noen produkter og (muligens) theme settings.
 
-1) storeProfile – brukes til å gi kontekst for tekster og bilder:
-   - industry: kort bransjebeskrivelse, f.eks. "kjøkkenutstyr", "hund & kjæledyr", "klær & accessories"
-   - style: kort stilbeskrivelse, f.eks. "moderne og ren", "lekent og fargerikt", "rustikk og naturlig"
-   - tone: kort teksttone, f.eks. "nøytral", "lekent", "eksklusivt", "trygt og folkelig"
-
-2) brandProfile – brukes i Phorium Visuals:
-   - name: naturlig navn på butikken (basert på shopName, uten .no/.com hvis mulig)
-   - primaryColor: en HEX-farge som passer brandet (f.eks. #C8B77A), du må foreslå én
-   - accentColor: en HEX-farge som passer som aksent
-   - tone: én av "nøytral", "lekent" eller "eksklusivt" (velg den som passer best)
-
-VIKTIG:
-- Ikke finn opp konkrete fakta om produkter; beskriv bare stil og følelse.
-- Hvis du er usikker, velg nøytrale, trygge verdier.
-- Navnet skal ikke inneholde "Shopify" eller tekniske ting – bare butikk-/brandnavn.
-
-Data (JSON):
+Kontekst (JSON):
 ${JSON.stringify(context, null, 2)}
 
-Svar KUN som et JSON-objekt på formen:
+Oppgave:
+- Anta hvilken bransje butikken tilhører (kort, f.eks. "Kjøkken & interiør", "Dyreutstyr", "Sport & fritid").
+- Analyser skrivestilen i produktene (formell/uformell, leken, teknisk, eksklusiv, osv.).
+- Bruk theme settings til å finne hovedfarger hvis mulig (hex-koder). Hvis du ikke finner noe fornuftig, velg to passende hex-farger som matcher bransjen og stilen.
+- Oppsummer brand-stil kort.
+
+Svar KUN med et gyldig JSON-objekt på denne formen (ingen ekstra tekst):
 
 {
-  "storeProfile": {
-    "industry": "...",
-    "style": "...",
-    "tone": "..."
-  },
-  "brandProfile": {
-    "name": "...",
-    "primaryColor": "#C8B77A",
-    "accentColor": "#ECE8DA",
-    "tone": "nøytral"
-  }
+  "storeName": "Navn på butikk slik du vil at det skal vises",
+  "industry": "Kort bransjebeskrivelse på norsk",
+  "style": "Kort stilbeskrivelse, f.eks. 'minimalistisk', 'lekent', 'eksklusivt', 'naturlig', 'robust', osv.",
+  "tone": "1–2 korte setninger om tone of voice på norsk.",
+  "primaryColor": "#C8B77A",
+  "accentColor": "#ECE8DA",
+  "notes": "Valgfri kort merknad om hvordan verktøyet bør tilpasse seg denne butikken."
 }
+
+VIKTIG:
+- Alle farger skal være gyldige hex-koder på formen #RRGGBB.
+- Bruk naturlig norsk.
+- Ikke finn på spesifikke sertifiseringer eller lovnader (garanti, medisinske effekter osv.).
         `,
         },
       ],
-      temperature: 0.6,
+      temperature: 0.5,
     });
 
     const raw = completion.choices[0]?.message?.content;
@@ -190,7 +228,7 @@ Svar KUN som et JSON-objekt på formen:
       return NextResponse.json(
         {
           success: false,
-          error: "Tomt svar fra språkmodellen (brand profile).",
+          error: "Tomt svar fra språkmodellen ved brandanalyse.",
         },
         { status: 500 },
       );
@@ -200,40 +238,51 @@ Svar KUN som et JSON-objekt på formen:
     try {
       parsed = JSON.parse(raw);
     } catch (err) {
-      console.error("JSON-parse-feil (brand-profile):", err, raw);
+      console.error("JSON-parse-feil fra OpenAI (brandprofil):", err, raw);
       return NextResponse.json(
         {
           success: false,
-          error: "Kunne ikke tolke brandprofil (ugyldig JSON).",
+          error:
+            "Kunne ikke tolke brandprofilen fra modellen (ugyldig JSON).",
         },
         { status: 500 },
       );
     }
 
-    const storeProfile = parsed.storeProfile || {};
-    const brandProfile = parsed.brandProfile || {};
+    // 6) Sanitér og fallback-verdier
+    const brand = {
+      storeName:
+        (typeof parsed.storeName === "string" && parsed.storeName.trim()) ||
+        shopData?.name ||
+        "Butikken din",
+      industry:
+        (typeof parsed.industry === "string" && parsed.industry.trim()) ||
+        "",
+      style:
+        (typeof parsed.style === "string" && parsed.style.trim()) || "nøytral",
+      tone:
+        (typeof parsed.tone === "string" && parsed.tone.trim()) ||
+        "Naturlig, tydelig og kundevennlig.",
+      primaryColor: safeHex(parsed.primaryColor, "#1A4242"),
+      accentColor: safeHex(parsed.accentColor, "#C8B77A"),
+      notes:
+        (typeof parsed.notes === "string" && parsed.notes.trim()) || "",
+    };
 
+    // Her lar vi klienten (useBrandProfile) ta seg av lagring i Supabase,
+    // slik at samme lagringslogikk brukes som ved manuell redigering.
     return NextResponse.json({
       success: true,
-      storeProfile: {
-        industry: storeProfile.industry || "",
-        style: storeProfile.style || "",
-        tone: storeProfile.tone || "nøytral",
-      },
-      brandProfile: {
-        name: brandProfile.name || shopName || "Butikken din",
-        primaryColor: brandProfile.primaryColor || "#C8B77A",
-        accentColor: brandProfile.accentColor || "#ECE8DA",
-        tone: brandProfile.tone || "nøytral",
-      },
+      brand,
+      source: "auto" as const,
     });
   } catch (err: any) {
-    console.error("Feil i /api/shopify/brand-profile:", err);
+    console.error("Feil i /api/shopify/auto-brand-profile:", err);
     return NextResponse.json(
       {
         success: false,
         error:
-          "Uventet feil ved henting av brandprofil. Prøv igjen om litt.",
+          "Uventet feil ved automatisk Shopify-analyse. Prøv igjen om litt.",
       },
       { status: 500 },
     );

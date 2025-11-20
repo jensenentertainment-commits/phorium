@@ -2,132 +2,123 @@
 
 import { useEffect, useState } from "react";
 
-export interface BrandProfile {
-  storeName?: string;
-  industry?: string;
-  style?: string;
-  tone?: "nøytral" | "lekent" | "eksklusivt" | string;
+export type BrandProfile = {
+  storeName: string;
+  industry: string;
+  tone: string;
   primaryColor?: string;
   accentColor?: string;
-}
+  styleNotes?: string;
+  style?: string;
+};
 
-const LOCAL_KEY = "phorium_store_profile";
+type BrandSource = "manual" | "auto" | "unknown";
+
+const STORAGE_KEY = "phorium_brand_profile_global";
 
 export default function useBrandProfile() {
   const [brand, setBrand] = useState<BrandProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [source, setSource] = useState<"local" | "auto" | "none">("none");
+  const [source, setSource] = useState<BrandSource>("unknown");
+  const [loading, setLoading] = useState<boolean>(true);
 
-  // 1) Prøv localStorage først → hvis ingenting, auto fra Shopify
+  // ------------------------------------------------
+  // Last fra localStorage
+  // ------------------------------------------------
   useEffect(() => {
-    let didCancel = false;
+    if (typeof window === "undefined") return;
 
-    async function init() {
-      try {
-        const raw = typeof window !== "undefined"
-          ? window.localStorage.getItem(LOCAL_KEY)
-          : null;
-
-        if (raw) {
-          const parsed = JSON.parse(raw) as BrandProfile;
-          if (!didCancel) {
-            setBrand(parsed);
-            setSource("local");
-            setLoading(false);
-          }
-          return;
-        }
-      } catch {
-        // ignorér
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        setLoading(false);
+        return;
       }
 
-      // Ingen lokal profil → hent auto
-      await fetchAutoProfile(didCancel);
-    }
+      const parsed = JSON.parse(raw);
 
-    async function fetchAutoProfile(cancelFlag: boolean) {
-      try {
-        if (cancelFlag) return;
-        setLoading(true);
-
-        const res = await fetch("/api/shopify/auto-brand-profile", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-        });
-
-        if (!res.ok) {
-          setSource("none");
-          return;
-        }
-
-        const data = await res.json();
-        if (cancelFlag) return;
-
-        if (data.success && data.profile) {
-          setBrand(data.profile as BrandProfile);
-          setSource("auto");
-          try {
-            window.localStorage.setItem(LOCAL_KEY, JSON.stringify(data.profile));
-          } catch {}
+      if (parsed && typeof parsed === "object") {
+        if (parsed.brand) {
+          setBrand(parsed.brand);
+          setSource(parsed.source ?? "manual");
         } else {
-          setSource("none");
+          setBrand(parsed as BrandProfile);
+          setSource("manual");
         }
-      } catch {
-        if (!cancelFlag) setSource("none");
-      } finally {
-        if (!cancelFlag) setLoading(false);
       }
+    } catch {
+      // ignorer
+    } finally {
+      setLoading(false);
     }
-
-    init();
-
-    return () => {
-      didCancel = true;
-    };
   }, []);
 
-  function updateBrand(changes: Partial<BrandProfile>) {
-    setBrand((prev) => {
-      const base: BrandProfile = prev || {
-        storeName: "",
-        industry: "",
-        style: "",
-        tone: "nøytral",
-        primaryColor: "#C8B77A",
-        accentColor: "#ECE8DA",
-      };
+  // ------------------------------------------------
+  // Persister til localStorage
+  // ------------------------------------------------
+  function persist(nextBrand: BrandProfile, nextSource: BrandSource) {
+    setBrand(nextBrand);
+    setSource(nextSource);
 
-      const updated = { ...base, ...changes };
-      try {
-        window.localStorage.setItem(LOCAL_KEY, JSON.stringify(updated));
-      } catch {}
-      return updated;
-    });
-
-    if (source === "auto") {
-      setSource("local");
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ brand: nextBrand, source: nextSource })
+      );
     }
   }
 
-  async function refresh() {
+  // ------------------------------------------------
+  // Manuell oppdatering
+  // ------------------------------------------------
+  async function updateBrand(partial: Partial<BrandProfile>) {
+    setBrand((prev) => {
+      const base: BrandProfile = {
+        storeName: "",
+        industry: "",
+        tone: "",
+        ...prev,
+      };
+
+      const next: BrandProfile = { ...base, ...partial };
+      const nextSource: BrandSource =
+        source === "unknown" ? "manual" : source;
+
+      persist(next, nextSource);
+      return next;
+    });
+  }
+
+  // ------------------------------------------------
+  // 🔥 AUTO: Generering av brandprofil fra Shopify
+  // ------------------------------------------------
+  async function autoGenerateBrandProfile() {
+    setLoading(true);
     try {
-      setLoading(true);
       const res = await fetch("/api/shopify/auto-brand-profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
 
-      if (!res.ok) return;
       const data = await res.json();
-      if (data.success && data.profile) {
-        setBrand(data.profile as BrandProfile);
-        setSource("auto");
-        try {
-          window.localStorage.setItem(LOCAL_KEY, JSON.stringify(data.profile));
-        } catch {}
+
+      if (!data.success || !data.brand) {
+        throw new Error(data.error || "Kunne ikke auto-analysere butikken.");
       }
-    } catch {
-      // ignorér
+
+      const p = data.brand;
+
+      const profile: BrandProfile = {
+        storeName: p.storeName ?? "",
+        industry: p.industry ?? "",
+        tone: p.tone ?? "",
+        primaryColor: p.primaryColor,
+        accentColor: p.accentColor,
+        styleNotes: p.notes,
+        style: p.style,
+      };
+
+      persist(profile, "auto");
+      return profile;
     } finally {
       setLoading(false);
     }
@@ -136,8 +127,8 @@ export default function useBrandProfile() {
   return {
     brand,
     loading,
-    source,
     updateBrand,
-    refresh,
+    source,
+    autoGenerateBrandProfile,
   };
 }
