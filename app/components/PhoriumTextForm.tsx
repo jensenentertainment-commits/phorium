@@ -25,6 +25,16 @@ type GeneratedResult = {
 
 type ActiveTab = "product" | "seo" | "ads" | "some";
 
+type TextHistoryItem = {
+  id: string;
+  productName: string;
+  category?: string;
+  tone?: string;
+  createdAt: string;
+  source: "manual" | "shopify";
+  result: GeneratedResult;
+};
+
 export default function PhoriumTextForm() {
   const [productName, setProductName] = useState("");
   const [category, setCategory] = useState("");
@@ -49,6 +59,9 @@ export default function PhoriumTextForm() {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
   const [shopDomain, setShopDomain] = useState<string | null>(null);
+
+  // Global historikk for tekststudio
+  const [history, setHistory] = useState<TextHistoryItem[]>([]);
 
   // Hent butikkdomene fra cookie (phorium_shop) – brukes til "Åpne i Shopify"
   useEffect(() => {
@@ -99,11 +112,76 @@ export default function PhoriumTextForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productIdFromUrl]);
 
+  // Just-generated highlight
   useEffect(() => {
     if (!justGenerated) return;
     const t = setTimeout(() => setJustGenerated(false), 1200);
     return () => clearTimeout(t);
   }, [justGenerated]);
+
+  // Last historikk fra localStorage (GLOBAL for tekststudio)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem("phorium_text_history");
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        setHistory(parsed);
+      }
+    } catch {
+      // stille feil
+    }
+  }, []);
+
+  // Lagre historikk til localStorage
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        "phorium_text_history",
+        JSON.stringify(history),
+      );
+    } catch {
+      // stille feil
+    }
+  }, [history]);
+
+  // --- Historikk-hjelper ---
+  function addToHistory(source: "manual" | "shopify", generated: GeneratedResult) {
+    const item: TextHistoryItem = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      productName:
+        generated.title ||
+        productName ||
+        linkedProduct?.title ||
+        "Uten navn",
+      category: category || undefined,
+      tone: tone || undefined,
+      createdAt: new Date().toISOString(),
+      source,
+      result: generated,
+    };
+
+    setHistory((prev) => [item, ...prev].slice(0, 6)); // siste 6 globalt
+  }
+
+  function handleLoadFromHistory(item: TextHistoryItem) {
+    setProductName(item.productName);
+    setCategory(item.category || "");
+    setTone(item.tone || "");
+    setResult(item.result);
+    setActiveTab("product");
+    setError(null);
+    setSaveMessage(null);
+    setCopyMessage(null);
+    setJustGenerated(false);
+  }
+
+  function handleApplyToneFromHistory(item: TextHistoryItem) {
+    if (item.tone) setTone(item.tone);
+    if (item.category) setCategory(item.category);
+  }
 
   // --- Manuell generering (uten Shopify-produkt) ---
   async function handleGenerateManual() {
@@ -131,14 +209,17 @@ export default function PhoriumTextForm() {
       if (!data.success) {
         setError(data.error || "Ukjent feil");
       } else {
-        setResult({
+        const newResult: GeneratedResult = {
           title: data.data.title,
           description: data.data.description,
           meta_title: data.data.meta_title,
           meta_description: data.data.meta_description,
-        });
+        };
+
+        setResult(newResult);
         setActiveTab("product");
         setJustGenerated(true);
+        addToHistory("manual", newResult);
       }
     } catch {
       setError("Kunne ikke kontakte Phorium Core.");
@@ -175,7 +256,10 @@ export default function PhoriumTextForm() {
       const r = data.result;
 
       const mapped: GeneratedResult = {
-        title: linkedProduct?.title || productName || "Generert produkttekst",
+        title:
+          linkedProduct?.title ||
+          productName ||
+          "Generert produkttekst",
         description: r.description || "",
         shortDescription: r.shortDescription || "",
         meta_title: r.seoTitle || "",
@@ -192,6 +276,7 @@ export default function PhoriumTextForm() {
       setResult(mapped);
       setActiveTab("product");
       setJustGenerated(true);
+      addToHistory("shopify", mapped);
     } catch (err: any) {
       setError(err?.message || "Uventet feil ved generering.");
     } finally {
@@ -234,7 +319,8 @@ export default function PhoriumTextForm() {
       title: result.title || productName,
       bodyHtml: result.description || "",
       seoTitle: result.meta_title || result.title || "",
-      seoDescription: result.meta_description || result.shortDescription || "",
+      seoDescription:
+        result.meta_description || result.shortDescription || "",
     };
   }
 
@@ -261,7 +347,9 @@ export default function PhoriumTextForm() {
       if (!res.ok) {
         const text = await res.text();
         throw new Error(
-          `Serverfeil (${res.status}): ${text || "Ukjent feil ved lagring"}`,
+          `Serverfeil (${res.status}): ${
+            text || "Ukjent feil ved lagring"
+          }`,
         );
       }
 
@@ -333,7 +421,8 @@ export default function PhoriumTextForm() {
         result.social_caption || "",
         "",
         "Hashtags:",
-        Array.isArray(result.social_hashtags) && result.social_hashtags.length > 0
+        Array.isArray(result.social_hashtags) &&
+        result.social_hashtags.length > 0
           ? result.social_hashtags
               .map((h) => (h.startsWith("#") ? h : `#${h}`))
               .join(" ")
@@ -360,7 +449,9 @@ export default function PhoriumTextForm() {
       setCopyMessage("Tekst fra aktiv fane er kopiert.");
       setTimeout(() => setCopyMessage(null), 2000);
     } catch {
-      setCopyMessage("Klarte ikke å kopiere – marker og kopier manuelt.");
+      setCopyMessage(
+        "Klarte ikke å kopiere – marker og kopier manuelt.",
+      );
     }
   }
 
@@ -404,7 +495,10 @@ export default function PhoriumTextForm() {
                   />
                 )}
 
-                <Link href="/studio/produkter" className="btn btn-sm btn-secondary">
+                <Link
+                  href="/studio/produkter"
+                  className="btn btn-sm btn-secondary"
+                >
                   Bytt produkt
                 </Link>
               </div>
@@ -680,7 +774,7 @@ export default function PhoriumTextForm() {
                               : "rgba(0,0,0,0)",
                           }}
                           transition={{ duration: 0.8 }}
-                          className="rounded-md px-2 py-1 -mx-2"
+                          className="-mx-2 rounded-md px-2 py-1"
                         >
                           <p>{result.description}</p>
                         </motion.div>
@@ -722,7 +816,8 @@ export default function PhoriumTextForm() {
                           Tags
                         </p>
                         <p>
-                          {Array.isArray(result.tags) && result.tags.length > 0
+                          {Array.isArray(result.tags) &&
+                          result.tags.length > 0
                             ? result.tags.join(", ")
                             : "—"}
                         </p>
@@ -771,7 +866,9 @@ export default function PhoriumTextForm() {
                           {Array.isArray(result.social_hashtags) &&
                           result.social_hashtags.length > 0
                             ? result.social_hashtags
-                                .map((h) => (h.startsWith("#") ? h : `#${h}`))
+                                .map((h) =>
+                                  h.startsWith("#") ? h : `#${h}`,
+                                )
                                 .join(" ")
                             : "—"}
                         </p>
@@ -783,6 +880,89 @@ export default function PhoriumTextForm() {
             </AnimatePresence>
           </div>
         </div>
+      </div>
+
+      {/* Historikk – global for tekststudio */}
+      <div className="mt-8 border-t border-phorium-off/30 pt-5">
+        <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-phorium-accent">
+              Historikk (tekststudio)
+            </h2>
+            <p className="text-[11px] text-phorium-light/65">
+              Viser de siste genererte tekstpakkene – uansett produkt.
+            </p>
+          </div>
+        </div>
+
+        {history.length === 0 && (
+          <p className="text-[12px] text-phorium-light/70">
+            Når du genererer tekster, dukker de siste her for rask gjenbruk.
+          </p>
+        )}
+
+        {history.length > 0 && (
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            {history.map((item) => (
+              <div
+                key={item.id}
+                className="rounded-2xl border border-phorium-off/35 bg-phorium-dark/80 px-4 py-3 text-[11px] text-phorium-light"
+              >
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="line-clamp-2 text-[12px] font-semibold text-phorium-accent">
+                      {item.result.title || item.productName}
+                    </p>
+                    <span className="shrink-0 rounded-full border border-phorium-off/40 bg-phorium-surface px-2 py-0.5 text-[10px] text-phorium-light/70">
+                      {item.source === "shopify"
+                        ? "Fra Shopify-produkt"
+                        : "Manuell"}
+                    </span>
+                  </div>
+                  {item.result.shortDescription && (
+                    <p className="line-clamp-2 text-[11px] text-phorium-light/75">
+                      {item.result.shortDescription}
+                    </p>
+                  )}
+                  <div className="mt-1 flex flex-wrap gap-1.5 text-[10px] text-phorium-light/65">
+                    {item.category && (
+                      <span className="rounded-full border border-phorium-off/40 bg-phorium-surface px-2 py-0.5">
+                        {item.category}
+                      </span>
+                    )}
+                    {item.tone && (
+                      <span className="rounded-full border border-phorium-off/40 bg-phorium-surface px-2 py-0.5">
+                        Tone: {item.tone}
+                      </span>
+                    )}
+                    <span className="text-phorium-light/50">
+                      {new Date(item.createdAt).toLocaleString("no-NO", {
+                        dateStyle: "short",
+                        timeStyle: "short",
+                      })}
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleLoadFromHistory(item)}
+                    className="btn btn-sm btn-primary"
+                  >
+                    Åpne i resultat
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyToneFromHistory(item)}
+                    className="btn btn-sm btn-ghost"
+                  >
+                    Bruk tone/stil
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
