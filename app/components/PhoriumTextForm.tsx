@@ -49,7 +49,13 @@ export default function PhoriumTextForm() {
   const [error, setError] = useState<string | null>(null);
   const [justGenerated, setJustGenerated] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>("product");
-const { brand, loading: brandLoading, source: brandSource } = useBrandProfile();
+const {
+  brand,
+  loading: brandLoading, // hvis du vil vise spinner basert på dette senere
+  updateBrand,
+  source,
+} = useBrandProfile();
+
 
   // Shopify-kontekst
   const searchParams = useSearchParams();
@@ -552,7 +558,7 @@ const { brand, loading: brandLoading, source: brandSource } = useBrandProfile();
           </span>
           {brand.industry && <> · {brand.industry}</>}
           {brand.tone && <> · tone: {brand.tone}</>}
-          {brandSource === "auto" && (
+          {source === "auto" && (
             <span className="ml-1 text-[10px] text-phorium-light/45">
               (auto fra Shopify)
             </span>
