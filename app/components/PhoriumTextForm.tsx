@@ -5,6 +5,11 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import PhoriumLoader from "./PhoriumLoader";
+import useBrandProfile from "@/hooks/useBrandProfile";
+
+
+
+
 // Ikoner kan brukes senere ved behov
 import { Wand2, Check, X, Loader2, ArrowLeft, Sparkles } from "lucide-react";
 
@@ -44,6 +49,7 @@ export default function PhoriumTextForm() {
   const [error, setError] = useState<string | null>(null);
   const [justGenerated, setJustGenerated] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>("product");
+const { brand, loading: brandLoading, source: brandSource } = useBrandProfile();
 
   // Shopify-kontekst
   const searchParams = useSearchParams();
@@ -184,7 +190,7 @@ export default function PhoriumTextForm() {
   }
 
   // --- Manuell generering (uten Shopify-produkt) ---
-  async function handleGenerateManual() {
+   async function handleGenerateManual() {
     if (!productName.trim()) return;
 
     setLoading(true);
@@ -194,13 +200,15 @@ export default function PhoriumTextForm() {
     setCopyMessage(null);
 
     try {
+      const effectiveTone = tone || (brand?.tone as string) || "nøytral";
+
       const res = await fetch("/api/generate-text", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           productName,
           category,
-          tone,
+          tone: effectiveTone,
         }),
       });
 
@@ -228,8 +236,9 @@ export default function PhoriumTextForm() {
     }
   }
 
+
   // --- Generering basert på Shopify-produkt (rik respons) ---
-  async function handleGenerateFromProduct() {
+   async function handleGenerateFromProduct() {
     if (!productIdFromUrl) return;
 
     setLoading(true);
@@ -244,7 +253,7 @@ export default function PhoriumTextForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           productId: Number(productIdFromUrl),
-          tone: tone || "nøytral",
+          tone: tone || (brand?.tone as string) || "nøytral",
         }),
       });
 
@@ -283,6 +292,7 @@ export default function PhoriumTextForm() {
       setLoading(false);
     }
   }
+
 
   const primaryButtonLabel = isShopifyMode
     ? "Generer tekst fra Shopify-produkt"
@@ -533,6 +543,23 @@ export default function PhoriumTextForm() {
           </div>
         </div>
       )}
+
+      {brand && (
+        <div className="mb-3 text-[11px] text-phorium-light/60">
+          Brandprofil:{" "}
+          <span className="font-medium text-phorium-accent">
+            {brand.storeName || "Uten navn"}
+          </span>
+          {brand.industry && <> · {brand.industry}</>}
+          {brand.tone && <> · tone: {brand.tone}</>}
+          {brandSource === "auto" && (
+            <span className="ml-1 text-[10px] text-phorium-light/45">
+              (auto fra Shopify)
+            </span>
+          )}
+        </div>
+      )}
+
 
       {/* Grid: input venstre, resultat høyre */}
       <div className="grid gap-6 lg:grid-cols-2">

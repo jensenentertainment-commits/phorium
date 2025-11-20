@@ -6,6 +6,7 @@ import { RotateCcw, Palette, Download } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import PhoriumLoader from "./PhoriumLoader";
+import useBrandProfile, { BrandProfile } from "@/hooks/useBrandProfile";
 
 type HistoryItem = {
   prompt: string;
@@ -17,13 +18,6 @@ type HistoryItem = {
 type Mode = "image" | "banner" | "product";
 type BannerSource = "ai" | "own";
 
-type BrandProfile = {
-  name: string;
-  primaryColor: string;
-  accentColor: string;
-  tone: "nøytral" | "lekent" | "eksklusivt";
-};
-
 type CampaignImage = {
   label: string;
   size: string;
@@ -31,7 +25,7 @@ type CampaignImage = {
 };
 
 const DEFAULT_BRAND: BrandProfile = {
-  name: "Standardprofil",
+  storeName: "Standardprofil",
   primaryColor: "#C8B77A",
   accentColor: "#ECE8DA",
   tone: "nøytral",
@@ -48,6 +42,15 @@ export default function PhoriumVisualsForm() {
   const [productError, setProductError] = useState<string | null>(null);
   const [shopDomain, setShopDomain] = useState<string | null>(null);
 
+  // Brandprofil (felles med tekst)
+  const {
+    brand,
+    loading: brandLoading,
+    source: brandSource,
+    updateBrand,
+    refresh: refreshBrand,
+  } = useBrandProfile();
+
   // Visuals state
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
 
@@ -57,11 +60,10 @@ export default function PhoriumVisualsForm() {
 
   const [prompt, setPrompt] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [imageSize, setImageSize] = useState("1024x1024");
+
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
-
-  const [storeProfile, setStoreProfile] = useState<any>(null);
-  const [brand, setBrand] = useState<BrandProfile>(DEFAULT_BRAND);
 
   const [baseImage, setBaseImage] = useState<string | null>(null);
   const [editPrompt, setEditPrompt] = useState("");
@@ -90,66 +92,25 @@ export default function PhoriumVisualsForm() {
     subline?: string;
   } | null>(null);
 
-  // 🆕 Valgt bildestørrelse for standardbilde
-  const [imageSize, setImageSize] = useState("1024x1024");
-
   const [showSafeZone, setShowSafeZone] = useState(false);
 
   const isBusy =
     imageLoading || safeLoading || overlayLoading || editing || campaignLoading;
 
-  function startCooldown(setter: (v: number) => void, seconds: number) {
-    const secs = Math.max(1, Math.min(60, seconds || 10));
-    setter(secs);
-    let current = secs;
-    const interval = setInterval(() => {
-      current -= 1;
-      if (current <= 0) {
-        clearInterval(interval);
-        setter(0);
-      } else {
-        setter(current);
-      }
-    }, 1000);
-  }
-
-  function parseRetrySeconds(msg: string | undefined) {
-    if (!msg) return 10;
-    const m = msg.match(/try again in\s+(\d+)s/i);
-    return m ? parseInt(m[1], 10) : 10;
-  }
-
-  // Hent historikk + brand + storeProfile fra localStorage
+  // Hent historikk fra localStorage
   useEffect(() => {
     try {
       const stored = localStorage.getItem("phorium_visuals_history");
       if (stored) setHistory(JSON.parse(stored));
     } catch {}
-
-    try {
-      const storedBrand = localStorage.getItem("phorium_brand_profile");
-      if (storedBrand) setBrand(JSON.parse(storedBrand));
-    } catch {}
-
-    try {
-      const storedProfile = localStorage.getItem("phorium_store_profile");
-      if (storedProfile) setStoreProfile(JSON.parse(storedProfile));
-    } catch {}
   }, []);
 
-  // Lagre historikk lokalt
+  // Lagre historikk
   useEffect(() => {
     try {
       localStorage.setItem("phorium_visuals_history", JSON.stringify(history));
     } catch {}
   }, [history]);
-
-  // Lagre brand lokalt
-  useEffect(() => {
-    try {
-      localStorage.setItem("phorium_brand_profile", JSON.stringify(brand));
-    } catch {}
-  }, [brand]);
 
   // Hent butikkdomene fra cookie – brukes til "Åpne i Shopify"
   useEffect(() => {
@@ -162,7 +123,7 @@ export default function PhoriumVisualsForm() {
         setShopDomain(value);
       }
     } catch {
-      // stille feil
+      // stille
     }
   }, []);
 
@@ -195,13 +156,52 @@ export default function PhoriumVisualsForm() {
     fetchProduct();
   }, [productIdFromUrl]);
 
+  // Cooldown-hjelper
+  function startCooldown(setter: (v: number) => void, seconds: number) {
+    const secs = Math.max(1, Math.min(60, seconds || 10));
+    setter(secs);
+    let current = secs;
+    const interval = setInterval(() => {
+      current -= 1;
+      if (current <= 0) {
+        clearInterval(interval);
+        setter(0);
+      } else {
+        setter(current);
+      }
+    }, 1000);
+  }
+
+  function parseRetrySeconds(msg: string | undefined) {
+    if (!msg) return 10;
+    const m = msg.match(/try again in\s+(\d+)s/i);
+    return m ? parseInt(m[1], 10) : 10;
+  }
+
+  // Kontekst-strenger til AI
   function storePrefix(): string {
-    if (!storeProfile) return "";
-    return `For en nettbutikk i bransjen "${storeProfile.industry}", stil: "${storeProfile.style}", tone: "${storeProfile.tone}". `;
+    if (!brand) return "";
+    const parts: string[] = [];
+
+    if (brand.industry) parts.push(`Bransje: ${brand.industry}.`);
+    if (brand.style) parts.push(`Stil: ${brand.style}.`);
+    if (brand.tone) parts.push(`Tone: ${brand.tone}.`);
+
+    return parts.join(" ") + " ";
   }
 
   function brandPrefix(): string {
-    return `Brand: ${brand.name}. Farger: ${brand.primaryColor} og ${brand.accentColor}. Stil: ${brand.tone}. `;
+    if (!brand) return "";
+    const parts: string[] = [];
+
+    if (brand.storeName) parts.push(`Butikk: ${brand.storeName}.`);
+    if (brand.primaryColor || brand.accentColor) {
+      parts.push(
+        `Farger: ${brand.primaryColor || ""} ${brand.accentColor || ""}`.trim(),
+      );
+    }
+
+    return parts.join(" ") + " ";
   }
 
   function productPrefix(): string {
@@ -286,7 +286,7 @@ export default function PhoriumVisualsForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: contextPrefix() + trimmed,
-          size: imageSize, // 🧷 bruker valgt størrelse
+          size: imageSize,
         }),
       });
 
@@ -577,7 +577,7 @@ export default function PhoriumVisualsForm() {
     }
   }
 
-  // 2E) Foreslå norsk tekst (valgfritt)
+  // 2E) Foreslå norsk tekst
   async function handleSuggestText() {
     try {
       setError(null);
@@ -586,7 +586,7 @@ export default function PhoriumVisualsForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: "kampanje",
-          tone: brand.tone,
+          tone: brand?.tone || "nøytral",
         }),
       });
 
@@ -595,7 +595,7 @@ export default function PhoriumVisualsForm() {
       if (data?.headline) setSafeHeadline(data.headline);
       if (data?.subline) setSafeSubline(data.subline);
     } catch {
-      // stille feil
+      // stille
     }
   }
 
@@ -659,6 +659,8 @@ export default function PhoriumVisualsForm() {
       `Lag et banner i samme stil som dette: ${item.prompt}.`,
     );
   }
+
+  const effectiveBrand: BrandProfile = brand || DEFAULT_BRAND;
 
   return (
     <>
@@ -758,8 +760,14 @@ export default function PhoriumVisualsForm() {
         </div>
       )}
 
-      {/* Brand-profil */}
-      <BrandProfileCard brand={brand} setBrand={setBrand} />
+      {/* Brand-profil (felles) */}
+      <BrandProfileCard
+        brand={effectiveBrand}
+        loading={brandLoading}
+        source={brandSource}
+        onChange={updateBrand}
+        onRefresh={refreshBrand}
+      />
 
       {/* Mode switch */}
       <div className="mb-8 inline-flex rounded-full border border-phorium-off/40 bg-phorium-dark p-1 text-[11px]">
@@ -805,7 +813,7 @@ export default function PhoriumVisualsForm() {
             className="h-32 w-full resize-none rounded-2xl border border-phorium-accent/40 bg-phorium-light px-4 py-3 text-[14px] text-phorium-dark outline-none placeholder:text-[#8F8A7A] focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/18"
           />
 
-          {/* Rad: presets + størrelse */}
+          {/* Presets + størrelse */}
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-[11px]">
             <div className="flex flex-wrap gap-2">
               {["Produktfoto", "Livsstil", "Kampanjebanner", "Bakgrunn", "Mockup"].map(
@@ -826,7 +834,6 @@ export default function PhoriumVisualsForm() {
               )}
             </div>
 
-            {/* Størrelse-velger m/ kvadrat + rektangulær */}
             <div className="flex items-center gap-2">
               <span className="text-phorium-light/60">Størrelse:</span>
               <select
@@ -834,35 +841,15 @@ export default function PhoriumVisualsForm() {
                 onChange={(e) => setImageSize(e.target.value)}
                 className="rounded-full border border-phorium-off/40 bg-phorium-dark px-3 py-1.5 text-[11px] text-phorium-light/85 outline-none focus:border-phorium-accent"
               >
-                {/* Kvadratiske – typisk produkt */}
                 <option value="1024x1024">
                   1024×1024 – Produkt (kvadrat)
                 </option>
                 <option value="768x768">768×768 – Mindre kvadrat</option>
-
-                {/* Rektangulære produktbilder */}
-                <option value="1600x1200">
-                  1600×1200 – Liggende produktfoto
-                </option>
-                <option value="1200x1600">
-                  1200×1600 – Stående produktfoto
-                </option>
-
-                {/* Kampanje / SoMe */}
-                <option value="1200x628">
-                  1200×628 – Banner / hero
-                </option>
-                <option value="1080x1920">
-                  1080×1920 – Story / Reel
-                </option>
+                <option value="1200x628">1200×628 – Banner / hero</option>
+                <option value="1080x1920">1080×1920 – Story / Reel</option>
               </select>
             </div>
           </div>
-
-          <p className="mt-1 text-[10px] text-phorium-light/55">
-            Tips: Til vanlige produktbilder i Shopify fungerer 1024×1024 eller
-            et lett liggende format som 1600×1200 veldig bra.
-          </p>
 
           <button
             type="button"
@@ -872,6 +859,11 @@ export default function PhoriumVisualsForm() {
           >
             {imageCooldown > 0 ? `Vent ${imageCooldown}s` : "Generer bilde"}
           </button>
+
+          <p className="mt-1 text-[10px] text-phorium-light/55">
+            Tips: Til vanlige produktbilder i Shopify fungerer 1024×1024 veldig
+            bra.
+          </p>
         </div>
       )}
 
@@ -1312,7 +1304,7 @@ function ModeButton({
 }: {
   active: boolean;
   onClick: () => void;
-  children: ReactNode;
+  children: React.ReactNode;
 }) {
   return (
     <button
@@ -1332,7 +1324,7 @@ function BannerSourceButton({
 }: {
   active: boolean;
   onClick: () => void;
-  children: ReactNode;
+  children: React.ReactNode;
 }) {
   return (
     <button
@@ -1347,10 +1339,16 @@ function BannerSourceButton({
 
 function BrandProfileCard({
   brand,
-  setBrand,
+  loading,
+  source,
+  onChange,
+  onRefresh,
 }: {
   brand: BrandProfile;
-  setBrand: (b: BrandProfile) => void;
+  loading: boolean;
+  source: "local" | "auto" | "none";
+  onChange: (changes: Partial<BrandProfile>) => void;
+  onRefresh: () => void;
 }) {
   return (
     <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-phorium-off/35 bg-phorium-dark px-3.5 py-3.5 text-[10px] sm:flex-row sm:items-center sm:justify-between">
@@ -1359,31 +1357,35 @@ function BrandProfileCard({
           Brandprofil
         </div>
         <p className="text-phorium-light/65">
-          Lagres lokalt og brukes automatisk i genererte forslag.
+          Brukes automatisk i både tekst og bilder. Lagres lokalt.
+        </p>
+        <p className="mt-1 text-[9px] text-phorium-light/45">
+          {loading
+            ? "Laster brandprofil …"
+            : source === "auto"
+            ? "Auto-generert fra Shopify – du kan justere under."
+            : source === "local"
+            ? "Tilpasset profil (overstyrer auto)."
+            : "Ingen profil ennå – juster feltene eller prøv auto igjen."}
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <input
-          value={brand.name}
-          onChange={(e) =>
-            setBrand({ ...brand, name: e.target.value })
-          }
+          value={brand.storeName || ""}
+          onChange={(e) => onChange({ storeName: e.target.value })}
           className="rounded-full border border-phorium-off/40 bg-phorium-surface px-2 py-1 text-[10px] text-phorium-light outline-none"
-          placeholder="Butikknavn / profil"
+          placeholder="Butikknavn / brand"
         />
         <input
           type="color"
-          value={brand.primaryColor}
-          onChange={(e) =>
-            setBrand({ ...brand, primaryColor: e.target.value })
-          }
+          value={brand.primaryColor || "#C8B77A"}
+          onChange={(e) => onChange({ primaryColor: e.target.value })}
           className="h-7 w-7 rounded-full border border-phorium-off/40 bg-transparent p-0"
         />
         <select
-          value={brand.tone}
+          value={(brand.tone as string) || "nøytral"}
           onChange={(e) =>
-            setBrand({
-              ...brand,
+            onChange({
               tone: e.target.value as BrandProfile["tone"],
             })
           }
@@ -1393,6 +1395,14 @@ function BrandProfileCard({
           <option value="lekent">Lekent</option>
           <option value="eksklusivt">Eksklusivt</option>
         </select>
+
+        <button
+          type="button"
+          onClick={onRefresh}
+          className="btn btn-ghost btn-sm"
+        >
+          Hent fra Shopify på nytt
+        </button>
       </div>
     </div>
   );
