@@ -5,7 +5,8 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import PhoriumLoader from "./PhoriumLoader";
-
+// Ikoner kan brukes senere ved behov
+import { Wand2, Check, X, Loader2, ArrowLeft, Sparkles } from "lucide-react";
 
 type GeneratedResult = {
   title?: string;
@@ -56,9 +57,7 @@ export default function PhoriumTextForm() {
       const parts = document.cookie.split(";").map((c) => c.trim());
       const match = parts.find((c) => c.startsWith("phorium_shop="));
       if (match) {
-        const value = decodeURIComponent(
-          match.split("=").slice(1).join("="),
-        );
+        const value = decodeURIComponent(match.split("=").slice(1).join("="));
         setShopDomain(value);
       }
     } catch {
@@ -75,12 +74,9 @@ export default function PhoriumTextForm() {
         setProductLoading(true);
         setProductError(null);
 
-        const res = await fetch(
-          `/api/shopify/product?id=${productIdFromUrl}`,
-          {
-            cache: "no-store",
-          },
-        );
+        const res = await fetch(`/api/shopify/product?id=${productIdFromUrl}`, {
+          cache: "no-store",
+        });
 
         const data = await res.json();
         if (!data.success) {
@@ -179,10 +175,7 @@ export default function PhoriumTextForm() {
       const r = data.result;
 
       const mapped: GeneratedResult = {
-        title:
-          linkedProduct?.title ||
-          productName ||
-          "Generert produkttekst",
+        title: linkedProduct?.title || productName || "Generert produkttekst",
         description: r.description || "",
         shortDescription: r.shortDescription || "",
         meta_title: r.seoTitle || "",
@@ -215,13 +208,9 @@ export default function PhoriumTextForm() {
     : handleGenerateManual;
 
   // Tone-presets
-  function setTonePreset(
-    preset: "kortere" | "lengre" | "teknisk" | "leken",
-  ) {
+  function setTonePreset(preset: "kortere" | "lengre" | "teknisk" | "leken") {
     if (preset === "kortere") {
-      setTone(
-        "Kort, konsis og tydelig. Unngå unødvendige ord.",
-      );
+      setTone("Kort, konsis og tydelig. Unngå unødvendige ord.");
     } else if (preset === "lengre") {
       setTone(
         "Litt lengre og mer forklarende, men fortsatt lettlest og oversiktlig.",
@@ -245,10 +234,7 @@ export default function PhoriumTextForm() {
       title: result.title || productName,
       bodyHtml: result.description || "",
       seoTitle: result.meta_title || result.title || "",
-      seoDescription:
-        result.meta_description ||
-        result.shortDescription ||
-        "",
+      seoDescription: result.meta_description || result.shortDescription || "",
     };
   }
 
@@ -263,30 +249,29 @@ export default function PhoriumTextForm() {
     setSaveMessage(null);
 
     try {
-      const res = await fetch(
-        "/api/shopify/update-product-text",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            productId: Number(productIdFromUrl),
-            ...payload,
-          }),
-        },
-      );
+      const res = await fetch("/api/shopify/save-product-text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: Number(productIdFromUrl),
+          ...payload,
+        }),
+      });
 
-      const data = await res.json();
-      if (!data.success) {
+      if (!res.ok) {
+        const text = await res.text();
         throw new Error(
-          data.error || "Kunne ikke lagre i Shopify.",
+          `Serverfeil (${res.status}): ${text || "Ukjent feil ved lagring"}`,
         );
       }
+
+      const data = await res.json();
+      // evt. sjekk data.success her hvis du vil
 
       setSaveMessage("✅ Tekst er lagret i Shopify.");
     } catch (err: any) {
       setSaveMessage(
-        err?.message ||
-          "❌ Klarte ikke å lagre tekst i Shopify.",
+        err?.message || "❌ Klarte ikke å lagre tekst i Shopify.",
       );
     } finally {
       setSaving(false);
@@ -348,8 +333,7 @@ export default function PhoriumTextForm() {
         result.social_caption || "",
         "",
         "Hashtags:",
-        Array.isArray(result.social_hashtags) &&
-        result.social_hashtags.length > 0
+        Array.isArray(result.social_hashtags) && result.social_hashtags.length > 0
           ? result.social_hashtags
               .map((h) => (h.startsWith("#") ? h : `#${h}`))
               .join(" ")
@@ -376,92 +360,85 @@ export default function PhoriumTextForm() {
       setCopyMessage("Tekst fra aktiv fane er kopiert.");
       setTimeout(() => setCopyMessage(null), 2000);
     } catch {
-      setCopyMessage(
-        "Klarte ikke å kopiere – marker og kopier manuelt.",
-      );
+      setCopyMessage("Klarte ikke å kopiere – marker og kopier manuelt.");
     }
   }
 
   return (
     <div className="mt-4 space-y-4">
-    {/* Shopify-produkt header */}
-{isShopifyMode && (
-  <div className="rounded-2xl border border-phorium-off/35 bg-phorium-dark px-4 py-3 text-[12px]">
-    {productLoading && (
-      <p className="text-phorium-light/85">
-        Henter produktdata fra Shopify …
-      </p>
-    )}
-
-    {productError && (
-      <p className="text-red-300">
-        Klarte ikke å hente produkt: {productError}
-      </p>
-    )}
-
-    {linkedProduct && !productLoading && !productError && (
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="text-[11px] text-phorium-light/60">
-            Jobber mot produkt:
-          </div>
-          <div className="text-[13px] font-semibold text-phorium-accent">
-            {linkedProduct.title}
-          </div>
-          <div className="text-[11px] text-phorium-light/60">
-            Handle: {linkedProduct.handle} · ID: {linkedProduct.id}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {linkedProduct.image?.src && (
-            <img
-              src={linkedProduct.image.src}
-              alt={linkedProduct.title}
-              className="h-12 w-12 rounded-lg border border-phorium-off/40 object-cover"
-            />
+      {/* Shopify-produkt header */}
+      {isShopifyMode && (
+        <div className="rounded-2xl border border-phorium-off/35 bg-phorium-dark px-4 py-3 text-[12px]">
+          {productLoading && (
+            <p className="text-phorium-light/85">
+              Henter produktdata fra Shopify …
+            </p>
           )}
 
-          <Link
-            href="/studio/produkter"
-            className="rounded-full border border-phorium-off/40 px-3 py-1.5 text-[11px] font-medium text-phorium-light/80 transition hover:border-phorium-accent hover:text-phorium-accent"
-          >
-            Bytt produkt
-          </Link>
-        </div>
-      </div>
-    )}
-  </div>
-)}
+          {productError && (
+            <p className="text-red-300">
+              Klarte ikke å hente produkt: {productError}
+            </p>
+          )}
 
-{!isShopifyMode && (
-  <div className="rounded-2xl border border-phorium-off/25 bg-phorium-dark/70 px-4 py-3 text-[12px]">
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <div className="text-[11px] font-semibold text-phorium-light/80">
-          Ingen Shopify-produkt valgt
+          {linkedProduct && !productLoading && !productError && (
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="text-[11px] text-phorium-light/60">
+                  Jobber mot produkt:
+                </div>
+                <div className="text-[13px] font-semibold text-phorium-accent">
+                  {linkedProduct.title}
+                </div>
+                <div className="text-[11px] text-phorium-light/60">
+                  Handle: {linkedProduct.handle} · ID: {linkedProduct.id}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {linkedProduct.image?.src && (
+                  <img
+                    src={linkedProduct.image.src}
+                    alt={linkedProduct.title}
+                    className="h-12 w-12 rounded-lg border border-phorium-off/40 object-cover"
+                  />
+                )}
+
+                <Link href="/studio/produkter" className="btn btn-sm btn-secondary">
+                  Bytt produkt
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
-        <div className="text-[11px] text-phorium-light/60">
-          Velg et produkt fra nettbutikken din for å få auto-utfylte forslag.
+      )}
+
+      {!isShopifyMode && (
+        <div className="rounded-2xl border border-phorium-off/25 bg-phorium-dark/70 px-4 py-3 text-[12px]">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="text-[11px] font-semibold text-phorium-light/80">
+                Ingen Shopify-produkt valgt
+              </div>
+              <div className="text-[11px] text-phorium-light/60">
+                Velg et produkt fra nettbutikken din for å få auto-utfylte
+                forslag.
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Link href="/studio/produkter" className="btn btn-sm btn-primary">
+                Velg produkt
+              </Link>
+              <Link
+                href="/studio/koble-nettbutikk"
+                className="btn btn-sm btn-secondary"
+              >
+                Koble nettbutikk
+              </Link>
+            </div>
+          </div>
         </div>
-      </div>
-      <div className="flex gap-2">
-        <Link
-          href="/studio/produkter"
-          className="rounded-full bg-phorium-accent px-3 py-1.5 text-[11px] font-semibold text-phorium-dark shadow-sm hover:bg-phorium-accent/90"
-        >
-          Velg produkt
-        </Link>
-        <Link
-          href="/studio/koble-nettbutikk"
-          className="rounded-full border border-phorium-off/35 px-3 py-1.5 text-[11px] text-phorium-light/75 hover:border-phorium-accent hover:text-phorium-accent"
-        >
-          Koble nettbutikk
-        </Link>
-      </div>
-    </div>
-  </div>
-)}
+      )}
 
       {/* Grid: input venstre, resultat høyre */}
       <div className="grid gap-6 lg:grid-cols-2">
@@ -490,9 +467,7 @@ export default function PhoriumTextForm() {
             <p className="mb-3 text-[11px] text-phorium-light/70">
               Produktnavn er låst til{" "}
               <span className="font-semibold text-phorium-accent">
-                {productName ||
-                  linkedProduct?.title ||
-                  "Ukjent produkt"}
+                {productName || linkedProduct?.title || "Ukjent produkt"}
               </span>
               .
             </p>
@@ -525,35 +500,35 @@ export default function PhoriumTextForm() {
           </div>
 
           {/* Refine-rad */}
-          <div className="mb-3 flex flex-wrap gap-2 text-[10px]">
+          <div className="mb-3 flex flex-wrap items-center gap-2 text-[10px]">
             <span className="mr-1 text-phorium-light/55">
               Juster tone med ett klikk:
             </span>
             <button
               type="button"
               onClick={() => setTonePreset("kortere")}
-              className="rounded-full border border-phorium-off/40 bg-phorium-surface px-3 py-1 text-phorium-light/85 hover:border-phorium-accent hover:text-phorium-accent"
+              className="btn btn-sm btn-ghost"
             >
               Kortere
             </button>
             <button
               type="button"
               onClick={() => setTonePreset("lengre")}
-              className="rounded-full border border-phorium-off/40 bg-phorium-surface px-3 py-1 text-phorium-light/85 hover:border-phorium-accent hover:text-phorium-accent"
+              className="btn btn-sm btn-ghost"
             >
               Lengre
             </button>
             <button
               type="button"
               onClick={() => setTonePreset("teknisk")}
-              className="rounded-full border border-phorium-off/40 bg-phorium-surface px-3 py-1 text-phorium-light/85 hover:border-phorium-accent hover:text-phorium-accent"
+              className="btn btn-sm btn-ghost"
             >
               Mer teknisk
             </button>
             <button
               type="button"
               onClick={() => setTonePreset("leken")}
-              className="rounded-full border border-phorium-off/40 bg-phorium-surface px-3 py-1 text-phorium-light/85 hover:border-phorium-accent hover:text-phorium-accent"
+              className="btn btn-sm btn-ghost"
             >
               Mer leken
             </button>
@@ -562,14 +537,13 @@ export default function PhoriumTextForm() {
           <button
             onClick={handlePrimaryClick}
             disabled={loading || (!isShopifyMode && !productName.trim())}
-            className="w-full rounded-full bg-phorium-accent px-6 py-2.5 text-[13px] font-semibold text-phorium-dark shadow-md transition hover:bg-phorium-accent/90 disabled:opacity-60"
+            className="btn btn-lg btn-primary w-full disabled:opacity-60"
           >
             {loading ? "Genererer tekst …" : primaryButtonLabel}
           </button>
 
           <p className="mt-2 text-[10px] text-phorium-light/55">
-            Tips: Velg tone først, så generer. Prøv gjerne flere
-            varianter.
+            Tips: Velg tone først, så generer. Prøv gjerne flere varianter.
           </p>
         </div>
 
@@ -616,11 +590,9 @@ export default function PhoriumTextForm() {
                 type="button"
                 onClick={handleSaveToShopify}
                 disabled={saving}
-                className="rounded-full bg-phorium-accent px-3.5 py-1.5 font-semibold text-phorium-dark shadow-md hover:bg-phorium-accent/90 disabled:opacity-60"
+                className="btn btn-sm btn-primary disabled:opacity-60"
               >
-                {saving
-                  ? "Lagrer i Shopify …"
-                  : "Lagre til Shopify"}
+                {saving ? "Lagrer …" : "Lagre i Shopify"}
               </button>
             )}
 
@@ -628,18 +600,18 @@ export default function PhoriumTextForm() {
               <button
                 type="button"
                 onClick={handleCopyActiveTab}
-                className="rounded-full border border-phorium-off/40 bg-phorium-surface px-3.5 py-1.5 text-phorium-light/85 hover:border-phorium-accent hover:text-phorium-accent"
+                className="btn btn-sm btn-secondary"
               >
                 Kopier teksten i aktiv fane
               </button>
             )}
 
-            {isShopifyMode && productIdFromUrl && shopDomain && (
+            {isShopifyMode && shopDomain && (
               <a
                 href={`https://${shopDomain}/admin/products/${productIdFromUrl}`}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-full border border-phorium-off/40 bg-phorium-surface px-3.5 py-1.5 text-phorium-light/85 hover:border-phorium-accent hover:text-phorium-accent"
+                className="btn btn-sm btn-ghost"
               >
                 Åpne i Shopify
               </a>
@@ -663,9 +635,8 @@ export default function PhoriumTextForm() {
 
             {!loading && !result && !error && (
               <p className="text-[12px] text-phorium-dark/70">
-                Når du genererer, får du produkttekst, SEO,
-                annonsetekster og SoMe-forslag her – organisert i
-                faner.
+                Når du genererer, får du produkttekst, SEO, annonsetekster og
+                SoMe-forslag her – organisert i faner.
               </p>
             )}
 
@@ -701,8 +672,7 @@ export default function PhoriumTextForm() {
                       {result.description && (
                         <motion.div
                           initial={{
-                            backgroundColor:
-                              "rgba(200,183,122,0.18)",
+                            backgroundColor: "rgba(200,183,122,0.18)",
                           }}
                           animate={{
                             backgroundColor: justGenerated
@@ -752,8 +722,7 @@ export default function PhoriumTextForm() {
                           Tags
                         </p>
                         <p>
-                          {Array.isArray(result.tags) &&
-                          result.tags.length > 0
+                          {Array.isArray(result.tags) && result.tags.length > 0
                             ? result.tags.join(", ")
                             : "—"}
                         </p>
@@ -802,9 +771,7 @@ export default function PhoriumTextForm() {
                           {Array.isArray(result.social_hashtags) &&
                           result.social_hashtags.length > 0
                             ? result.social_hashtags
-                                .map((h) =>
-                                  h.startsWith("#") ? h : `#${h}`,
-                                )
+                                .map((h) => (h.startsWith("#") ? h : `#${h}`))
                                 .join(" ")
                             : "—"}
                         </p>
@@ -834,11 +801,7 @@ function TabButton({
     <button
       type="button"
       onClick={onClick}
-      className={
-        active
-          ? "rounded-full bg-phorium-accent px-3.5 py-1.5 text-[11px] font-semibold text-phorium-dark"
-          : "rounded-full px-3.5 py-1.5 text-[11px] text-phorium-light/75 transition hover:text-phorium-accent"
-      }
+      className={active ? "btn-tab btn-tab-active" : "btn-tab"}
     >
       {children}
     </button>
