@@ -1,14 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  CheckCircle2,
-  AlertCircle,
-  Clock,
-  History as HistoryIcon,
-} from "lucide-react";
+import { Search } from "lucide-react";
 import PhoriumLoader from "./PhoriumLoader";
 
 type GeneratedResult = {
@@ -28,19 +23,15 @@ type GeneratedResult = {
 
 type ActiveTab = "product" | "seo" | "ads" | "some";
 
-type TextHistoryItem = {
-  id: string;
-  createdAt: string;
-  mode: "manual" | "shopify";
-  productId?: number;
-  productTitle?: string;
-  tone?: string;
-  category?: string;
-  syncedToShopify: boolean;
-  result: GeneratedResult;
+type ShopifyProductSummary = {
+  id: number;
+  title: string;
+  handle: string;
+  status: string;
+  price?: string;
+  image?: string | null;
+  hasDescription?: boolean;
 };
-
-const HISTORY_KEY = "phorium_text_history_v1";
 
 export default function PhoriumTextForm() {
   const [productName, setProductName] = useState("");
@@ -52,16 +43,8 @@ export default function PhoriumTextForm() {
   const [justGenerated, setJustGenerated] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>("product");
 
-  // 🔹 Lagring til Shopify
-  const [saveLoading, setSaveLoading] = useState(false);
-  const [saveMessage, setSaveMessage] = useState<string | null>(null);
-  const [isSynced, setIsSynced] = useState(false);
-
-  // 🔹 Historikk
-  const [history, setHistory] = useState<TextHistoryItem[]>([]);
-
-  // Shopify-kontekst
   const searchParams = useSearchParams();
+  const router = useRouter();
   const productIdFromUrl = searchParams.get("productId");
   const isShopifyMode = !!productIdFromUrl;
 
@@ -69,30 +52,14 @@ export default function PhoriumTextForm() {
   const [productLoading, setProductLoading] = useState(false);
   const [productError, setProductError] = useState<string | null>(null);
 
-  // Last historikk fra localStorage
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(HISTORY_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        setHistory(parsed);
-      }
-    } catch {
-      // ignorer
-    }
-  }, []);
+  // Produktvelger
+  const [productPickerOpen, setProductPickerOpen] = useState(false);
+  const [productList, setProductList] = useState<ShopifyProductSummary[]>([]);
+  const [productListLoading, setProductListLoading] = useState(false);
+  const [productListError, setProductListError] = useState<string | null>(null);
+  const [productSearch, setProductSearch] = useState("");
 
-  // Lagre historikk til localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, 20)));
-    } catch {
-      // ignorer
-    }
-  }, [history]);
-
-  // Hent Shopify-produkt hvis vi har productId
+  // Hent enkeltprodukt hvis vi har productId
   useEffect(() => {
     async function fetchProduct() {
       if (!productIdFromUrl) return;
@@ -132,14 +99,51 @@ export default function PhoriumTextForm() {
     return () => clearTimeout(t);
   }, [justGenerated]);
 
-  // Hjelper: legg til historikk-entry
-  function pushHistory(entry: Omit<TextHistoryItem, "id" | "createdAt">) {
-    const newItem: TextHistoryItem = {
-      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      createdAt: new Date().toISOString(),
-      ...entry,
-    };
-    setHistory((prev) => [newItem, ...prev].slice(0, 20));
+  // --- Hjelper: hent produktliste (brukes av picker) ---
+  async function loadProductList(search?: string) {
+    try {
+      setProductListLoading(true);
+      setProductListError(null);
+
+      const params = new URLSearchParams();
+      params.set("limit", "40");
+      params.set("status", "active");
+      if (search && search.trim()) {
+        params.set("q", search.trim());
+      }
+
+      const res = await fetch(`/api/shopify/products?${params.toString()}`, {
+        cache: "no-store",
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        throw new Error(data.error || "Kunne ikke hente produkter.");
+      }
+
+      setProductList(data.products || []);
+    } catch (err: any) {
+      setProductListError(err?.message || "Feil ved henting av produktliste.");
+    } finally {
+      setProductListLoading(false);
+    }
+  }
+
+  function handleOpenPicker() {
+    setProductPickerOpen((prev) => {
+      const next = !prev;
+      if (next && productList.length === 0) {
+        // første gang: hent standardliste
+        void loadProductList();
+      }
+      return next;
+    });
+  }
+
+  function handlePickProduct(id: number) {
+    // Oppdatér URL → useSearchParams + fetchProduct trigges automatisk
+    router.push(`/studio/text?productId=${id}`);
+    setProductPickerOpen(false);
   }
 
   // --- Manuell generering (uten Shopify-produkt) ---
@@ -149,8 +153,6 @@ export default function PhoriumTextForm() {
     setLoading(true);
     setError(null);
     setResult(null);
-    setSaveMessage(null);
-    setIsSynced(false);
 
     try {
       const res = await fetch("/api/generate-text", {
@@ -168,25 +170,14 @@ export default function PhoriumTextForm() {
       if (!data.success) {
         setError(data.error || "Ukjent feil");
       } else {
-        const baseResult: GeneratedResult = {
+        setResult({
           title: data.data.title,
           description: data.data.description,
           meta_title: data.data.meta_title,
           meta_description: data.data.meta_description,
-        };
-
-        setResult(baseResult);
+        });
         setActiveTab("product");
         setJustGenerated(true);
-        pushHistory({
-          mode: "manual",
-          productId: undefined,
-          productTitle: productName,
-          tone,
-          category,
-          result: baseResult,
-          syncedToShopify: false,
-        });
       }
     } catch {
       setError("Kunne ikke kontakte Phorium Core.");
@@ -202,8 +193,6 @@ export default function PhoriumTextForm() {
     setLoading(true);
     setError(null);
     setResult(null);
-    setSaveMessage(null);
-    setIsSynced(false);
 
     try {
       const res = await fetch("/api/shopify/generate-product-text", {
@@ -243,73 +232,10 @@ export default function PhoriumTextForm() {
       setResult(mapped);
       setActiveTab("product");
       setJustGenerated(true);
-
-      pushHistory({
-        mode: "shopify",
-        productId: Number(productIdFromUrl),
-        productTitle:
-          linkedProduct?.title || productName || "Ukjent produkt",
-        tone,
-        category,
-        result: mapped,
-        syncedToShopify: false,
-      });
     } catch (err: any) {
       setError(err?.message || "Uventet feil ved generering.");
     } finally {
       setLoading(false);
-    }
-  }
-
-  // 🔹 LAGRE TIL SHOPIFY
-  async function handleSaveToShopify() {
-    if (!productIdFromUrl || !result) return;
-
-    try {
-      setSaveLoading(true);
-      setSaveMessage(null);
-
-      const res = await fetch("/api/shopify/save-product-text", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productId: Number(productIdFromUrl),
-          result,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!data.success) {
-        setSaveMessage(
-          data.error || "Kunne ikke lagre til Shopify. Prøv igjen.",
-        );
-        setIsSynced(false);
-      } else {
-        setSaveMessage("Teksten er lagret i Shopify-produktet.");
-        setIsSynced(true);
-
-        // Marker siste relevante historikk-post som synket
-        setHistory((prev) => {
-          const copy = [...prev];
-          const idx = copy.findIndex(
-            (h) =>
-              h.mode === "shopify" &&
-              h.productId === Number(productIdFromUrl),
-          );
-          if (idx !== -1) {
-            copy[idx] = { ...copy[idx], syncedToShopify: true };
-          }
-          return copy;
-        });
-      }
-    } catch (err: any) {
-      setSaveMessage(
-        err?.message || "Uventet feil ved lagring til Shopify.",
-      );
-      setIsSynced(false);
-    } finally {
-      setSaveLoading(false);
     }
   }
 
@@ -321,8 +247,10 @@ export default function PhoriumTextForm() {
     ? handleGenerateFromProduct
     : handleGenerateManual;
 
-  // små helpers for refine-raden
-  function setTonePreset(preset: "kortere" | "lengre" | "teknisk" | "leken") {
+  // tone-presets
+  function setTonePreset(
+    preset: "kortere" | "lengre" | "teknisk" | "leken",
+  ) {
     if (preset === "kortere") {
       setTone("Kort, konsis og tydelig. Unngå unødvendige ord.");
     } else if (preset === "lengre") {
@@ -340,58 +268,144 @@ export default function PhoriumTextForm() {
     }
   }
 
-  // Liten helper for å vise fin dato i historikk
-  function formatDate(iso: string) {
-    try {
-      const d = new Date(iso);
-      return d.toLocaleString("nb-NO", {
-        dateStyle: "short",
-        timeStyle: "short",
-      });
-    } catch {
-      return iso;
-    }
-  }
-
   return (
-    <div className="mt-4 space-y-6">
-      {/* Shopify-produkt header */}
+    <div className="mt-4 space-y-4">
+      {/* Shopify-produkt header + produktvelger */}
       {isShopifyMode && (
         <div className="rounded-2xl border border-phorium-off/35 bg-phorium-dark px-4 py-3 text-[12px]">
-          {productLoading && (
-            <p className="text-phorium-light/85">
-              Henter produktdata fra Shopify …
-            </p>
-          )}
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              {productLoading && (
+                <p className="text-phorium-light/85">
+                  Henter produktdata fra Shopify …
+                </p>
+              )}
 
-          {productError && (
-            <p className="text-red-300">
-              Klarte ikke å hente produkt: {productError}
-            </p>
-          )}
+              {productError && (
+                <p className="text-red-300">
+                  Klarte ikke å hente produkt: {productError}
+                </p>
+              )}
 
-          {linkedProduct && !productLoading && (
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-[11px] text-phorium-light/60">
-                  Jobber mot produkt:
-                </div>
-                <div className="text-[13px] font-semibold text-phorium-accent">
-                  {linkedProduct.title}
-                </div>
-                <div className="text-[11px] text-phorium-light/60">
-                  Handle: {linkedProduct.handle} · ID: {linkedProduct.id}
-                </div>
-              </div>
-              {linkedProduct.image?.src && (
+              {linkedProduct && !productLoading && (
+                <>
+                  <div className="text-[11px] text-phorium-light/60">
+                    Jobber mot produkt:
+                  </div>
+                  <div className="text-[13px] font-semibold text-phorium-accent">
+                    {linkedProduct.title}
+                  </div>
+                  <div className="text-[11px] text-phorium-light/60">
+                    Handle: {linkedProduct.handle} · ID: {linkedProduct.id}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3">
+              {linkedProduct?.image?.src && (
                 <img
                   src={linkedProduct.image.src}
                   alt={linkedProduct.title}
-                  className="h-12 w-12 rounded-lg border border-phorium-off/40 object-cover"
+                  className="h-10 w-10 rounded-lg border border-phorium-off/40 object-cover"
                 />
               )}
+
+              <button
+                type="button"
+                onClick={handleOpenPicker}
+                className="inline-flex items-center gap-1.5 rounded-full border border-phorium-off/40 bg-phorium-surface px-3 py-1.5 text-[11px] text-phorium-light/85 transition hover:border-phorium-accent hover:text-phorium-accent"
+              >
+                <Search className="h-3.5 w-3.5" />
+                {productPickerOpen ? "Lukk produktliste" : "Bytt produkt"}
+              </button>
             </div>
-          )}
+          </div>
+
+          {/* Produktvelger-panel */}
+          <AnimatePresence>
+            {productPickerOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.18 }}
+                className="mt-3 rounded-2xl border border-phorium-off/35 bg-phorium-dark/80 p-3"
+              >
+                <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <input
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                    placeholder="Søk etter produktnavn eller handle …"
+                    className="flex-1 rounded-full border border-phorium-off/35 bg-phorium-dark px-3 py-1.5 text-[11px] text-phorium-light outline-none placeholder:text-phorium-light/45 focus:border-phorium-accent focus:ring-1 focus:ring-phorium-accent/30"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => loadProductList(productSearch)}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-full bg-phorium-accent px-4 py-1.5 text-[11px] font-semibold text-phorium-dark shadow-sm transition hover:bg-phorium-accent/90"
+                  >
+                    <Search className="h-3.5 w-3.5" />
+                    Søk
+                  </button>
+                </div>
+
+                {productListLoading && (
+                  <p className="text-[11px] text-phorium-light/75">
+                    Laster produkter …
+                  </p>
+                )}
+
+                {productListError && (
+                  <p className="text-[11px] text-red-300">
+                    {productListError}
+                  </p>
+                )}
+
+                {!productListLoading && productList.length === 0 && !productListError && (
+                  <p className="text-[11px] text-phorium-light/70">
+                    Ingen produkter funnet. Prøv et annet søk.
+                  </p>
+                )}
+
+                {!productListLoading && productList.length > 0 && (
+                  <div className="mt-2 max-h-64 space-y-1 overflow-y-auto pr-1 text-[11px]">
+                    {productList.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => handlePickProduct(p.id)}
+                        className="flex w-full items-center justify-between gap-3 rounded-xl border border-transparent bg-phorium-dark px-3 py-2 text-left text-phorium-light/85 transition hover:border-phorium-accent/60 hover:bg-phorium-dark/80"
+                      >
+                        <div className="flex items-center gap-2">
+                          {p.image && (
+                            <img
+                              src={p.image}
+                              alt={p.title}
+                              className="h-8 w-8 rounded-md border border-phorium-off/35 object-cover"
+                            />
+                          )}
+                          <div>
+                            <div className="font-semibold text-[11px]">
+                              {p.title}
+                            </div>
+                            <div className="text-[10px] text-phorium-light/55">
+                              {p.handle} · {p.status}
+                              {p.hasDescription
+                                ? ""
+                                : " · mangler beskrivelse"}
+                            </div>
+                          </div>
+                        </div>
+                        <span className="text-[10px] text-phorium-accent">
+                          Velg
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       )}
 
@@ -413,7 +427,7 @@ export default function PhoriumTextForm() {
                 value={productName}
                 onChange={(e) => setProductName(e.target.value)}
                 placeholder='F.eks. «Rustfri termokopp 1L – sort»'
-                className="w-full rounded-xl border border-phorium-off/40 bg-[#F3EEE2] text-phorium-dark px-3 py-2 text-[13px] placeholder:text-phorium-dark/40 outline-none focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/25"
+                className="w-full rounded-xl border border-phorium-off/40 bg-[#F3EEE2] px-3 py-2 text-[13px] text-phorium-dark placeholder:text-phorium-dark/40 outline-none focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/25"
               />
             </div>
           )}
@@ -437,7 +451,7 @@ export default function PhoriumTextForm() {
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               placeholder='F.eks. «Kjøkken & servering», «Hund», «Interiør» …'
-              className="w-full rounded-xl border border-phorium-off/40 bg-[#F3EEE2] text-phorium-dark px-3 py-2 text-[13px] placeholder:text-phorium-dark/40 outline-none focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/25"
+              className="w-full rounded-xl border border-phorium-off/40 bg-[#F3EEE2] px-3 py-2 text-[13px] text-phorium-dark placeholder:text-phorium-dark/40 outline-none focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/25"
             />
           </div>
 
@@ -450,7 +464,7 @@ export default function PhoriumTextForm() {
               value={tone}
               onChange={(e) => setTone(e.target.value)}
               placeholder="F.eks. moderne, teknisk, humoristisk, eksklusiv …"
-              className="w-full rounded-xl border border-phorium-off/40 bg-[#F3EEE2] text-phorium-dark px-3 py-2 text-[13px] placeholder:text-phorium-dark/40 outline-none focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/25"
+              className="w-full rounded-xl border border-phorium-off/40 bg-[#F3EEE2] px-3 py-2 text-[13px] text-phorium-dark placeholder:text-phorium-dark/40 outline-none focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/25"
             />
           </div>
 
@@ -502,7 +516,7 @@ export default function PhoriumTextForm() {
           </p>
         </div>
 
-        {/* Høyre side – resultat m. tabs + lagre-knapp + status */}
+        {/* Høyre side – resultat m. tabs */}
         <div className="rounded-2xl border border-phorium-off/35 bg-phorium-dark/80 px-5 py-5">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-phorium-light">
@@ -538,54 +552,6 @@ export default function PhoriumTextForm() {
             </TabButton>
           </div>
 
-          {/* Diff / sync-indikator */}
-          {isShopifyMode && result && !loading && !error && (
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-[10px]">
-                {isSynced ? (
-                  <>
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                    <span className="text-emerald-200/90">
-                      Tekst er oppdatert i Shopify.
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <Clock className="h-3.5 w-3.5 text-amber-300" />
-                    <span className="text-amber-100/85">
-                      Endringer er ikke lagret i Shopify ennå.
-                    </span>
-                  </>
-                )}
-              </div>
-
-              <button
-                type="button"
-                onClick={handleSaveToShopify}
-                disabled={saveLoading}
-                className="rounded-full border border-phorium-accent/70 bg-phorium-accent px-3.5 py-1.5 text-[11px] font-semibold text-phorium-dark shadow-sm transition hover:bg-phorium-accent/90 disabled:opacity-60"
-              >
-                {saveLoading ? "Lagrer …" : "Lagre i Shopify"}
-              </button>
-            </div>
-          )}
-
-          {saveMessage && (
-            <div className="mb-2 flex items-center gap-2 text-[10px]">
-              {saveMessage.includes("lagret") ? (
-                <>
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                  <span className="text-emerald-200/90">{saveMessage}</span>
-                </>
-              ) : (
-                <>
-                  <AlertCircle className="h-3.5 w-3.5 text-red-400" />
-                  <span className="text-red-200/90">{saveMessage}</span>
-                </>
-              )}
-            </div>
-          )}
-
           <div className="min-h-[230px] rounded-xl border border-phorium-off/30 bg-[#F7F2E8] px-4 py-3 text-[13px] text-phorium-dark">
             {loading && (
               <div className="flex h-full items-center justify-center">
@@ -614,7 +580,6 @@ export default function PhoriumTextForm() {
                   transition={{ duration: 0.22, delay: 0.03 }}
                   className="space-y-2"
                 >
-                  {/* Produkt-tab */}
                   {activeTab === "product" && (
                     <>
                       {result.title && (
@@ -662,7 +627,6 @@ export default function PhoriumTextForm() {
                     </>
                   )}
 
-                  {/* SEO-tab */}
                   {activeTab === "seo" && (
                     <div className="space-y-2 text-[12px]">
                       <div>
@@ -691,7 +655,6 @@ export default function PhoriumTextForm() {
                     </div>
                   )}
 
-                  {/* Ads-tab */}
                   {activeTab === "ads" && (
                     <div className="space-y-3 text-[12px]">
                       <div>
@@ -715,7 +678,6 @@ export default function PhoriumTextForm() {
                     </div>
                   )}
 
-                  {/* SoMe-tab */}
                   {activeTab === "some" && (
                     <div className="space-y-3 text-[12px]">
                       <div>
@@ -746,57 +708,6 @@ export default function PhoriumTextForm() {
             </AnimatePresence>
           </div>
         </div>
-      </div>
-
-      {/* Historikk (siste 5) */}
-      <div className="border-t border-phorium-off/30 pt-4">
-        <div className="mb-2 flex items-center gap-2 text-[12px] text-phorium-light/85">
-          <HistoryIcon className="h-3.5 w-3.5 text-phorium-accent" />
-          <span>Historikk (siste 5 genereringer)</span>
-        </div>
-
-        {history.length === 0 && (
-          <p className="text-[11px] text-phorium-light/60">
-            Når du genererer tekst, dukker de siste forslagene opp her for rask gjenbruk.
-          </p>
-        )}
-
-        {history.length > 0 && (
-          <div className="mt-1 grid gap-2 md:grid-cols-2">
-            {history.slice(0, 5).map((item) => (
-              <div
-                key={item.id}
-                className="rounded-2xl border border-phorium-off/35 bg-phorium-dark/70 px-3 py-2 text-[11px]"
-              >
-                <div className="mb-1 flex items-center justify-between gap-2">
-                  <div className="font-semibold text-phorium-light/90 line-clamp-1">
-                    {item.productTitle || item.result.title || "Uten navn"}
-                  </div>
-                  <span className="text-[10px] text-phorium-light/50">
-                    {formatDate(item.createdAt)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between gap-2 text-[10px] text-phorium-light/65">
-                  <span>
-                    {item.mode === "shopify" ? "Shopify-produkt" : "Manuell"}
-                    {item.tone ? ` · ${item.tone}` : ""}
-                  </span>
-                  {item.syncedToShopify ? (
-                    <span className="inline-flex items-center gap-1 text-emerald-300/90">
-                      <CheckCircle2 className="h-3 w-3" />
-                      Lagret i Shopify
-                    </span>
-                  ) : item.mode === "shopify" ? (
-                    <span className="inline-flex items-center gap-1 text-amber-200/90">
-                      <Clock className="h-3 w-3" />
-                      Ikke lagret
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
