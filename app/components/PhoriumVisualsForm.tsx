@@ -8,8 +8,6 @@ import Link from "next/link";
 
 import PhoriumLoader from "./PhoriumLoader";
 import useBrandProfile, { BrandProfile } from "@/hooks/useBrandProfile";
-import BrandProfileBadge from "./BrandProfileBadge";
-import BrandBadge from "./BrandBadge";
 import BrandIdentityBar from "./BrandIdentityBar";
 
 type HistoryItem = {
@@ -676,12 +674,7 @@ export default function PhoriumVisualsForm() {
 
   return (
     <>
-      {/* Brand identity-linje øverst – felles for visuals */}
-      <BrandIdentityBar
-        brand={brand}
-        source={brandSource}
-        loading={brandLoading}
-      />
+      
 
       {/* Shopify-produkt header (valgfri) */}
       {isShopifyMode && (
@@ -780,13 +773,9 @@ export default function PhoriumVisualsForm() {
         </div>
       )}
 
-      {/* Felles brand-badges under header */}
-      <BrandProfileBadge />
-      <div className="mb-3">
-        <BrandBadge variant="premium" />
-      </div>
+    
 
-      {/* Brand-profil (mini-kort) */}
+     {/* Brand-profil (mini-kort) */}
       <BrandProfileCard
         brand={effectiveBrand}
         loading={brandLoading}
