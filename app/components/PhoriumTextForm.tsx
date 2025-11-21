@@ -339,43 +339,44 @@ export default function PhoriumTextForm() {
 
   // --- Lagre til Shopify (bruker egen API-route) ---
   async function handleSaveToShopify() {
-    if (!productIdFromUrl || !result) return;
+  if (!productIdFromUrl || !result) return;
 
-    const payload = buildShopifyPayload();
-    if (!payload) return;
+  const payload = buildShopifyPayload();
+  if (!payload) return;
 
-    setSaving(true);
-    setSaveMessage(null);
+  setSaving(true);
+  setSaveMessage(null);
 
-    try {
-      const res = await fetch("/api/shopify/save-product-text", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productId: Number(productIdFromUrl),
-          ...payload,
-        }),
-      });
+  try {
+    const res = await fetch("/api/shopify/save-product-text", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        productId: Number(productIdFromUrl),
+        result: payload,   // 👈 ENDRET HER
+      }),
+    });
 
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(
-          `Serverfeil (${res.status}): ${
-            text || "Ukjent feil ved lagring"
-          }`,
-        );
-      }
-
-      await res.json();
-      setSaveMessage("✅ Tekst er lagret i Shopify.");
-    } catch (err: any) {
-      setSaveMessage(
-        err?.message || "❌ Klarte ikke å lagre tekst i Shopify.",
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(
+        `Serverfeil (${res.status}): ${
+          text || "Ukjent feil ved lagring"
+        }`,
       );
-    } finally {
-      setSaving(false);
     }
+
+    await res.json();
+    setSaveMessage("✅ Tekst er lagret i Shopify.");
+  } catch (err: any) {
+    setSaveMessage(
+      err?.message || "❌ Klarte ikke å lagre tekst i Shopify.",
+    );
+  } finally {
+    setSaving(false);
   }
+}
+
 
   // --- Tekst for aktiv fane (brukes til "Kopier") ---
   function getTextForActiveTab(): string {
