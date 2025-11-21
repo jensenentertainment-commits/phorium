@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import PhoriumLoader from "./PhoriumLoader";
 import useBrandProfile from "@/hooks/useBrandProfile";
 import BrandProfileBadge from "./BrandProfileBadge";
-
+import BrandBadge from "@/app/components/BrandBadge";
 
 
 
@@ -552,7 +552,9 @@ const {
       )}
 
       <BrandProfileBadge />
-
+<div className="mb-3">
+  <BrandBadge variant="premium" />
+</div>
 
 
       {/* Grid: input venstre, resultat høyre */}

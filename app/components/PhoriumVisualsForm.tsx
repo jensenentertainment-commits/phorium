@@ -8,6 +8,7 @@ import Link from "next/link";
 import PhoriumLoader from "./PhoriumLoader";
 import useBrandProfile, { BrandProfile } from "@/hooks/useBrandProfile";
 import BrandProfileBadge from "./BrandProfileBadge";
+import BrandBadge from "@/app/components/BrandBadge";
 
 
 type HistoryItem = {
@@ -763,6 +764,9 @@ export default function PhoriumVisualsForm() {
       )}
 
 <BrandProfileBadge />
+<div className="mb-3">
+  <BrandBadge variant="premium" />
+</div>
 
       {/* Brand-profil (felles) */}
       <BrandProfileCard
