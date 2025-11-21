@@ -158,7 +158,10 @@ export default function PhoriumTextForm() {
   }, [history]);
 
   // --- Historikk-hjelper ---
-  function addToHistory(source: "manual" | "shopify", generated: GeneratedResult) {
+  function addToHistory(
+    source: "manual" | "shopify",
+    generated: GeneratedResult,
+  ) {
     const item: TextHistoryItem = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       productName:
@@ -533,7 +536,10 @@ export default function PhoriumTextForm() {
               </div>
             </div>
             <div className="flex gap-2">
-              <Link href="/studio/produkter" className="btn btn-sm btn-primary">
+              <Link
+                href="/studio/produkter"
+                className="btn btn-sm btn-primary"
+              >
                 Velg produkt
               </Link>
               <Link
@@ -547,13 +553,13 @@ export default function PhoriumTextForm() {
         </div>
       )}
 
-      
+      {/* Brand-status & plan-badge */}
+      <BrandProfileBadge />
+      <div className="mb-3">
+        <BrandBadge variant="premium" />
+      </div>
 
-      {/* Resten av komponenten (input, resultat, historikk) er lik som du hadde videre ned … */}
-      {/* ... (jeg har latt resten av koden din være uendret herfra og ned) */}
-      {/* HELE delen fra "Grid: input venstre..." og ned er identisk med det du postet, bare flyttet litt opp. */}
-      {/* (for å spare plass har jeg ikke duplisert alt i kommentaren her) */}
- {/* Grid: input venstre, resultat høyre */}
+      {/* Grid: input venstre, resultat høyre */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Venstre side – input */}
         <div className="rounded-2xl border border-phorium-off/35 bg-phorium-dark/80 px-5 py-5">
@@ -1006,5 +1012,3 @@ function TabButton({
     </button>
   );
 }
-
-

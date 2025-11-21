@@ -2,8 +2,8 @@
 
 import { Suspense } from "react";
 import { motion } from "framer-motion";
+import Link from "next/link";
 import PhoriumTextForm from "@/app/components/PhoriumTextForm";
-
 
 export default function TextPage() {
   return (
@@ -21,10 +21,23 @@ export default function TextPage() {
           </h1>
           <p className="text-[13px] text-phorium-light/80 sm:text-[14px]">
             Generer produkt- og kategoritekster – eller bruk et ekte
-            Shopify-produkt for å få ferdig tekstpakke.
+            Shopify-produkt for å få en ferdig tekstpakke med produkttekst,
+            SEO, annonser og SoMe.
           </p>
-        </div>
 
+          {/* Hint om brandprofil */}
+          <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-phorium-off/35 bg-phorium-dark/70 px-3 py-1.5 text-[11px] text-phorium-light/75">
+            <span>
+              Tekstene prøver å følge brandprofilen din på tvers av produkter.
+            </span>
+            <Link
+              href="/studio/brandprofil"
+              className="rounded-full bg-phorium-accent/90 px-2.5 py-0.5 text-[10px] font-semibold text-phorium-dark hover:bg-phorium-accent"
+            >
+              Juster brandprofil
+            </Link>
+          </div>
+        </div>
 
         {/* Kreditt-indikator med animasjon som Visuals */}
         <div className="flex flex-col items-start gap-1 sm:items-end">
@@ -46,7 +59,7 @@ export default function TextPage() {
         </div>
       </div>
 
-      {/* Selve generatoren – samme kort som før */}
+      {/* Selve generatoren – håndterer Shopify-modus, brandprofil, historikk osv. */}
       <Suspense fallback={null}>
         <PhoriumTextForm />
       </Suspense>

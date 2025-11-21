@@ -1,13 +1,14 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { RotateCcw, Palette, Download } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-
 import PhoriumLoader from "./PhoriumLoader";
-import useBrandProfile, { BrandProfile } from "@/hooks/useBrandProfile";
+import useBrandProfile from "@/hooks/useBrandProfile";
+import BrandProfileBadge from "./BrandProfileBadge";
+import BrandBadge from "@/app/components/BrandBadge";
 import BrandIdentityBar from "./BrandIdentityBar";
 
 type HistoryItem = {
@@ -26,14 +27,6 @@ type CampaignImage = {
   url: string;
 };
 
-const DEFAULT_BRAND: BrandProfile = {
-  storeName: "Standardprofil",
-  industry: "",
-  tone: "nøytral",
-  primaryColor: "#C8B77A",
-  accentColor: "#ECE8DA",
-};
-
 export default function PhoriumVisualsForm() {
   // Shopify-kontekst
   const searchParams = useSearchParams();
@@ -50,8 +43,6 @@ export default function PhoriumVisualsForm() {
     brand,
     loading: brandLoading,
     source: brandSource,
-    updateBrand,
-    autoGenerateBrandProfile,
   } = useBrandProfile();
 
   // Visuals state
@@ -105,18 +96,14 @@ export default function PhoriumVisualsForm() {
     try {
       const stored = localStorage.getItem("phorium_visuals_history");
       if (stored) setHistory(JSON.parse(stored));
-    } catch {
-      // ignorer
-    }
+    } catch {}
   }, []);
 
   // Lagre historikk
   useEffect(() => {
     try {
       localStorage.setItem("phorium_visuals_history", JSON.stringify(history));
-    } catch {
-      // ignorer
-    }
+    } catch {}
   }, [history]);
 
   // Hent butikkdomene fra cookie – brukes til "Åpne i Shopify"
@@ -191,7 +178,7 @@ export default function PhoriumVisualsForm() {
     const parts: string[] = [];
 
     if (brand.industry) parts.push(`Bransje: ${brand.industry}.`);
-    if (brand.styleNotes) parts.push(`Stil: ${brand.styleNotes}.`);
+    if (brand.style) parts.push(`Stil: ${brand.style}.`);
     if (brand.tone) parts.push(`Tone: ${brand.tone}.`);
 
     return parts.join(" ") + " ";
@@ -224,10 +211,7 @@ export default function PhoriumVisualsForm() {
     if (linkedProduct.vendor) {
       parts.push(`Leverandør: ${linkedProduct.vendor}.`);
     }
-    if (
-      Array.isArray(linkedProduct.tags) &&
-      linkedProduct.tags.length > 0
-    ) {
+    if (Array.isArray(linkedProduct.tags) && linkedProduct.tags.length > 0) {
       parts.push(`Tags: ${linkedProduct.tags.join(", ")}.`);
     }
 
@@ -670,11 +654,9 @@ export default function PhoriumVisualsForm() {
     );
   }
 
-  const effectiveBrand: BrandProfile = brand || DEFAULT_BRAND;
-
   return (
     <>
-      {/* Brand identity-linje øverst – felles for visuals */}
+      {/* Felles brandlinje øverst */}
       <BrandIdentityBar
         brand={brand}
         source={brandSource}
@@ -727,8 +709,7 @@ export default function PhoriumVisualsForm() {
                     Bytt produkt
                   </Link>
 
-                  {(shopDomain ||
-                    process.env.NEXT_PUBLIC_SHOPIFY_DOMAIN) &&
+                  {(shopDomain || process.env.NEXT_PUBLIC_SHOPIFY_DOMAIN) &&
                     productIdFromUrl && (
                       <a
                         href={`https://${
@@ -778,16 +759,11 @@ export default function PhoriumVisualsForm() {
         </div>
       )}
 
-    
-
-  {/* Brand-profil (mini-kort) */}
-      <BrandProfileCard
-        brand={effectiveBrand}
-        loading={brandLoading}
-        source={brandSource}
-        onChange={updateBrand}
-        onRefresh={autoGenerateBrandProfile}
-      />
+      {/* Brand-status & plan-badge */}
+      <BrandProfileBadge />
+      <div className="mb-3">
+        <BrandBadge variant="premium" />
+      </div>
 
       {/* Mode switch */}
       <div className="mb-8 inline-flex rounded-full border border-phorium-off/40 bg-phorium-dark p-1 text-[11px]">
@@ -836,26 +812,22 @@ export default function PhoriumVisualsForm() {
           {/* Presets + størrelse */}
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-[11px]">
             <div className="flex flex-wrap gap-2">
-              {[
-                "Produktfoto",
-                "Livsstil",
-                "Kampanjebanner",
-                "Bakgrunn",
-                "Mockup",
-              ].map((label) => (
-                <button
-                  key={label}
-                  type="button"
-                  className="btn btn-sm btn-ghost"
-                  onClick={() =>
-                    setPrompt(
-                      `Lag et ${label.toLowerCase()} i fotorealistisk stil. Profesjonelt lys, høy oppløsning.`,
-                    )
-                  }
-                >
-                  {label}
-                </button>
-              ))}
+              {["Produktfoto", "Livsstil", "Kampanjebanner", "Bakgrunn", "Mockup"].map(
+                (label) => (
+                  <button
+                    key={label}
+                    type="button"
+                    className="btn btn-sm btn-ghost"
+                    onClick={() =>
+                      setPrompt(
+                        `Lag et ${label.toLowerCase()} i fotorealistisk stil. Profesjonelt lys, høy oppløsning.`,
+                      )
+                    }
+                  >
+                    {label}
+                  </button>
+                ),
+              )}
             </div>
 
             <div className="flex items-center gap-2">
@@ -1358,76 +1330,5 @@ function BannerSourceButton({
     >
       {children}
     </button>
-  );
-}
-
-function BrandProfileCard({
-  brand,
-  loading,
-  source,
-  onChange,
-  onRefresh,
-}: {
-  brand: BrandProfile;
-  loading: boolean;
-  source: "manual" | "auto" | "unknown";
-  onChange: (changes: Partial<BrandProfile>) => void;
-  onRefresh: () => Promise<BrandProfile | void> | void;
-}) {
-  return (
-    <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-phorium-off/35 bg-phorium-dark px-3.5 py-3.5 text-[10px] sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <div className="mb-0.5 font-semibold text-phorium-accent/90">
-          Brandprofil
-        </div>
-        <p className="text-phorium-light/65">
-          Brukes automatisk i både tekst og bilder. Lagres lokalt.
-        </p>
-        <p className="mt-1 text-[9px] text-phorium-light/45">
-          {loading
-            ? "Laster brandprofil …"
-            : source === "auto"
-            ? "Auto-generert fra Shopify – du kan justere under."
-            : source === "manual"
-            ? "Tilpasset profil (overstyrer auto)."
-            : "Ingen profil ennå – juster feltene eller prøv auto igjen."}
-        </p>
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          value={brand.storeName || ""}
-          onChange={(e) => onChange({ storeName: e.target.value })}
-          className="rounded-full border border-phorium-off/40 bg-phorium-surface px-2 py-1 text-[10px] text-phorium-light outline-none"
-          placeholder="Butikknavn / brand"
-        />
-        <input
-          type="color"
-          value={brand.primaryColor || "#C8B77A"}
-          onChange={(e) => onChange({ primaryColor: e.target.value })}
-          className="h-7 w-7 rounded-full border border-phorium-off/40 bg-transparent p-0"
-        />
-        <select
-          value={(brand.tone as string) || "nøytral"}
-          onChange={(e) =>
-            onChange({
-              tone: e.target.value as BrandProfile["tone"],
-            })
-          }
-          className="rounded-full border border-phorium-off/40 bg-phorium-surface px-2 py-1 text-[10px] text-phorium-light outline-none"
-        >
-          <option value="nøytral">Nøytral</option>
-          <option value="lekent">Lekent</option>
-          <option value="eksklusivt">Eksklusivt</option>
-        </select>
-
-        <button
-          type="button"
-          onClick={onRefresh}
-          className="btn btn-ghost btn-sm"
-        >
-          Hent fra Shopify på nytt
-        </button>
-      </div>
-    </div>
   );
 }

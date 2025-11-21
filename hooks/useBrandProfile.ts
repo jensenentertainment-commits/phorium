@@ -9,10 +9,9 @@ export type BrandProfile = {
   primaryColor?: string;
   accentColor?: string;
   styleNotes?: string;
-  style?: string;
 };
 
-type BrandSource = "manual" | "auto" | "unknown";
+export type BrandSource = "manual" | "auto" | "unknown";
 
 const STORAGE_KEY = "phorium_brand_profile_global";
 
@@ -21,9 +20,7 @@ export default function useBrandProfile() {
   const [source, setSource] = useState<BrandSource>("unknown");
   const [loading, setLoading] = useState<boolean>(true);
 
-  // ------------------------------------------------
-  // Last fra localStorage
-  // ------------------------------------------------
+  // Last fra localStorage ved oppstart
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -36,6 +33,7 @@ export default function useBrandProfile() {
 
       const parsed = JSON.parse(raw);
 
+      // Støtt både gammel form (ren profil) og ny ({ brand, source })
       if (parsed && typeof parsed === "object") {
         if (parsed.brand) {
           setBrand(parsed.brand);
@@ -52,9 +50,6 @@ export default function useBrandProfile() {
     }
   }, []);
 
-  // ------------------------------------------------
-  // Persister til localStorage
-  // ------------------------------------------------
   function persist(nextBrand: BrandProfile, nextSource: BrandSource) {
     setBrand(nextBrand);
     setSource(nextSource);
@@ -62,14 +57,11 @@ export default function useBrandProfile() {
     if (typeof window !== "undefined") {
       window.localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ brand: nextBrand, source: nextSource })
+        JSON.stringify({ brand: nextBrand, source: nextSource }),
       );
     }
   }
 
-  // ------------------------------------------------
-  // Manuell oppdatering
-  // ------------------------------------------------
   async function updateBrand(partial: Partial<BrandProfile>) {
     setBrand((prev) => {
       const base: BrandProfile = {
@@ -88,9 +80,7 @@ export default function useBrandProfile() {
     });
   }
 
-  // ------------------------------------------------
-  // 🔥 AUTO: Generering av brandprofil fra Shopify
-  // ------------------------------------------------
+  // 🔥 Automatisk Shopify-analyse
   async function autoGenerateBrandProfile() {
     setLoading(true);
     try {
@@ -101,20 +91,21 @@ export default function useBrandProfile() {
 
       const data = await res.json();
 
-      if (!data.success || !data.brand) {
-        throw new Error(data.error || "Kunne ikke auto-analysere butikken.");
+      if (!data.success || !data.profile) {
+        throw new Error(
+          data.error || "Kunne ikke auto-analysere butikken.",
+        );
       }
 
-      const p = data.brand;
+      const p = data.profile;
 
       const profile: BrandProfile = {
-        storeName: p.storeName ?? "",
+        storeName: p.storeName ?? p.store_name ?? "",
         industry: p.industry ?? "",
         tone: p.tone ?? "",
         primaryColor: p.primaryColor,
         accentColor: p.accentColor,
-        styleNotes: p.notes,
-        style: p.style,
+        styleNotes: p.styleNotes,
       };
 
       persist(profile, "auto");
@@ -126,9 +117,9 @@ export default function useBrandProfile() {
 
   return {
     brand,
+    source,
     loading,
     updateBrand,
-    source,
     autoGenerateBrandProfile,
   };
 }
