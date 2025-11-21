@@ -7,8 +7,6 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import PhoriumLoader from "./PhoriumLoader";
 import useBrandProfile from "@/hooks/useBrandProfile";
-import BrandProfileBadge from "./BrandProfileBadge";
-import BrandBadge from "@/app/components/BrandBadge";
 import BrandIdentityBar from "./BrandIdentityBar";
 
 type HistoryItem = {
@@ -177,8 +175,8 @@ export default function PhoriumVisualsForm() {
     if (!brand) return "";
     const parts: string[] = [];
 
-    if (brand.industry) parts.push(`Bransje: ${brand.industry}.`);
-    if (brand.style) parts.push(`Stil: ${brand.style}.`);
+    if ((brand as any).industry) parts.push(`Bransje: ${(brand as any).industry}.`);
+    if ((brand as any).style) parts.push(`Stil: ${(brand as any).style}.`);
     if (brand.tone) parts.push(`Tone: ${brand.tone}.`);
 
     return parts.join(" ") + " ";
@@ -189,9 +187,9 @@ export default function PhoriumVisualsForm() {
     const parts: string[] = [];
 
     if (brand.storeName) parts.push(`Butikk: ${brand.storeName}.`);
-    if (brand.primaryColor || brand.accentColor) {
+    if ((brand as any).primaryColor || (brand as any).accentColor) {
       parts.push(
-        `Farger: ${brand.primaryColor || ""} ${brand.accentColor || ""}`.trim(),
+        `Farger: ${(brand as any).primaryColor || ""} ${(brand as any).accentColor || ""}`.trim(),
       );
     }
 
@@ -656,7 +654,7 @@ export default function PhoriumVisualsForm() {
 
   return (
     <>
-      {/* Felles brandlinje øverst */}
+      {/* Global brandlinje – samme som Tekststudio */}
       <BrandIdentityBar
         brand={brand}
         source={brandSource}
@@ -759,13 +757,7 @@ export default function PhoriumVisualsForm() {
         </div>
       )}
 
-      {/* Brand-status & plan-badge */}
-      <BrandProfileBadge />
-      <div className="mb-3">
-        <BrandBadge variant="premium" />
-      </div>
-
-      {/* Mode switch */}
+      {/* Mode switch – hvilken type visual du vil lage */}
       <div className="mb-8 inline-flex rounded-full border border-phorium-off/40 bg-phorium-dark p-1 text-[11px]">
         <ModeButton
           active={mode === "image"}

@@ -7,8 +7,6 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import PhoriumLoader from "./PhoriumLoader";
 import useBrandProfile from "@/hooks/useBrandProfile";
-import BrandProfileBadge from "./BrandProfileBadge";
-import BrandBadge from "./BrandBadge";
 import BrandIdentityBar from "./BrandIdentityBar";
 
 // Ikoner – brukes etter hvert om du vil
@@ -552,12 +550,6 @@ export default function PhoriumTextForm() {
           </div>
         </div>
       )}
-
-      {/* Brand-status & plan-badge */}
-      <BrandProfileBadge />
-      <div className="mb-3">
-        <BrandBadge variant="premium" />
-      </div>
 
       {/* Grid: input venstre, resultat høyre */}
       <div className="grid gap-6 lg:grid-cols-2">

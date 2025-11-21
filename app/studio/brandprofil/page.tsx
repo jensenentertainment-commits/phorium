@@ -69,7 +69,7 @@ export default function BrandProfilePage() {
   const busy = brandLoading && !brand && !localBrand.storeName;
 
   return (
-    <main className="min-h-screen pt-24 pb-24 text-phorium-light">
+    <main className="min-h-screen pt-8 pb-20 text-phorium-light">
       <section className="mx-auto max-w-4xl px-4">
         <h1 className="mb-2 text-3xl font-semibold tracking-tight sm:text-4xl">
           Brandprofil
