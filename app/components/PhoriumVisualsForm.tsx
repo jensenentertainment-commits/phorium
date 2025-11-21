@@ -9,7 +9,7 @@ import PhoriumLoader from "./PhoriumLoader";
 import useBrandProfile, { BrandProfile } from "@/hooks/useBrandProfile";
 import BrandProfileBadge from "./BrandProfileBadge";
 import BrandBadge from "@/app/components/BrandBadge";
-import BrandIdentityBar from "@/components/BrandIdentityBar";
+import BrandIdentityBar from "./BrandIdentityBar";
 import useBrandProfile from "@/hooks/useBrandProfile";
 
 
