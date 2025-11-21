@@ -9,6 +9,9 @@ import PhoriumLoader from "./PhoriumLoader";
 import useBrandProfile, { BrandProfile } from "@/hooks/useBrandProfile";
 import BrandProfileBadge from "./BrandProfileBadge";
 import BrandBadge from "@/app/components/BrandBadge";
+import BrandIdentityBar from "@/components/BrandIdentityBar";
+import useBrandProfile from "@/hooks/useBrandProfile";
+
 
 
 type HistoryItem = {
@@ -776,6 +779,7 @@ export default function PhoriumVisualsForm() {
         onChange={updateBrand}
         onRefresh={refreshBrand}
       />
+<BrandIdentityBar brand={brand} source={brandSource} />
 
       {/* Mode switch */}
       <div className="mb-8 inline-flex rounded-full border border-phorium-off/40 bg-phorium-dark p-1 text-[11px]">

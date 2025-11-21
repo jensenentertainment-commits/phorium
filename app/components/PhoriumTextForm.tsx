@@ -8,6 +8,8 @@ import PhoriumLoader from "./PhoriumLoader";
 import useBrandProfile from "@/hooks/useBrandProfile";
 import BrandProfileBadge from "./BrandProfileBadge";
 import BrandBadge from "@/app/components/BrandBadge";
+import BrandIdentityBar from "../components/BrandIdentityBar";
+import useBrandProfile from "@/hooks/useBrandProfile";
 
 
 
@@ -56,6 +58,7 @@ const {
   updateBrand,
   source,
 } = useBrandProfile();
+<BrandIdentityBar brand={brand} source={source} />
 
 
   // Shopify-kontekst
