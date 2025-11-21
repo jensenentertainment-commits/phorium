@@ -1,18 +1,16 @@
 "use client";
 
-import React, { useState, useEffect, type ReactNode } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { RotateCcw, Palette, Download } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+
 import PhoriumLoader from "./PhoriumLoader";
 import useBrandProfile, { BrandProfile } from "@/hooks/useBrandProfile";
 import BrandProfileBadge from "./BrandProfileBadge";
-import BrandBadge from "@/app/components/BrandBadge";
+import BrandBadge from "./BrandBadge";
 import BrandIdentityBar from "./BrandIdentityBar";
-import useBrandProfile from "@/hooks/useBrandProfile";
-
-
 
 type HistoryItem = {
   prompt: string;
@@ -32,9 +30,10 @@ type CampaignImage = {
 
 const DEFAULT_BRAND: BrandProfile = {
   storeName: "Standardprofil",
+  industry: "",
+  tone: "nøytral",
   primaryColor: "#C8B77A",
   accentColor: "#ECE8DA",
-  tone: "nøytral",
 };
 
 export default function PhoriumVisualsForm() {
@@ -54,7 +53,7 @@ export default function PhoriumVisualsForm() {
     loading: brandLoading,
     source: brandSource,
     updateBrand,
-    refresh: refreshBrand,
+    autoGenerateBrandProfile,
   } = useBrandProfile();
 
   // Visuals state
@@ -108,14 +107,18 @@ export default function PhoriumVisualsForm() {
     try {
       const stored = localStorage.getItem("phorium_visuals_history");
       if (stored) setHistory(JSON.parse(stored));
-    } catch {}
+    } catch {
+      // ignorer
+    }
   }, []);
 
   // Lagre historikk
   useEffect(() => {
     try {
       localStorage.setItem("phorium_visuals_history", JSON.stringify(history));
-    } catch {}
+    } catch {
+      // ignorer
+    }
   }, [history]);
 
   // Hent butikkdomene fra cookie – brukes til "Åpne i Shopify"
@@ -190,7 +193,7 @@ export default function PhoriumVisualsForm() {
     const parts: string[] = [];
 
     if (brand.industry) parts.push(`Bransje: ${brand.industry}.`);
-    if (brand.style) parts.push(`Stil: ${brand.style}.`);
+    if (brand.styleNotes) parts.push(`Stil: ${brand.styleNotes}.`);
     if (brand.tone) parts.push(`Tone: ${brand.tone}.`);
 
     return parts.join(" ") + " ";
@@ -223,7 +226,10 @@ export default function PhoriumVisualsForm() {
     if (linkedProduct.vendor) {
       parts.push(`Leverandør: ${linkedProduct.vendor}.`);
     }
-    if (Array.isArray(linkedProduct.tags) && linkedProduct.tags.length > 0) {
+    if (
+      Array.isArray(linkedProduct.tags) &&
+      linkedProduct.tags.length > 0
+    ) {
       parts.push(`Tags: ${linkedProduct.tags.join(", ")}.`);
     }
 
@@ -670,6 +676,13 @@ export default function PhoriumVisualsForm() {
 
   return (
     <>
+      {/* Brand identity-linje øverst – felles for visuals */}
+      <BrandIdentityBar
+        brand={brand}
+        source={brandSource}
+        loading={brandLoading}
+      />
+
       {/* Shopify-produkt header (valgfri) */}
       {isShopifyMode && (
         <div className="mb-4 rounded-2xl border border-phorium-off/35 bg-phorium-dark px-4 py-3 text-[12px]">
@@ -716,7 +729,8 @@ export default function PhoriumVisualsForm() {
                     Bytt produkt
                   </Link>
 
-                  {(shopDomain || process.env.NEXT_PUBLIC_SHOPIFY_DOMAIN) &&
+                  {(shopDomain ||
+                    process.env.NEXT_PUBLIC_SHOPIFY_DOMAIN) &&
                     productIdFromUrl && (
                       <a
                         href={`https://${
@@ -766,20 +780,20 @@ export default function PhoriumVisualsForm() {
         </div>
       )}
 
-<BrandProfileBadge />
-<div className="mb-3">
-  <BrandBadge variant="premium" />
-</div>
+      {/* Felles brand-badges under header */}
+      <BrandProfileBadge />
+      <div className="mb-3">
+        <BrandBadge variant="premium" />
+      </div>
 
-      {/* Brand-profil (felles) */}
+      {/* Brand-profil (mini-kort) */}
       <BrandProfileCard
         brand={effectiveBrand}
         loading={brandLoading}
         source={brandSource}
         onChange={updateBrand}
-        onRefresh={refreshBrand}
+        onRefresh={autoGenerateBrandProfile}
       />
-<BrandIdentityBar brand={brand} source={brandSource} />
 
       {/* Mode switch */}
       <div className="mb-8 inline-flex rounded-full border border-phorium-off/40 bg-phorium-dark p-1 text-[11px]">
@@ -828,22 +842,26 @@ export default function PhoriumVisualsForm() {
           {/* Presets + størrelse */}
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-[11px]">
             <div className="flex flex-wrap gap-2">
-              {["Produktfoto", "Livsstil", "Kampanjebanner", "Bakgrunn", "Mockup"].map(
-                (label) => (
-                  <button
-                    key={label}
-                    type="button"
-                    className="btn btn-sm btn-ghost"
-                    onClick={() =>
-                      setPrompt(
-                        `Lag et ${label.toLowerCase()} i fotorealistisk stil. Profesjonelt lys, høy oppløsning.`,
-                      )
-                    }
-                  >
-                    {label}
-                  </button>
-                ),
-              )}
+              {[
+                "Produktfoto",
+                "Livsstil",
+                "Kampanjebanner",
+                "Bakgrunn",
+                "Mockup",
+              ].map((label) => (
+                <button
+                  key={label}
+                  type="button"
+                  className="btn btn-sm btn-ghost"
+                  onClick={() =>
+                    setPrompt(
+                      `Lag et ${label.toLowerCase()} i fotorealistisk stil. Profesjonelt lys, høy oppløsning.`,
+                    )
+                  }
+                >
+                  {label}
+                </button>
+              ))}
             </div>
 
             <div className="flex items-center gap-2">
@@ -1358,9 +1376,9 @@ function BrandProfileCard({
 }: {
   brand: BrandProfile;
   loading: boolean;
-  source: "local" | "auto" | "none";
+  source: "manual" | "auto" | "unknown";
   onChange: (changes: Partial<BrandProfile>) => void;
-  onRefresh: () => void;
+  onRefresh: () => Promise<BrandProfile | void> | void;
 }) {
   return (
     <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-phorium-off/35 bg-phorium-dark px-3.5 py-3.5 text-[10px] sm:flex-row sm:items-center sm:justify-between">
@@ -1376,7 +1394,7 @@ function BrandProfileCard({
             ? "Laster brandprofil …"
             : source === "auto"
             ? "Auto-generert fra Shopify – du kan justere under."
-            : source === "local"
+            : source === "manual"
             ? "Tilpasset profil (overstyrer auto)."
             : "Ingen profil ennå – juster feltene eller prøv auto igjen."}
         </p>
