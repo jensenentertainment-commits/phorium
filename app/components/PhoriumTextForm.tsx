@@ -7,6 +7,8 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import PhoriumLoader from "./PhoriumLoader";
 import useBrandProfile from "@/hooks/useBrandProfile";
+import BrandProfileBadge from "./BrandProfileBadge";
+import BrandBadge from "./BrandBadge";
 import BrandIdentityBar from "./BrandIdentityBar";
 
 // Ikoner – brukes etter hvert om du vil
@@ -544,6 +546,8 @@ export default function PhoriumTextForm() {
           </div>
         </div>
       )}
+
+      
 
       {/* Resten av komponenten (input, resultat, historikk) er lik som du hadde videre ned … */}
       {/* ... (jeg har latt resten av koden din være uendret herfra og ned) */}

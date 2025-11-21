@@ -674,7 +674,12 @@ export default function PhoriumVisualsForm() {
 
   return (
     <>
-      
+      {/* Brand identity-linje øverst – felles for visuals */}
+      <BrandIdentityBar
+        brand={brand}
+        source={brandSource}
+        loading={brandLoading}
+      />
 
       {/* Shopify-produkt header (valgfri) */}
       {isShopifyMode && (
@@ -775,7 +780,7 @@ export default function PhoriumVisualsForm() {
 
     
 
-     {/* Brand-profil (mini-kort) */}
+  {/* Brand-profil (mini-kort) */}
       <BrandProfileCard
         brand={effectiveBrand}
         loading={brandLoading}
