@@ -6,6 +6,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import PhoriumLoader from "./PhoriumLoader";
 import useBrandProfile from "@/hooks/useBrandProfile";
+import BrandProfileBadge from "./BrandProfileBadge";
 
 
 
@@ -550,21 +551,8 @@ const {
         </div>
       )}
 
-      {brand && (
-        <div className="mb-3 text-[11px] text-phorium-light/60">
-          Brandprofil:{" "}
-          <span className="font-medium text-phorium-accent">
-            {brand.storeName || "Uten navn"}
-          </span>
-          {brand.industry && <> · {brand.industry}</>}
-          {brand.tone && <> · tone: {brand.tone}</>}
-          {source === "auto" && (
-            <span className="ml-1 text-[10px] text-phorium-light/45">
-              (auto fra Shopify)
-            </span>
-          )}
-        </div>
-      )}
+      <BrandProfileBadge />
+
 
 
       {/* Grid: input venstre, resultat høyre */}

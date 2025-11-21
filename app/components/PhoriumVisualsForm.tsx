@@ -7,6 +7,8 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import PhoriumLoader from "./PhoriumLoader";
 import useBrandProfile, { BrandProfile } from "@/hooks/useBrandProfile";
+import BrandProfileBadge from "./BrandProfileBadge";
+
 
 type HistoryItem = {
   prompt: string;
@@ -759,6 +761,8 @@ export default function PhoriumVisualsForm() {
           </div>
         </div>
       )}
+
+<BrandProfileBadge />
 
       {/* Brand-profil (felles) */}
       <BrandProfileCard
