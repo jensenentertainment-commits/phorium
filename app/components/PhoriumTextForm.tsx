@@ -557,3 +557,458 @@ export default function PhoriumTextForm() {
       {/* ... (jeg har latt resten av koden din være uendret herfra og ned) */}
       {/* HELE delen fra "Grid: input venstre..." og ned er identisk med det du postet, bare flyttet litt opp. */}
       {/* (for å spare plass har jeg ikke duplisert alt i kommentaren her) */}
+ {/* Grid: input venstre, resultat høyre */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Venstre side – input */}
+        <div className="rounded-2xl border border-phorium-off/35 bg-phorium-dark/80 px-5 py-5">
+          <h3 className="mb-3 text-sm font-semibold text-phorium-light">
+            Hva ønsker du å generere?
+          </h3>
+
+          {!isShopifyMode && (
+            <div className="mb-3">
+              <label className="mb-1 block text-[11px] text-phorium-light/70">
+                Produktnavn*
+              </label>
+              <input
+                type="text"
+                value={productName}
+                onChange={(e) => setProductName(e.target.value)}
+                placeholder='F.eks. «Rustfri termokopp 1L – sort»'
+                className="w-full rounded-xl border border-phorium-off/40 bg-[#F3EEE2] px-3 py-2 text-[13px] text-phorium-dark outline-none placeholder:text-phorium-dark/40 focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/25"
+              />
+            </div>
+          )}
+
+          {isShopifyMode && (
+            <p className="mb-3 text-[11px] text-phorium-light/70">
+              Produktnavn er låst til{" "}
+              <span className="font-semibold text-phorium-accent">
+                {productName || linkedProduct?.title || "Ukjent produkt"}
+              </span>
+              .
+            </p>
+          )}
+
+          <div className="mb-3">
+            <label className="mb-1 block text-[11px] text-phorium-light/70">
+              Kategori (valgfritt)
+            </label>
+            <input
+              type="text"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              placeholder='F.eks. «Kjøkken & servering», «Hund», «Interiør» …'
+              className="w-full rounded-xl border border-phorium-off/40 bg-[#F3EEE2] px-3 py-2 text-[13px] text-phorium-dark outline-none placeholder:text-phorium-dark/40 focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/25"
+            />
+          </div>
+
+          <div className="mb-4">
+            <label className="mb-1 block text-[11px] text-phorium-light/70">
+              Tone
+            </label>
+            <input
+              type="text"
+              value={tone}
+              onChange={(e) => setTone(e.target.value)}
+              placeholder="F.eks. moderne, teknisk, humoristisk, eksklusiv …"
+              className="w-full rounded-xl border border-phorium-off/40 bg-[#F3EEE2] px-3 py-2 text-[13px] text-phorium-dark outline-none placeholder:text-phorium-dark/40 focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/25"
+            />
+          </div>
+
+          {/* Refine-rad */}
+          <div className="mb-3 flex flex-wrap items-center gap-2 text-[10px]">
+            <span className="mr-1 text-phorium-light/55">
+              Juster tone med ett klikk:
+            </span>
+            <button
+              type="button"
+              onClick={() => setTonePreset("kortere")}
+              className="btn btn-sm btn-ghost"
+            >
+              Kortere
+            </button>
+            <button
+              type="button"
+              onClick={() => setTonePreset("lengre")}
+              className="btn btn-sm btn-ghost"
+            >
+              Lengre
+            </button>
+            <button
+              type="button"
+              onClick={() => setTonePreset("teknisk")}
+              className="btn btn-sm btn-ghost"
+            >
+              Mer teknisk
+            </button>
+            <button
+              type="button"
+              onClick={() => setTonePreset("leken")}
+              className="btn btn-sm btn-ghost"
+            >
+              Mer leken
+            </button>
+          </div>
+
+          <button
+            onClick={handlePrimaryClick}
+            disabled={loading || (!isShopifyMode && !productName.trim())}
+            className="btn btn-lg btn-primary w-full disabled:opacity-60"
+          >
+            {loading ? "Genererer tekst …" : primaryButtonLabel}
+          </button>
+
+          <p className="mt-2 text-[10px] text-phorium-light/55">
+            Tips: Velg tone først, så generer. Prøv gjerne flere varianter.
+          </p>
+        </div>
+
+        {/* Høyre side – resultat m. tabs, lagre, kopi */}
+        <div className="rounded-2xl border border-phorium-off/35 bg-phorium-dark/80 px-5 py-5">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-phorium-light">
+              Resultat
+            </h3>
+          </div>
+
+          {/* Tabs */}
+          <div className="mb-2 inline-flex rounded-full border border-phorium-off/35 bg-phorium-dark p-1 text-[11px]">
+            <TabButton
+              active={activeTab === "product"}
+              onClick={() => setActiveTab("product")}
+            >
+              Produkttekst
+            </TabButton>
+            <TabButton
+              active={activeTab === "seo"}
+              onClick={() => setActiveTab("seo")}
+            >
+              SEO
+            </TabButton>
+            <TabButton
+              active={activeTab === "ads"}
+              onClick={() => setActiveTab("ads")}
+            >
+              Annonser
+            </TabButton>
+            <TabButton
+              active={activeTab === "some"}
+              onClick={() => setActiveTab("some")}
+            >
+              SoMe
+            </TabButton>
+          </div>
+
+          {/* Action-knapper: lagre / kopier / åpne i Shopify */}
+          <div className="mb-2 flex flex-wrap gap-2 text-[11px]">
+            {isShopifyMode && result && (
+              <button
+                type="button"
+                onClick={handleSaveToShopify}
+                disabled={saving}
+                className="btn btn-sm btn-primary disabled:opacity-60"
+              >
+                {saving ? "Lagrer …" : "Lagre i Shopify"}
+              </button>
+            )}
+
+            {result && (
+              <button
+                type="button"
+                onClick={handleCopyActiveTab}
+                className="btn btn-sm btn-secondary"
+              >
+                Kopier teksten i aktiv fane
+              </button>
+            )}
+
+            {isShopifyMode && shopDomain && (
+              <a
+                href={`https://${shopDomain}/admin/products/${productIdFromUrl}`}
+                target="_blank"
+                rel="noreferrer"
+                className="btn btn-sm btn-ghost"
+              >
+                Åpne i Shopify
+              </a>
+            )}
+          </div>
+
+          {(saveMessage || copyMessage) && (
+            <p className="mb-2 text-[11px] text-phorium-light/70">
+              {saveMessage && <span>{saveMessage}</span>}
+              {saveMessage && copyMessage && <span> · </span>}
+              {copyMessage && <span>{copyMessage}</span>}
+            </p>
+          )}
+
+          <div className="min-h-[230px] rounded-xl border border-phorium-off/30 bg-[#F7F2E8] px-4 py-3 text-[13px] text-phorium-dark">
+            {loading && (
+              <div className="flex h-full items-center justify-center">
+                <PhoriumLoader label="Genererer tekst … finpusser ordvalg, struktur og SEO" />
+              </div>
+            )}
+
+            {!loading && !result && !error && (
+              <p className="text-[12px] text-phorium-dark/70">
+                Når du genererer, får du produkttekst, SEO, annonsetekster og
+                SoMe-forslag her – organisert i faner.
+              </p>
+            )}
+
+            {!loading && error && (
+              <p className="text-[12px] text-red-600">{error}</p>
+            )}
+
+            <AnimatePresence mode="wait">
+              {!loading && result && !error && (
+                <motion.div
+                  key={activeTab + (result.title || "")}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 4 }}
+                  transition={{ duration: 0.22, delay: 0.03 }}
+                  className="space-y-2"
+                >
+                  {/* Produkt-tab */}
+                  {activeTab === "product" && (
+                    <>
+                      {result.title && (
+                        <p className="text-[14px] font-semibold text-phorium-dark">
+                          {result.title}
+                        </p>
+                      )}
+
+                      {result.shortDescription && (
+                        <p className="text-[12px] text-phorium-dark/80">
+                          {result.shortDescription}
+                        </p>
+                      )}
+
+                      {result.description && (
+                        <motion.div
+                          initial={{
+                            backgroundColor: "rgba(200,183,122,0.18)",
+                          }}
+                          animate={{
+                            backgroundColor: justGenerated
+                              ? "rgba(200,183,122,0.08)"
+                              : "rgba(0,0,0,0)",
+                          }}
+                          transition={{ duration: 0.8 }}
+                          className="-mx-2 rounded-md px-2 py-1"
+                        >
+                          <p>{result.description}</p>
+                        </motion.div>
+                      )}
+
+                      {Array.isArray(result.bullets) &&
+                        result.bullets.length > 0 && (
+                          <div className="pt-2">
+                            <p className="mb-1 text-[11px] font-semibold text-phorium-dark/80">
+                              Bullet points:
+                            </p>
+                            <ul className="list-disc pl-4 text-[12px]">
+                              {result.bullets.map((b, i) => (
+                                <li key={i}>{b}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                    </>
+                  )}
+
+                  {/* SEO-tab */}
+                  {activeTab === "seo" && (
+                    <div className="space-y-2 text-[12px]">
+                      <div>
+                        <p className="text-[11px] font-semibold text-phorium-dark/80">
+                          SEO-tittel
+                        </p>
+                        <p>{result.meta_title || "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold text-phorium-dark/80">
+                          Meta-beskrivelse
+                        </p>
+                        <p>{result.meta_description || "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold text-phorium-dark/80">
+                          Tags
+                        </p>
+                        <p>
+                          {Array.isArray(result.tags) &&
+                          result.tags.length > 0
+                            ? result.tags.join(", ")
+                            : "—"}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Ads-tab */}
+                  {activeTab === "ads" && (
+                    <div className="space-y-3 text-[12px]">
+                      <div>
+                        <p className="text-[11px] font-semibold text-phorium-dark/80">
+                          Primær annonsetekst
+                        </p>
+                        <p>{result.ad_primary || "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold text-phorium-dark/80">
+                          Annonseoverskrift
+                        </p>
+                        <p>{result.ad_headline || "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold text-phorium-dark/80">
+                          Annonsebeskrivelse
+                        </p>
+                        <p>{result.ad_description || "—"}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SoMe-tab */}
+                  {activeTab === "some" && (
+                    <div className="space-y-3 text-[12px]">
+                      <div>
+                        <p className="text-[11px] font-semibold text-phorium-dark/80">
+                          Caption
+                        </p>
+                        <p>{result.social_caption || "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold text-phorium-dark/80">
+                          Hashtags
+                        </p>
+                        <p>
+                          {Array.isArray(result.social_hashtags) &&
+                          result.social_hashtags.length > 0
+                            ? result.social_hashtags
+                                .map((h) =>
+                                  h.startsWith("#") ? h : `#${h}`,
+                                )
+                                .join(" ")
+                            : "—"}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+      </div>
+
+      {/* Historikk – global for tekststudio */}
+      <div className="mt-8 border-t border-phorium-off/30 pt-5">
+        <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-phorium-accent">
+              Historikk (tekststudio)
+            </h2>
+            <p className="text-[11px] text-phorium-light/65">
+              Viser de siste genererte tekstpakkene – uansett produkt.
+            </p>
+          </div>
+        </div>
+
+        {history.length === 0 && (
+          <p className="text-[12px] text-phorium-light/70">
+            Når du genererer tekster, dukker de siste her for rask gjenbruk.
+          </p>
+        )}
+
+        {history.length > 0 && (
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            {history.map((item) => (
+              <div
+                key={item.id}
+                className="rounded-2xl border border-phorium-off/35 bg-phorium-dark/80 px-4 py-3 text-[11px] text-phorium-light"
+              >
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="line-clamp-2 text-[12px] font-semibold text-phorium-accent">
+                      {item.result.title || item.productName}
+                    </p>
+                    <span className="shrink-0 rounded-full border border-phorium-off/40 bg-phorium-surface px-2 py-0.5 text-[10px] text-phorium-light/70">
+                      {item.source === "shopify"
+                        ? "Fra Shopify-produkt"
+                        : "Manuell"}
+                    </span>
+                  </div>
+                  {item.result.shortDescription && (
+                    <p className="line-clamp-2 text-[11px] text-phorium-light/75">
+                      {item.result.shortDescription}
+                    </p>
+                  )}
+                  <div className="mt-1 flex flex-wrap gap-1.5 text-[10px] text-phorium-light/65">
+                    {item.category && (
+                      <span className="rounded-full border border-phorium-off/40 bg-phorium-surface px-2 py-0.5">
+                        {item.category}
+                      </span>
+                    )}
+                    {item.tone && (
+                      <span className="rounded-full border border-phorium-off/40 bg-phorium-surface px-2 py-0.5">
+                        Tone: {item.tone}
+                      </span>
+                    )}
+                    <span className="text-phorium-light/50">
+                      {new Date(item.createdAt).toLocaleString("no-NO", {
+                        dateStyle: "short",
+                        timeStyle: "short",
+                      })}
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleLoadFromHistory(item)}
+                    className="btn btn-sm btn-primary"
+                  >
+                    Åpne i resultat
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyToneFromHistory(item)}
+                    className="btn btn-sm btn-ghost"
+                  >
+                    Bruk tone/stil
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={active ? "btn-tab btn-tab-active" : "btn-tab"}
+    >
+      {children}
+    </button>
+  );
+}
+
+
