@@ -210,15 +210,18 @@ export default function PhoriumTextForm() {
     try {
       const effectiveTone = tone || (brand?.tone as string) || "nøytral";
 
-      const res = await fetch("/api/generate-text", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productName,
-          category,
-          tone: effectiveTone,
-        }),
-      });
+const res = await fetch("/api/generate-text", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    productName,
+    category,
+    tone: effectiveTone,
+    brand, // 🧠 send hele brandprofilen
+  }),
+});
+
+
 
       const data = await res.json();
 

@@ -6,12 +6,22 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
 
+type BrandProfile = {
+  storeName?: string;
+  industry?: string;
+  tone?: string;
+  primaryColor?: string;
+  accentColor?: string;
+  styleNotes?: string;
+};
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const productName = (body.productName as string | undefined) || "";
     const category = (body.category as string | undefined) || "";
     const tone = (body.tone as string | undefined) || "nøytral";
+    const brand = (body.brand as BrandProfile | undefined) || null;
 
     if (!productName.trim()) {
       return NextResponse.json(
@@ -23,10 +33,30 @@ export async function POST(req: Request) {
       );
     }
 
+    // Bygg brand-kontekst til prompten
+    const brandContext = brand
+      ? `
+Du skriver for en spesifikk nettbutikk med denne brandprofilen:
+
+- Butikknavn: ${brand.storeName || "ikke oppgitt"}
+- Bransje: ${brand.industry || "ikke oppgitt"}
+- Tone of voice: ${brand.tone || "nøytral"}
+- Primærfarge: ${brand.primaryColor || "ingen spesifikk"}
+- Aksentfarge: ${brand.accentColor || "ingen spesifikk"}
+- Stilnotater: ${brand.styleNotes || "ingen spesielle notater"}
+
+Du skal skrive tekst som om du er denne butikken, ikke en generisk AI.
+`
+      : `
+Du har ikke eksplisitt brandprofil, så skriv som en seriøs, tydelig og selgende norsk nettbutikk uten å være cheesy.
+`;
+
     const systemPrompt = `
 Du er Phorium, en norsk tekstmotor for nettbutikker.
 
-Du skal lage en kompakt tekstpakke for et produkt, med dette formatet:
+${brandContext}
+
+Du skal lage en kompakt tekstpakke for et produkt, med dette formatet (JSON):
 
 {
   "title": "Produktnavn optimalisert for salg",
@@ -39,6 +69,7 @@ VIKTIG:
 - Svar kun med ett JSON-objekt (ingen ekstra tekst, ingen forklaringer).
 - Skriv på god norsk, tilpasset nettbutikk.
 - Tilpass tone til parameteren som sendes inn.
+- Ikke overdriv eller bruke klisjé-fyll som 'fantastisk' og 'revolusjonerende' uten grunn.
 `;
 
     const userPromptLines = [
@@ -81,7 +112,6 @@ VIKTIG:
       parsed = JSON.parse(cleaned);
     }
 
-    // Frontend-en din forventer data.data.* i "manuell" modus
     return NextResponse.json(
       {
         success: true,
