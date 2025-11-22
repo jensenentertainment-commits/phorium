@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -10,7 +10,7 @@ import useBrandProfile from "@/hooks/useBrandProfile";
 import BrandIdentityBar from "./BrandIdentityBar";
 
 // Ikoner – brukes etter hvert om du vil
-import { Wand2, Check, X, Loader2, ArrowLeft, Sparkles } from "lucide-react";
+import { Wand2, X } from "lucide-react";
 
 type GeneratedResult = {
   title?: string;
@@ -25,10 +25,8 @@ type GeneratedResult = {
   ad_description?: string;
   social_caption?: string;
   social_hashtags?: string[];
-  // brukes når vi sender til Shopify-route
-  bodyHtml?: string;
+  bodyHtml?: string; // brukes når vi lager HTML til Shopify
 };
-
 
 type ActiveTab = "product" | "seo" | "ads" | "some";
 
@@ -52,7 +50,7 @@ export default function PhoriumTextForm() {
   const [justGenerated, setJustGenerated] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>("product");
 
-  // Tone-analyse av eksisterende tekst
+  // Tone-analyse
   const [toneAnalysis, setToneAnalysis] = useState<{
     tone: string;
     confidence: number;
@@ -60,12 +58,10 @@ export default function PhoriumTextForm() {
     summary: string;
     suggestions: string;
   } | null>(null);
-
   const [toneLoading, setToneLoading] = useState(false);
   const [toneError, setToneError] = useState<string | null>(null);
 
-
-  // Felles brandprofil (tekst + visuals)
+  // Brandprofil
   const { brand, loading: brandLoading, updateBrand, source } =
     useBrandProfile();
 
@@ -78,16 +74,16 @@ export default function PhoriumTextForm() {
   const [productLoading, setProductLoading] = useState(false);
   const [productError, setProductError] = useState<string | null>(null);
 
-  // Lagre til Shopify / kopiering
+  // Lagring/kopi
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
   const [shopDomain, setShopDomain] = useState<string | null>(null);
 
-  // Global historikk for tekststudio
+  // Historikk for tekststudio
   const [history, setHistory] = useState<TextHistoryItem[]>([]);
 
-  // Hent butikkdomene fra cookie (phorium_shop) – brukes til "Åpne i Shopify"
+  // Hent butikkdomene fra cookie (phorium_shop)
   useEffect(() => {
     if (typeof document === "undefined") return;
     try {
@@ -98,11 +94,11 @@ export default function PhoriumTextForm() {
         setShopDomain(value);
       }
     } catch {
-      // stille feil
+      // stille
     }
   }, []);
 
-  // Hent produkt hvis vi har productId
+  // Hent Shopify-produkt hvis vi har productId
   useEffect(() => {
     async function fetchProduct() {
       if (!productIdFromUrl) return;
@@ -111,11 +107,9 @@ export default function PhoriumTextForm() {
         setProductLoading(true);
         setProductError(null);
 
-              const res = await fetch(
-        `/api/shopify/product?id=${productIdFromUrl}`,
-      );
-
+        const res = await fetch(`/api/shopify/product?id=${productIdFromUrl}`);
         const data = await res.json();
+
         if (!data.success) {
           throw new Error(data.error || "Kunne ikke hente produkt.");
         }
@@ -136,14 +130,14 @@ export default function PhoriumTextForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productIdFromUrl]);
 
-  // Just-generated highlight
+  // Flash på ny generering
   useEffect(() => {
     if (!justGenerated) return;
     const t = setTimeout(() => setJustGenerated(false), 1200);
     return () => clearTimeout(t);
   }, [justGenerated]);
 
-  // Last historikk fra localStorage (GLOBAL for tekststudio)
+  // Historikk inn/ut av localStorage
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
@@ -154,11 +148,10 @@ export default function PhoriumTextForm() {
         setHistory(parsed);
       }
     } catch {
-      // stille feil
+      // stille
     }
   }, []);
 
-  // Lagre historikk til localStorage
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
@@ -167,11 +160,11 @@ export default function PhoriumTextForm() {
         JSON.stringify(history),
       );
     } catch {
-      // stille feil
+      // stille
     }
   }, [history]);
 
-  // --- Historikk-hjelper ---
+  // --- Historikk-hjelpere ---
   function addToHistory(
     source: "manual" | "shopify",
     generated: GeneratedResult,
@@ -190,7 +183,7 @@ export default function PhoriumTextForm() {
       result: generated,
     };
 
-    setHistory((prev) => [item, ...prev].slice(0, 6)); // siste 6 globalt
+    setHistory((prev) => [item, ...prev].slice(0, 6));
   }
 
   function handleLoadFromHistory(item: TextHistoryItem) {
@@ -223,18 +216,16 @@ export default function PhoriumTextForm() {
     try {
       const effectiveTone = tone || (brand?.tone as string) || "nøytral";
 
-const res = await fetch("/api/generate-text", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    productName,
-    category,
-    tone: effectiveTone,
-    brand, // 🧠 send hele brandprofilen
-  }),
-});
-
-
+      const res = await fetch("/api/generate-text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productName,
+          category,
+          tone: effectiveTone,
+          brand, // sender hele brandprofilen hvis backenden vil bruke den
+        }),
+      });
 
       const data = await res.json();
 
@@ -280,12 +271,43 @@ const res = await fetch("/api/generate-text", {
         }),
       });
 
-            const data = await res.json();
+      const data = await res.json();
       if (!data.success) {
         throw new Error(data.error || "Kunne ikke generere tekst.");
       }
 
-  // Analysér tone på eksisterende eller generert tekst
+      const r = (data.result ?? data.data ?? {}) as any;
+
+      const mapped: GeneratedResult = {
+        title:
+          linkedProduct?.title ||
+          productName ||
+          "Generert produkttekst",
+        description: r.description || "",
+        shortDescription: r.shortDescription || "",
+        meta_title: r.seoTitle || "",
+        meta_description: r.metaDescription || "",
+        bullets: r.bullets || [],
+        tags: r.tags || [],
+        ad_primary: r.adPrimaryText || "",
+        ad_headline: r.adHeadline || "",
+        ad_description: r.adDescription || "",
+        social_caption: r.socialCaption || "",
+        social_hashtags: r.hashtags || [],
+      };
+
+      setResult(mapped);
+      setActiveTab("product");
+      setJustGenerated(true);
+      addToHistory("shopify", mapped);
+    } catch (err: any) {
+      setError(err?.message || "Uventet feil ved generering.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // --- Analysér tone på eksisterende / generert tekst ---
   async function handleAnalyzeTone() {
     setToneError(null);
 
@@ -338,107 +360,7 @@ const res = await fetch("/api/generate-text", {
     }
   }
 
-
-  // --- Analysér tone på eksisterende tekst / produktbeskrivelse ---
-  async function handleAnalyzeTone() {
-    setToneError(null);
-
-    // Vi prøver i denne rekkefølgen:
-    // 1) Nylig generert tekst (result.description)
-    // 2) Kortbeskrivelse
-    // 3) Eksisterende Shopify-tekst (linkedProduct.body_html)
-    let textToAnalyze =
-      (result?.description && result.description.trim()) ||
-      (result?.shortDescription && result.shortDescription.trim()) ||
-      "";
-
-    if (!textToAnalyze && linkedProduct?.body_html) {
-      // Fjern HTML-tags fra Shopify body_html
-      textToAnalyze = String(linkedProduct.body_html).replace(
-        /<[^>]+>/g,
-        " ",
-      );
-    }
-
-    if (!textToAnalyze || !textToAnalyze.trim()) {
-      setToneError(
-        "Det finnes ingen tekst å analysere ennå. Generer tekst, eller bruk eksisterende Shopify-tekst først.",
-      );
-      setToneAnalysis(null);
-      return;
-    }
-
-    setToneLoading(true);
-    try {
-      const res = await fetch("/api/analyze-tone", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: textToAnalyze,
-          language: "norsk",
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Kunne ikke analysere tone.");
-      }
-
-      setToneAnalysis(data.result);
-    } catch (err: any) {
-      console.error("Tone-analyse feilet:", err);
-      setToneError(
-        err?.message || "Noe gikk galt under tone-analysen.",
-      );
-      setToneAnalysis(null);
-    } finally {
-      setToneLoading(false);
-    }
-  }
-
-
-      // Støtt både { result: {...} } og { data: {...} }
-      const r = (data.result ?? data.data ?? {}) as any;
-
-      const mapped: GeneratedResult = {
-
-        title:
-          linkedProduct?.title ||
-          productName ||
-          "Generert produkttekst",
-        description: r.description || "",
-        shortDescription: r.shortDescription || "",
-        meta_title: r.seoTitle || "",
-        meta_description: r.metaDescription || "",
-        bullets: r.bullets || [],
-        tags: r.tags || [],
-        ad_primary: r.adPrimaryText || "",
-        ad_headline: r.adHeadline || "",
-        ad_description: r.adDescription || "",
-        social_caption: r.socialCaption || "",
-        social_hashtags: r.hashtags || [],
-      };
-
-      setResult(mapped);
-      setActiveTab("product");
-      setJustGenerated(true);
-      addToHistory("shopify", mapped);
-    } catch (err: any) {
-      setError(err?.message || "Uventet feil ved generering.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const primaryButtonLabel = isShopifyMode
-    ? "Generer tekst fra Shopify-produkt"
-    : "Generer tekst";
-
-  const handlePrimaryClick = isShopifyMode
-    ? handleGenerateFromProduct
-    : handleGenerateManual;
-
-  // Tone-presets
+  // --- Tone-presets ---
   function setTonePreset(preset: "kortere" | "lengre" | "teknisk" | "leken") {
     if (preset === "kortere") {
       setTone("Kort, konsis og tydelig. Unngå unødvendige ord.");
@@ -457,104 +379,96 @@ const res = await fetch("/api/generate-text", {
     }
   }
 
+  // --- Lagre til Shopify ---
+  async function handleSaveToShopify() {
+    if (!productIdFromUrl || !result) return;
 
-// --- Lagre til Shopify (bruker egen API-route) ---
-async function handleSaveToShopify() {
-  if (!productIdFromUrl || !result) return;
+    const title =
+      (result.title && result.title.trim()) ||
+      (productName && productName.trim()) ||
+      (linkedProduct?.title as string | undefined) ||
+      "";
 
-  // 1) Finn tittel – prøv i denne rekkefølgen
-  const title =
-    (result.title && result.title.trim()) ||
-    (productName && productName.trim()) ||
-    (linkedProduct?.title as string | undefined) ||
-    "";
+    const parts: string[] = [];
 
-  // 2) Bygg opp bodyHtml av ingress + hovedtekst + bullets
-  const parts: string[] = [];
+    if (result.shortDescription && result.shortDescription.trim()) {
+      parts.push(`<p>${result.shortDescription.trim()}</p>`);
+    }
 
-  if (result.shortDescription && result.shortDescription.trim()) {
-    parts.push(`<p>${result.shortDescription.trim()}</p>`);
-  }
+    if (result.description && result.description.trim()) {
+      parts.push(`<p>${result.description.trim()}</p>`);
+    }
 
-  if (result.description && result.description.trim()) {
-    parts.push(`<p>${result.description.trim()}</p>`);
-  }
+    if (Array.isArray(result.bullets) && result.bullets.length > 0) {
+      const cleanBullets = result.bullets
+        .map((b) => (b || "").trim())
+        .filter(Boolean);
 
-  if (Array.isArray(result.bullets) && result.bullets.length > 0) {
-    const cleanBullets = result.bullets
-      .map((b) => (b || "").trim())
-      .filter(Boolean);
+      if (cleanBullets.length > 0) {
+        parts.push(
+          `<ul>${cleanBullets.map((b) => `<li>${b}</li>`).join("")}</ul>`,
+        );
+      }
+    }
 
-    if (cleanBullets.length > 0) {
-      parts.push(
-        `<ul>${cleanBullets.map((b) => `<li>${b}</li>`).join("")}</ul>`
+    const bodyHtml = parts.join("\n");
+
+    if (!title || !bodyHtml) {
+      setSaveMessage(
+        "❌ Mangler tittel eller tekstinnhold. Generer tekst før du lagrer i Shopify.",
       );
+      return;
     }
-  }
 
-  const bodyHtml = parts.join("\n");
+    const seoTitle = result.meta_title || title;
+    const seoDescription =
+      result.meta_description ||
+      result.shortDescription ||
+      result.description ||
+      "";
 
-  // Hvis vi ikke har noe å lagre, ikke kall API-et
-  if (!title || !bodyHtml) {
-    setSaveMessage(
-      "❌ Mangler tittel eller tekstinnhold. Generer tekst før du lagrer i Shopify.",
-    );
-    return;
-  }
+    const tags = Array.isArray(result.tags)
+      ? result.tags.map((t) => t.trim()).filter(Boolean)
+      : undefined;
 
-  // 3) SEO-felter
-  const seoTitle = result.meta_title || title;
-  const seoDescription =
-    result.meta_description ||
-    result.shortDescription ||
-    result.description ||
-    "";
+    setSaving(true);
+    setSaveMessage(null);
 
-  const tags = Array.isArray(result.tags)
-    ? result.tags.map((t) => t.trim()).filter(Boolean)
-    : undefined;
+    try {
+      const res = await fetch("/api/shopify/save-product-text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: Number(productIdFromUrl),
+          title,
+          bodyHtml,
+          seoTitle,
+          seoDescription,
+          tags,
+        }),
+      });
 
-  setSaving(true);
-  setSaveMessage(null);
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(
+          `Serverfeil (${res.status}): ${text || "Ukjent feil ved lagring"}`,
+        );
+      }
 
-  try {
-    const res = await fetch("/api/shopify/save-product-text", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        productId: Number(productIdFromUrl),
-        title,
-        bodyHtml,
-        seoTitle,
-        seoDescription,
-        tags,
-      }),
-    });
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || "Klarte ikke å lagre tekst i Shopify.");
+      }
 
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(
-        `Serverfeil (${res.status}): ${text || "Ukjent feil ved lagring"}`,
+      setSaveMessage("✅ Tekstpakke er lagret i Shopify.");
+    } catch (err: any) {
+      setSaveMessage(
+        err?.message || "❌ Klarte ikke å lagre tekst i Shopify.",
       );
+    } finally {
+      setSaving(false);
     }
-
-    const data = await res.json();
-    if (!data.success) {
-      throw new Error(data.error || "Klarte ikke å lagre tekst i Shopify.");
-    }
-
-    setSaveMessage("✅ Tekstpakke er lagret i Shopify.");
-  } catch (err: any) {
-    setSaveMessage(
-      err?.message || "❌ Klarte ikke å lagre tekst i Shopify.",
-    );
-  } finally {
-    setSaving(false);
   }
-}
-
-
-
 
   // --- Tekst for aktiv fane (brukes til "Kopier") ---
   function getTextForActiveTab(): string {
@@ -645,13 +559,40 @@ async function handleSaveToShopify() {
     }
   }
 
+  const primaryButtonLabel = isShopifyMode
+    ? "Generer tekst fra Shopify-produkt"
+    : "Generer tekst";
+
+  const handlePrimaryClick = isShopifyMode
+    ? handleGenerateFromProduct
+    : handleGenerateManual;
+
   return (
     <div className="mt-4 space-y-4">
-      {/* Felles brandlinje øverst */}
-      <BrandIdentityBar brand={brand} source={source} loading={brandLoading} />
+      {/* Brandlinje øverst */}
+      <BrandIdentityBar
+        brand={brand}
+        source={source}
+        loading={brandLoading}
+        onUpdateBrand={updateBrand}
+      />
 
-      {/* Shopify-produkt header */}
-               {linkedProduct && !productLoading && !productError && (
+      {/* Shopify header / tone-analyse */}
+      {isShopifyMode && (
+        <div className="rounded-2xl border border-phorium-off/35 bg-phorium-dark px-4 py-3 text-[12px]">
+          {productLoading && (
+            <p className="text-phorium-light/85">
+              Henter produktdata fra Shopify …
+            </p>
+          )}
+
+          {productError && (
+            <p className="text-red-300">
+              Klarte ikke å hente produkt: {productError}
+            </p>
+          )}
+
+          {linkedProduct && !productLoading && !productError && (
             <>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -667,7 +608,7 @@ async function handleSaveToShopify() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  {linkedProduct.image && (
+                  {linkedProduct.image?.src && (
                     <img
                       src={linkedProduct.image.src}
                       alt={linkedProduct.title}
@@ -684,7 +625,6 @@ async function handleSaveToShopify() {
                 </div>
               </div>
 
-              {/* Tone-analyse seksjon */}
               <div className="mt-3 border-t border-phorium-off/20 pt-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="text-[11px] text-phorium-light/70">
@@ -724,7 +664,9 @@ async function handleSaveToShopify() {
                       </p>
                     )}
 
-                    <p className="text-[11px]">{toneAnalysis.summary}</p>
+                    <p className="text-[11px]">
+                      {toneAnalysis.summary}
+                    </p>
                     <p className="text-[11px] text-phorium-light/80">
                       {toneAnalysis.suggestions}
                     </p>
@@ -733,8 +675,10 @@ async function handleSaveToShopify() {
               </div>
             </>
           )}
+        </div>
+      )}
 
-
+      {/* Info når man IKKE er i Shopify-modus */}
       {!isShopifyMode && (
         <div className="rounded-2xl border border-phorium-off/25 bg-phorium-dark/70 px-4 py-3 text-[12px]">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -824,7 +768,6 @@ async function handleSaveToShopify() {
             />
           </div>
 
-          {/* Refine-rad */}
           <div className="mb-3 flex flex-wrap items-center gap-2 text-[10px]">
             <span className="mr-1 text-phorium-light/55">
               Juster tone med ett klikk:
@@ -867,12 +810,31 @@ async function handleSaveToShopify() {
             {loading ? "Genererer tekst …" : primaryButtonLabel}
           </button>
 
-          <p className="mt-2 text-[10px] text-phorium-light/55">
-            Tips: Velg tone først, så generer. Prøv gjerne flere varianter.
-          </p>
+          <div className="mt-2 flex items-center justify-between text-[10px] text-phorium-light/55">
+            <p>
+              Tips: Velg tone først, så generer. Prøv gjerne flere varianter.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setProductName("");
+                setCategory("");
+                setTone("");
+                setResult(null);
+                setError(null);
+                setSaveMessage(null);
+                setCopyMessage(null);
+                setJustGenerated(false);
+              }}
+              className="inline-flex items-center gap-1 text-[10px] text-phorium-light/60 hover:text-phorium-light"
+            >
+              <X className="h-3 w-3" />
+              Nullstill
+            </button>
+          </div>
         </div>
 
-        {/* Høyre side – resultat m. tabs, lagre, kopi */}
+        {/* Høyre side – resultat */}
         <div className="rounded-2xl border border-phorium-off/35 bg-phorium-dark/80 px-5 py-5">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-phorium-light">
@@ -908,7 +870,7 @@ async function handleSaveToShopify() {
             </TabButton>
           </div>
 
-          {/* Action-knapper: lagre / kopier / åpne i Shopify */}
+          {/* Actions */}
           <div className="mb-2 flex flex-wrap gap-2 text-[11px]">
             {isShopifyMode && result && (
               <button
@@ -979,7 +941,6 @@ async function handleSaveToShopify() {
                   transition={{ duration: 0.22, delay: 0.03 }}
                   className="space-y-2"
                 >
-                  {/* Produkt-tab */}
                   {activeTab === "product" && (
                     <>
                       {result.title && (
@@ -1027,7 +988,6 @@ async function handleSaveToShopify() {
                     </>
                   )}
 
-                  {/* SEO-tab */}
                   {activeTab === "seo" && (
                     <div className="space-y-2 text-[12px]">
                       <div>
@@ -1056,7 +1016,6 @@ async function handleSaveToShopify() {
                     </div>
                   )}
 
-                  {/* Ads-tab */}
                   {activeTab === "ads" && (
                     <div className="space-y-3 text-[12px]">
                       <div>
@@ -1080,7 +1039,6 @@ async function handleSaveToShopify() {
                     </div>
                   )}
 
-                  {/* SoMe-tab */}
                   {activeTab === "some" && (
                     <div className="space-y-3 text-[12px]">
                       <div>
@@ -1113,7 +1071,7 @@ async function handleSaveToShopify() {
         </div>
       </div>
 
-      {/* Historikk – global for tekststudio */}
+      {/* Historikk */}
       <div className="mt-8 border-t border-phorium-off/30 pt-5">
         <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -1206,7 +1164,7 @@ function TabButton({
 }: {
   active: boolean;
   onClick: () => void;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <button
