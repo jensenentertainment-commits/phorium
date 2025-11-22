@@ -332,6 +332,58 @@ export default function PhoriumTextForm() {
 async function handleSaveToShopify() {
   if (!productIdFromUrl || !result) return;
 
+  // 1) Finn tittel – prøv i denne rekkefølgen
+  const title =
+    (result.title && result.title.trim()) ||
+    (productName && productName.trim()) ||
+    (linkedProduct?.title as string | undefined) ||
+    "";
+
+  // 2) Bygg opp bodyHtml av ingress + hovedtekst + bullets
+  const parts: string[] = [];
+
+  if (result.shortDescription && result.shortDescription.trim()) {
+    parts.push(`<p>${result.shortDescription.trim()}</p>`);
+  }
+
+  if (result.description && result.description.trim()) {
+    parts.push(`<p>${result.description.trim()}</p>`);
+  }
+
+  if (Array.isArray(result.bullets) && result.bullets.length > 0) {
+    const cleanBullets = result.bullets
+      .map((b) => (b || "").trim())
+      .filter(Boolean);
+
+    if (cleanBullets.length > 0) {
+      parts.push(
+        `<ul>${cleanBullets.map((b) => `<li>${b}</li>`).join("")}</ul>`
+      );
+    }
+  }
+
+  const bodyHtml = parts.join("\n");
+
+  // Hvis vi ikke har noe å lagre, ikke kall API-et
+  if (!title || !bodyHtml) {
+    setSaveMessage(
+      "❌ Mangler tittel eller tekstinnhold. Generer tekst før du lagrer i Shopify.",
+    );
+    return;
+  }
+
+  // 3) SEO-felter
+  const seoTitle = result.meta_title || title;
+  const seoDescription =
+    result.meta_description ||
+    result.shortDescription ||
+    result.description ||
+    "";
+
+  const tags = Array.isArray(result.tags)
+    ? result.tags.map((t) => t.trim()).filter(Boolean)
+    : undefined;
+
   setSaving(true);
   setSaveMessage(null);
 
@@ -341,13 +393,11 @@ async function handleSaveToShopify() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         productId: Number(productIdFromUrl),
-        result: {
-          ...result,
-          // sørg for at bodyHtml alltid har noe for route.ts
-          bodyHtml: result.description || "",
-        },
-        // send tags eksplisitt hvis vi har dem
-        tags: Array.isArray(result.tags) ? result.tags : undefined,
+        title,
+        bodyHtml,
+        seoTitle,
+        seoDescription,
+        tags,
       }),
     });
 
@@ -372,6 +422,7 @@ async function handleSaveToShopify() {
     setSaving(false);
   }
 }
+
 
 
 
