@@ -267,14 +267,16 @@ const res = await fetch("/api/generate-text", {
         }),
       });
 
-      const data = await res.json();
+            const data = await res.json();
       if (!data.success) {
         throw new Error(data.error || "Kunne ikke generere tekst.");
       }
 
-      const r = data.result;
+      // Støtt både { result: {...} } og { data: {...} }
+      const r = (data.result ?? data.data ?? {}) as any;
 
       const mapped: GeneratedResult = {
+
         title:
           linkedProduct?.title ||
           productName ||
