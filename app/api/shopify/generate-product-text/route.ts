@@ -36,9 +36,19 @@ export async function POST(req: Request) {
       );
     }
 
-    const body = await req.json();
+       const body = await req.json();
 
-    const title = (body.title as string | undefined) || "";
+    // Prøv flere mulige felt for tittel, i tilfelle frontend sender noe annet enn `title`
+    const rawTitle =
+      (body.title as string | undefined) ||
+      (body.productTitle as string | undefined) ||
+      (body.name as string | undefined) ||
+      (body.product_name as string | undefined) ||
+      (body.product && (body.product.title || body.product.name)) ||
+      "";
+
+    const title = (rawTitle || "").toString();
+
     const bodyText = (body.bodyText as string | undefined) || "";
     const hasExistingDescription =
       typeof body.hasExistingDescription === "boolean"
@@ -54,16 +64,13 @@ export async function POST(req: Request) {
     const images = (body.images as any[] | undefined) || [];
     const tone = (body.tone as string | undefined) || "nøytral";
 
-    if (!title.trim()) {
-      return NextResponse.json(
-        { success: false, error: "Produktet mangler tittel." },
-        { status: 400 },
-      );
-    }
+    // Ikke blokker hvis tittel mangler – bruk en generisk fallback
+    const safeTitle = title.trim() || "Uten navn";
+
 
     // 1) Bygg kontekst til modellen (ren Shopify-data)
-    const context = {
-      title,
+        const context = {
+      title: safeTitle,
       bodyText,
       hasExistingDescription,
       productType,
@@ -75,6 +82,7 @@ export async function POST(req: Request) {
       images,
       tone,
     };
+
 
     // 2) Hent brandprofil fra Supabase
     const { data: brandRow } = await supabase
