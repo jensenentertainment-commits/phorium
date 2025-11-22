@@ -25,7 +25,10 @@ type GeneratedResult = {
   ad_description?: string;
   social_caption?: string;
   social_hashtags?: string[];
+  // brukes når vi sender til Shopify-route
+  bodyHtml?: string;
 };
+
 
 type ActiveTab = "product" | "seo" | "ads" | "some";
 
@@ -324,25 +327,10 @@ export default function PhoriumTextForm() {
     }
   }
 
-  // --- Tekst som skal lagres i Shopify ---
-  function buildShopifyPayload() {
-    if (!result) return null;
 
-    return {
-      title: result.title || productName,
-      bodyHtml: result.description || "",
-      seoTitle: result.meta_title || result.title || "",
-      seoDescription:
-        result.meta_description || result.shortDescription || "",
-    };
-  }
-
-  // --- Lagre til Shopify (bruker egen API-route) ---
-  async function handleSaveToShopify() {
+// --- Lagre til Shopify (bruker egen API-route) ---
+async function handleSaveToShopify() {
   if (!productIdFromUrl || !result) return;
-
-  const payload = buildShopifyPayload();
-  if (!payload) return;
 
   setSaving(true);
   setSaveMessage(null);
@@ -353,21 +341,29 @@ export default function PhoriumTextForm() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         productId: Number(productIdFromUrl),
-        result: payload,   // 👈 ENDRET HER
+        result: {
+          ...result,
+          // sørg for at bodyHtml alltid har noe for route.ts
+          bodyHtml: result.description || "",
+        },
+        // send tags eksplisitt hvis vi har dem
+        tags: Array.isArray(result.tags) ? result.tags : undefined,
       }),
     });
 
     if (!res.ok) {
       const text = await res.text();
       throw new Error(
-        `Serverfeil (${res.status}): ${
-          text || "Ukjent feil ved lagring"
-        }`,
+        `Serverfeil (${res.status}): ${text || "Ukjent feil ved lagring"}`,
       );
     }
 
-    await res.json();
-    setSaveMessage("✅ Tekst er lagret i Shopify.");
+    const data = await res.json();
+    if (!data.success) {
+      throw new Error(data.error || "Klarte ikke å lagre tekst i Shopify.");
+    }
+
+    setSaveMessage("✅ Tekstpakke er lagret i Shopify.");
   } catch (err: any) {
     setSaveMessage(
       err?.message || "❌ Klarte ikke å lagre tekst i Shopify.",
@@ -376,6 +372,7 @@ export default function PhoriumTextForm() {
     setSaving(false);
   }
 }
+
 
 
   // --- Tekst for aktiv fane (brukes til "Kopier") ---
