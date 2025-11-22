@@ -1,128 +1,169 @@
+// app/api/shopify/save-product-text/route.ts
 import { NextResponse } from "next/server";
 
-const SHOPIFY_API_VERSION =
-  process.env.SHOPIFY_API_VERSION || "2023-10";
+const SHOPIFY_API_VERSION = "2024-01";
 
-/**
- * Forventet body fra frontend:
- * {
- *   productId: number;
- *   title: string;
- *   bodyHtml?: string;
- *   seoTitle?: string;
- *   seoDescription?: string;
- * }
- */
+function getCookieFromHeader(header: string | null, name: string): string | null {
+  if (!header) return null;
+  const cookies = header.split(";").map((c) => c.trim());
+  const match = cookies.find((c) => c.startsWith(name + "="));
+  if (!match) return null;
+  return decodeURIComponent(match.split("=").slice(1).join("="));
+}
+
 export async function POST(req: Request) {
   try {
-    let body: any;
-    try {
-      body = await req.json();
-    } catch {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Klarte ikke å lese request-body som JSON.",
-        },
-        { status: 400 },
-      );
-    }
+    // 1) Finn butikk + token fra cookies (samme som de andre Shopify-rutene)
+    const cookieHeader = req.headers.get("cookie");
+    const shop = getCookieFromHeader(cookieHeader, "phorium_shop");
+    const accessToken = getCookieFromHeader(cookieHeader, "phorium_token");
 
-    const { productId, title, bodyHtml, seoTitle, seoDescription } =
-      body || {};
-
-    if (!productId || !title) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Mangler productId eller title.",
-          details: { productId, title },
-        },
-        { status: 400 },
-      );
-    }
-
-    const shopDomain = process.env.SHOPIFY_ADMIN_DOMAIN;
-    const accessToken = process.env.SHOPIFY_ADMIN_ACCESS_TOKEN;
-
-    if (!shopDomain || !accessToken) {
+    if (!shop || !accessToken) {
       return NextResponse.json(
         {
           success: false,
           error:
-            "Mangler Shopify-konfigurasjon. Sett SHOPIFY_ADMIN_DOMAIN og SHOPIFY_ADMIN_ACCESS_TOKEN i miljøvariabler.",
+            "Ingen aktiv Shopify-tilkobling. Koble til nettbutikk på nytt via Phorium Studio.",
         },
-        { status: 500 },
+        { status: 401 },
       );
     }
 
-    const url = `https://${shopDomain}/admin/api/${SHOPIFY_API_VERSION}/products/${productId}.json`;
+    // 2) Les body
+    const body = await req.json().catch(() => null);
 
-    // Bygg kun felter vi faktisk ønsker å oppdatere
-    const productPayload: any = {
-      id: productId,
+    if (!body) {
+      return NextResponse.json(
+        { success: false, error: "Mangler JSON-body i requesten." },
+        { status: 400 },
+      );
+    }
+
+    const productId = Number(body.productId);
+    const result = body.result;
+
+    if (!productId || !result) {
+      return NextResponse.json(
+        { success: false, error: "Mangler productId eller result." },
+        { status: 400 },
+      );
+    }
+
+    type FullResult = {
+      title?: string;
+      shortDescription?: string;
+      description?: string;
+      bullets?: string[];
+      tags?: string[];
+      meta_title?: string;
+      meta_description?: string;
+      bodyHtml?: string;
+      seoTitle?: string;
+      seoDescription?: string;
     };
 
-    if (title) {
-      productPayload.title = title;
+    const r = result as FullResult;
+
+    let bodyHtml = "";
+    let seoTitle = "";
+    let seoDescription = "";
+    let tags: string | undefined;
+
+    const hasRichFields =
+      r.description ||
+      r.shortDescription ||
+      (Array.isArray(r.bullets) && r.bullets.length > 0);
+
+    if (hasRichFields) {
+      // 3A) "Rikt" result fra generate-product-text
+      const parts: string[] = [];
+
+      if (r.title) parts.push(`<h1>${r.title}</h1>`);
+      if (r.shortDescription) parts.push(`<p>${r.shortDescription}</p>`);
+      if (r.description) parts.push(`<p>${r.description}</p>`);
+
+      if (Array.isArray(r.bullets) && r.bullets.length > 0) {
+        const bulletsHtml = r.bullets.map((b) => `<li>${b}</li>`).join("");
+        parts.push(`<ul>${bulletsHtml}</ul>`);
+      }
+
+      bodyHtml = parts.join("\n");
+      seoTitle = r.meta_title || "";
+      seoDescription = r.meta_description || "";
+      tags = Array.isArray(r.tags) ? r.tags.join(", ") : undefined;
+    } else {
+      // 3B) Kompakt payload fra buildShopifyPayload() (title/bodyHtml/seoTitle/seoDescription)
+      bodyHtml = r.bodyHtml || "";
+      seoTitle = r.seoTitle || "";
+      seoDescription = r.seoDescription || "";
+      // ingen tags i denne varianten – det er helt ok
     }
 
-    if (bodyHtml) {
-      productPayload.body_html = bodyHtml;
-    }
+    const payload: any = {
+      product: {
+        id: productId,
+        ...(bodyHtml && { body_html: bodyHtml }),
+      },
+    };
 
     if (seoTitle) {
-      // Shopify SEO-tittel
-      productPayload.metafields_global_title_tag = seoTitle;
+      payload.product.metafields_global_title_tag = seoTitle;
+    }
+    if (seoDescription) {
+      payload.product.metafields_global_description_tag = seoDescription;
+    }
+    if (tags) {
+      payload.product.tags = tags;
     }
 
-    if (seoDescription) {
-      // Shopify SEO-beskrivelse
-      productPayload.metafields_global_description_tag =
-        seoDescription;
-    }
+    const url = `https://${shop}/admin/api/${SHOPIFY_API_VERSION}/products/${productId}.json`;
 
     const shopifyRes = await fetch(url, {
       method: "PUT",
       headers: {
-        "Content-Type": "application/json",
         "X-Shopify-Access-Token": accessToken,
+        "Content-Type": "application/json",
+        Accept: "application/json",
       },
-      body: JSON.stringify({ product: productPayload }),
+      body: JSON.stringify(payload),
     });
 
-    let shopifyJson: any = null;
-    try {
-      shopifyJson = await shopifyRes.json();
-    } catch {
-      // hvis Shopify ikke sender JSON tilbake (uvanlig, men vi tar høyde for det)
-    }
+    const rawText = await shopifyRes.text();
 
     if (!shopifyRes.ok) {
+      console.error("Shopify save error:", rawText);
       return NextResponse.json(
         {
           success: false,
-          error: "Shopify svarte med en feil ved oppdatering av produkt.",
-          status: shopifyRes.status,
-          shopify: shopifyJson,
+          error: "Shopify avviste oppdateringen.",
+          details: rawText.slice(0, 500),
         },
-        { status: 500 },
+        { status: shopifyRes.status },
       );
     }
 
-    return NextResponse.json(
-      {
-        success: true,
-        product: shopifyJson?.product ?? shopifyJson ?? null,
-      },
-      { status: 200 },
-    );
+    let data: any = {};
+    if (rawText) {
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        console.warn(
+          "Shopify svarte 200, men ikke ren JSON. Ignorerer parse-feil.",
+        );
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      product: data.product ?? null,
+    });
   } catch (err: any) {
+    console.error("Unexpected save error:", err);
     return NextResponse.json(
       {
         success: false,
         error: "Uventet feil ved lagring til Shopify.",
-        details: String(err?.message || err),
+        details: err?.message,
       },
       { status: 500 },
     );
