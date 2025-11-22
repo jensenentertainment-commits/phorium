@@ -1,146 +1,128 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 
-const SHOPIFY_API_VERSION = "2024-01";
+const SHOPIFY_API_VERSION =
+  process.env.SHOPIFY_API_VERSION || "2023-10";
 
-type FlatPayload = {
-  productId: number;
-  title: string;
-  bodyHtml?: string;
-  seoTitle?: string;
-  seoDescription?: string;
-};
-
-type NestedPayload = {
-  productId: number;
-  result: {
-    title: string;
-    bodyHtml?: string;
-    seoTitle?: string;
-    seoDescription?: string;
-  };
-};
-
+/**
+ * Forventet body fra frontend:
+ * {
+ *   productId: number;
+ *   title: string;
+ *   bodyHtml?: string;
+ *   seoTitle?: string;
+ *   seoDescription?: string;
+ * }
+ */
 export async function POST(req: Request) {
   try {
-    const raw = await req.json();
-
-    // Støtt både "flat" og "nested" format
-    let productId: number | undefined;
-    let title: string | undefined;
-    let bodyHtml: string | undefined;
-    let seoTitle: string | undefined;
-    let seoDescription: string | undefined;
-
-    if (raw && typeof raw === "object" && "result" in raw) {
-      // Format: { productId, result: { title, bodyHtml, seoTitle, seoDescription } }
-      const body = raw as NestedPayload;
-      productId = body.productId;
-      title = body.result?.title;
-      bodyHtml = body.result?.bodyHtml;
-      seoTitle = body.result?.seoTitle;
-      seoDescription = body.result?.seoDescription;
-    } else {
-      // Format: { productId, title, bodyHtml, seoTitle, seoDescription }
-      const body = raw as FlatPayload;
-      productId = body.productId;
-      title = body.title;
-      bodyHtml = body.bodyHtml;
-      seoTitle = body.seoTitle;
-      seoDescription = body.seoDescription;
+    let body: any;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Klarte ikke å lese request-body som JSON.",
+        },
+        { status: 400 },
+      );
     }
+
+    const { productId, title, bodyHtml, seoTitle, seoDescription } =
+      body || {};
 
     if (!productId || !title) {
       return NextResponse.json(
         {
           success: false,
           error: "Mangler productId eller title.",
-          details: raw,
+          details: { productId, title },
         },
         { status: 400 },
       );
     }
 
-    const cookieStore = cookies();
-    const shop = cookieStore.get("phorium_shop")?.value;
-    const token = cookieStore.get("phorium_token")?.value;
+    const shopDomain = process.env.SHOPIFY_ADMIN_DOMAIN;
+    const accessToken = process.env.SHOPIFY_ADMIN_ACCESS_TOKEN;
 
-    if (!shop || !token) {
+    if (!shopDomain || !accessToken) {
       return NextResponse.json(
         {
           success: false,
           error:
-            "Mangler Shopify-tilkobling (phorium_shop eller phorium_token). Logg inn / koble til på nytt.",
+            "Mangler Shopify-konfigurasjon. Sett SHOPIFY_ADMIN_DOMAIN og SHOPIFY_ADMIN_ACCESS_TOKEN i miljøvariabler.",
         },
-        { status: 401 },
+        { status: 500 },
       );
     }
 
-    // Bygg REST-payload til Shopify
-    const productUpdate: any = {
+    const url = `https://${shopDomain}/admin/api/${SHOPIFY_API_VERSION}/products/${productId}.json`;
+
+    // Bygg kun felter vi faktisk ønsker å oppdatere
+    const productPayload: any = {
       id: productId,
-      title,
     };
 
-    if (typeof bodyHtml === "string" && bodyHtml.trim().length > 0) {
-      productUpdate.body_html = bodyHtml;
+    if (title) {
+      productPayload.title = title;
     }
 
-    if (typeof seoTitle === "string" && seoTitle.trim().length > 0) {
-      productUpdate.metafields_global_title_tag = seoTitle;
+    if (bodyHtml) {
+      productPayload.body_html = bodyHtml;
     }
 
-    if (
-      typeof seoDescription === "string" &&
-      seoDescription.trim().length > 0
-    ) {
-      productUpdate.metafields_global_description_tag = seoDescription;
+    if (seoTitle) {
+      // Shopify SEO-tittel
+      productPayload.metafields_global_title_tag = seoTitle;
     }
 
-    const url = `https://${shop}/admin/api/${SHOPIFY_API_VERSION}/products/${productId}.json`;
+    if (seoDescription) {
+      // Shopify SEO-beskrivelse
+      productPayload.metafields_global_description_tag =
+        seoDescription;
+    }
 
     const shopifyRes = await fetch(url, {
       method: "PUT",
       headers: {
-        "X-Shopify-Access-Token": token,
         "Content-Type": "application/json",
-        Accept: "application/json",
+        "X-Shopify-Access-Token": accessToken,
       },
-      body: JSON.stringify({ product: productUpdate }),
+      body: JSON.stringify({ product: productPayload }),
     });
 
-    const rawText = await shopifyRes.text();
+    let shopifyJson: any = null;
+    try {
+      shopifyJson = await shopifyRes.json();
+    } catch {
+      // hvis Shopify ikke sender JSON tilbake (uvanlig, men vi tar høyde for det)
+    }
 
     if (!shopifyRes.ok) {
-      console.error("Shopify save error:", rawText);
       return NextResponse.json(
         {
           success: false,
-          error: "Shopify avviste oppdateringen.",
-          details: rawText.slice(0, 500),
+          error: "Shopify svarte med en feil ved oppdatering av produkt.",
+          status: shopifyRes.status,
+          shopify: shopifyJson,
         },
-        { status: shopifyRes.status },
+        { status: 500 },
       );
     }
 
-    let parsed: any = null;
-    try {
-      parsed = rawText ? JSON.parse(rawText) : null;
-    } catch (e) {
-      console.warn("Kunne ikke parse Shopify-respons som JSON:", e);
-    }
-
-    return NextResponse.json({
-      success: true,
-      product: parsed?.product ?? null,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        product: shopifyJson?.product ?? shopifyJson ?? null,
+      },
+      { status: 200 },
+    );
   } catch (err: any) {
-    console.error("Unexpected save error:", err);
     return NextResponse.json(
       {
         success: false,
         error: "Uventet feil ved lagring til Shopify.",
-        details: err?.message,
+        details: String(err?.message || err),
       },
       { status: 500 },
     );
