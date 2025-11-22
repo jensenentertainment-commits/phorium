@@ -52,6 +52,19 @@ export default function PhoriumTextForm() {
   const [justGenerated, setJustGenerated] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>("product");
 
+  // Tone-analyse av eksisterende tekst
+  const [toneAnalysis, setToneAnalysis] = useState<{
+    tone: string;
+    confidence: number;
+    styleTags: string[];
+    summary: string;
+    suggestions: string;
+  } | null>(null);
+
+  const [toneLoading, setToneLoading] = useState(false);
+  const [toneError, setToneError] = useState<string | null>(null);
+
+
   // Felles brandprofil (tekst + visuals)
   const { brand, loading: brandLoading, updateBrand, source } =
     useBrandProfile();
@@ -271,6 +284,64 @@ const res = await fetch("/api/generate-text", {
       if (!data.success) {
         throw new Error(data.error || "Kunne ikke generere tekst.");
       }
+
+  // --- Analysér tone på eksisterende tekst / produktbeskrivelse ---
+  async function handleAnalyzeTone() {
+    setToneError(null);
+
+    // Vi prøver i denne rekkefølgen:
+    // 1) Nylig generert tekst (result.description)
+    // 2) Kortbeskrivelse
+    // 3) Eksisterende Shopify-tekst (linkedProduct.body_html)
+    let textToAnalyze =
+      (result?.description && result.description.trim()) ||
+      (result?.shortDescription && result.shortDescription.trim()) ||
+      "";
+
+    if (!textToAnalyze && linkedProduct?.body_html) {
+      // Fjern HTML-tags fra Shopify body_html
+      textToAnalyze = String(linkedProduct.body_html).replace(
+        /<[^>]+>/g,
+        " ",
+      );
+    }
+
+    if (!textToAnalyze || !textToAnalyze.trim()) {
+      setToneError(
+        "Det finnes ingen tekst å analysere ennå. Generer tekst, eller bruk eksisterende Shopify-tekst først.",
+      );
+      setToneAnalysis(null);
+      return;
+    }
+
+    setToneLoading(true);
+    try {
+      const res = await fetch("/api/analyze-tone", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: textToAnalyze,
+          language: "norsk",
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Kunne ikke analysere tone.");
+      }
+
+      setToneAnalysis(data.result);
+    } catch (err: any) {
+      console.error("Tone-analyse feilet:", err);
+      setToneError(
+        err?.message || "Noe gikk galt under tone-analysen.",
+      );
+      setToneAnalysis(null);
+    } finally {
+      setToneLoading(false);
+    }
+  }
+
 
       // Støtt både { result: {...} } og { data: {...} }
       const r = (data.result ?? data.data ?? {}) as any;
@@ -526,54 +597,89 @@ async function handleSaveToShopify() {
       <BrandIdentityBar brand={brand} source={source} loading={brandLoading} />
 
       {/* Shopify-produkt header */}
-      {isShopifyMode && (
-        <div className="rounded-2xl border border-phorium-off/35 bg-phorium-dark px-4 py-3 text-[12px]">
-          {productLoading && (
-            <p className="text-phorium-light/85">
-              Henter produktdata fra Shopify …
-            </p>
-          )}
-
-          {productError && (
-            <p className="text-red-300">
-              Klarte ikke å hente produkt: {productError}
-            </p>
-          )}
-
-          {linkedProduct && !productLoading && !productError && (
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="text-[11px] text-phorium-light/60">
-                  Jobber mot produkt:
+               {linkedProduct && !productLoading && !productError && (
+            <>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="text-[11px] text-phorium-light/60">
+                    Jobber mot produkt:
+                  </div>
+                  <div className="text-[13px] font-semibold text-phorium-accent">
+                    {linkedProduct.title}
+                  </div>
+                  <div className="text-[11px] text-phorium-light/60">
+                    Handle: {linkedProduct.handle} · ID: {linkedProduct.id}
+                  </div>
                 </div>
-                <div className="text-[13px] font-semibold text-phorium-accent">
-                  {linkedProduct.title}
-                </div>
-                <div className="text-[11px] text-phorium-light/60">
-                  Handle: {linkedProduct.handle} · ID: {linkedProduct.id}
+
+                <div className="flex items-center gap-3">
+                  {linkedProduct.image && (
+                    <img
+                      src={linkedProduct.image.src}
+                      alt={linkedProduct.title}
+                      className="h-12 w-12 rounded-lg border border-phorium-off/40 object-cover"
+                    />
+                  )}
+
+                  <Link
+                    href="/studio/produkter"
+                    className="btn btn-sm btn-secondary"
+                  >
+                    Bytt produkt
+                  </Link>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                {linkedProduct.image?.src && (
-                  <img
-                    src={linkedProduct.image.src}
-                    alt={linkedProduct.title}
-                    className="h-12 w-12 rounded-lg border border-phorium-off/40 object-cover"
-                  />
+              {/* Tone-analyse seksjon */}
+              <div className="mt-3 border-t border-phorium-off/20 pt-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-[11px] text-phorium-light/70">
+                    Analyser tonen i eksisterende produkttekst
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAnalyzeTone}
+                    disabled={toneLoading}
+                    className="btn btn-xs btn-secondary"
+                  >
+                    {toneLoading ? "Analyserer tone…" : "Analyser tone"}
+                  </button>
+                </div>
+
+                {toneError && (
+                  <p className="mt-1 text-[11px] text-red-300">
+                    {toneError}
+                  </p>
                 )}
 
-                <Link
-                  href="/studio/produkter"
-                  className="btn btn-sm btn-secondary"
-                >
-                  Bytt produkt
-                </Link>
+                {toneAnalysis && (
+                  <div className="mt-2 rounded-xl border border-phorium-off/25 bg-phorium-dark/70 p-3 text-[11px] text-phorium-light/90 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold">
+                        Oppdaget tone: {toneAnalysis.tone}
+                      </span>
+                      <span className="text-[10px] text-phorium-light/60">
+                        Sikkerhet:{" "}
+                        {(toneAnalysis.confidence * 100).toFixed(0)}%
+                      </span>
+                    </div>
+
+                    {toneAnalysis.styleTags?.length > 0 && (
+                      <p className="text-[10px] text-phorium-light/70">
+                        Stil: {toneAnalysis.styleTags.join(", ")}
+                      </p>
+                    )}
+
+                    <p className="text-[11px]">{toneAnalysis.summary}</p>
+                    <p className="text-[11px] text-phorium-light/80">
+                      {toneAnalysis.suggestions}
+                    </p>
+                  </div>
+                )}
               </div>
-            </div>
+            </>
           )}
-        </div>
-      )}
+
 
       {!isShopifyMode && (
         <div className="rounded-2xl border border-phorium-off/25 bg-phorium-dark/70 px-4 py-3 text-[12px]">
