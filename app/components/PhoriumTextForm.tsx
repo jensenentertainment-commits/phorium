@@ -285,6 +285,60 @@ const res = await fetch("/api/generate-text", {
         throw new Error(data.error || "Kunne ikke generere tekst.");
       }
 
+  // Analysér tone på eksisterende eller generert tekst
+  async function handleAnalyzeTone() {
+    setToneError(null);
+
+    let textToAnalyze =
+      (result?.description && result.description.trim()) ||
+      (result?.shortDescription && result.shortDescription.trim()) ||
+      "";
+
+    // Hvis ingen generert tekst, prøv eksisterende Shopify-tekst
+    if (!textToAnalyze && linkedProduct?.body_html) {
+      textToAnalyze = String(linkedProduct.body_html).replace(
+        /<[^>]+>/g,
+        " ",
+      );
+    }
+
+    if (!textToAnalyze || !textToAnalyze.trim()) {
+      setToneError(
+        "Det finnes ingen tekst å analysere ennå. Generer tekst, eller bruk eksisterende Shopify-tekst først.",
+      );
+      setToneAnalysis(null);
+      return;
+    }
+
+    setToneLoading(true);
+    try {
+      const res = await fetch("/api/analyze-tone", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: textToAnalyze,
+          language: "norsk",
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Kunne ikke analysere tone.");
+      }
+
+      setToneAnalysis(data.result);
+    } catch (err: any) {
+      console.error("Tone-analyse feilet:", err);
+      setToneError(
+        err?.message || "Noe gikk galt under tone-analysen.",
+      );
+      setToneAnalysis(null);
+    } finally {
+      setToneLoading(false);
+    }
+  }
+
+
   // --- Analysér tone på eksisterende tekst / produktbeskrivelse ---
   async function handleAnalyzeTone() {
     setToneError(null);
