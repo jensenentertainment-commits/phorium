@@ -79,12 +79,22 @@ export async function POST(req: Request) {
     .single();
 
   if (error) {
-    console.error("brand_profiles POST error", error);
+    console.error("brand_profiles GET error", error);
     return NextResponse.json(
-      { success: false, error: "Kunne ikke lagre brandprofil." },
+      {
+        success: false,
+        error: "Kunne ikke hente brandprofil.",
+        supabaseError: {
+          message: error.message,
+          details: (error as any).details ?? null,
+          hint: (error as any).hint ?? null,
+          code: (error as any).code ?? null,
+        },
+      },
       { status: 500 },
     );
   }
+
 
   return NextResponse.json({ success: true, profile: data });
 }
