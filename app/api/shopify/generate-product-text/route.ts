@@ -36,14 +36,47 @@ export async function POST(req: Request) {
       );
     }
 
-    const {
-      title,
-      category,
-      oldDescription,
-      productAttributes,
-    } = await req.json();
+    const body = await req.json();
 
-    // 1. Hent brandprofil fra Supabase for riktig butikk
+    const title = (body.title as string | undefined) || "";
+    const bodyText = (body.bodyText as string | undefined) || "";
+    const hasExistingDescription =
+      typeof body.hasExistingDescription === "boolean"
+        ? body.hasExistingDescription
+        : bodyText.trim().length > 0;
+
+    const productType = (body.productType as string | undefined) || "";
+    const tags = (body.tags as string[] | undefined) || [];
+    const handle = (body.handle as string | undefined) || "";
+    const vendor = (body.vendor as string | undefined) || "";
+    const options = (body.options as any[] | undefined) || [];
+    const priceSummary = body.priceSummary ?? null;
+    const images = (body.images as any[] | undefined) || [];
+    const tone = (body.tone as string | undefined) || "nøytral";
+
+    if (!title.trim()) {
+      return NextResponse.json(
+        { success: false, error: "Produktet mangler tittel." },
+        { status: 400 },
+      );
+    }
+
+    // 1) Bygg kontekst til modellen (ren Shopify-data)
+    const context = {
+      title,
+      bodyText,
+      hasExistingDescription,
+      productType,
+      tags,
+      handle,
+      vendor,
+      options,
+      priceSummary,
+      images,
+      tone,
+    };
+
+    // 2) Hent brandprofil fra Supabase
     const { data: brandRow } = await supabase
       .from("brand_profiles")
       .select("*")
@@ -52,61 +85,75 @@ export async function POST(req: Request) {
 
     const brand: BrandProfile | null = brandRow
       ? {
-          storeName: brandRow.store_name,
-          industry: brandRow.industry,
-          tone: brandRow.tone,
-          primaryColor: brandRow.primary_color,
-          accentColor: brandRow.accent_color,
-          styleNotes: brandRow.style_notes,
+          storeName: brandRow.store_name || undefined,
+          industry: brandRow.industry || undefined,
+          tone: brandRow.tone || undefined,
+          primaryColor: brandRow.primary_color || undefined,
+          accentColor: brandRow.accent_color || undefined,
+          styleNotes: brandRow.style_notes || undefined,
         }
       : null;
 
-    // 2. Brand-kontekst
     const brandContext = brand
       ? `
-Du skriver som nettbutikken **${brand.storeName}**.
+Du skriver som nettbutikken "${brand.storeName || "butikken"}".
 
 Brandprofil:
 - Bransje: ${brand.industry || "ikke spesifisert"}
 - Tone of voice: ${brand.tone || "nøytral"}
-- Primærfarge: ${brand.primaryColor || "ingen spesifikk"}
-- Aksentfarge: ${brand.accentColor || "ingen spesifikk"}
+- Primærfarge: ${brand.primaryColor || "ingen spesifisert"}
+- Aksentfarge: ${brand.accentColor || "ingen spesifisert"}
 - Stilnotater: ${brand.styleNotes || "ingen spesifisert"}
 
-Du skal skrive tekster som matcher nettbutikkens personlighet og kunder.
+Teksten du lager skal føles som om den er skrevet av nettbutikken selv – ikke av en AI.
 `
       : `
-Ingen brandprofil er spesifisert. Skriv som en seriøs norsk nettbutikk, uten overdrivelse eller cheesy salgstekster.
+Ingen eksplisitt brandprofil. Skriv som en seriøs, tydelig og ærlig norsk nettbutikk, uten cheesy salgsspråk eller tomme fraser.
 `;
 
-    // 3. Prompt som alltid gir deg perfekt format
+    // 3) Systemprompt som tvinger komplett Phorium-pakke
     const systemPrompt = `
-Du er Phorium, en norsk AI-tekstmotor som skriver for nettbutikker.
+Du er Phorium – en norsk e-handels-copywriter for Shopify-butikker.
 
 ${brandContext}
 
-Du skal generere en SEO-optimalisert produkttekst for Shopify med følgende format:
+Du skal generere en komplett "Phorium-pakke" for et produkt i JSON-format:
 
 {
-  "title": "...",
-  "description": "...",
-  "shortDescription": "...",
-  "meta_title": "...",
-  "meta_description": "..."
+  "description": "Hovedbeskrivelse, 2–4 avsnitt",
+  "shortDescription": "Kort oppsummering (1–2 setninger)",
+  "seoTitle": "SEO-optimalisert tittel (maks ca 60 tegn)",
+  "metaDescription": "Meta-beskrivelse (ca 140–160 tegn)",
+  "bullets": ["punktliste", "med fordeler", "..."],
+  "tags": ["relevante", "søkeord", "..."],
+  "adPrimaryText": "Primær annonsetekst for f.eks. Meta-annonse",
+  "adHeadline": "Kort og slagkraftig annonseoverskrift",
+  "adDescription": "Tilleggsbeskrivelse til annonsen",
+  "socialCaption": "Foreslått caption til Instagram/Facebook",
+  "hashtags": ["relevante", "norske", "hashtags"]
 }
 
-Krav:
-- Følg brandprofilen helt konsekvent.
-- Skriv profesjonelt, norsk og tilpasset e-handel.
-- Ikke bruk klisjéer eller overdriv.
-- Svar KUN med ett JSON-objekt. Ingen ekstra tekst.
+KRAV:
+- Svar KUN med ett JSON-objekt. Ingen ekstra tekst, ingen forklaring.
+- Skriv på naturlig, flytende norsk, tilpasset netthandel.
+- Ikke skriv at informasjon mangler, og ikke be leseren kontakte kundeservice.
+- Hvis det er lite info om produktet:
+  - bruk produktnavn, type, kategori og generell forventning til slike produkter
+    (f.eks. plantevanningssett → automatisk vanning, praktisk, tidsbesparende, passer til inne-/uteplanter).
+- Ikke finn på konkrete tekniske tall (liter, watt, mål osv.) hvis det ikke finnes i dataene.
+- Unngå tomme superlativer som "revolusjonerende" og "utrolig fantastisk" med mindre det er naturlig.
 `.trim();
 
     const userPrompt = `
-Produktnavn: ${title}
-Kategori: ${category}
-Eksisterende tekst: ${oldDescription || "ingen"}
-Produktdetaljer: ${JSON.stringify(productAttributes || {})}
+Du får et produkt fra en Shopify-butikk. Lag en komplett Phorium-pakke for dette produktet.
+
+Produktdata (JSON):
+${JSON.stringify(context, null, 2)}
+
+Merknad om eksisterende tekst:
+- hasExistingDescription = ${hasExistingDescription ? "true" : "false"}.
+- Hvis true: bruk eksisterende tekst (bodyText) som inspirasjon, men skriv en NY, bedre og mer strukturert versjon.
+- Hvis false: skriv en fullgod, konkret og selgende tekst fra scratch basert på produktnavn, type og kontekst.
 `.trim();
 
     const completion = await openai.chat.completions.create({
@@ -121,12 +168,15 @@ Produktdetaljer: ${JSON.stringify(productAttributes || {})}
     const raw = completion.choices[0].message.content;
     if (!raw) {
       return NextResponse.json(
-        { success: false, error: "Tomt svar fra Phorium Core." },
+        {
+          success: false,
+          error: "Tomt svar fra Phorium Core.",
+        },
         { status: 500 },
       );
     }
 
-    let parsed;
+    let parsed: any;
     try {
       parsed = JSON.parse(raw);
     } catch {
@@ -135,7 +185,22 @@ Produktdetaljer: ${JSON.stringify(productAttributes || {})}
       );
     }
 
-    return NextResponse.json({ success: true, data: parsed });
+    // Mapp til det frontend forventer: result.*
+    const result = {
+      description: parsed.description || "",
+      shortDescription: parsed.shortDescription || "",
+      seoTitle: parsed.seoTitle || "",
+      metaDescription: parsed.metaDescription || "",
+      bullets: Array.isArray(parsed.bullets) ? parsed.bullets : [],
+      tags: Array.isArray(parsed.tags) ? parsed.tags : [],
+      adPrimaryText: parsed.adPrimaryText || "",
+      adHeadline: parsed.adHeadline || "",
+      adDescription: parsed.adDescription || "",
+      socialCaption: parsed.socialCaption || "",
+      hashtags: Array.isArray(parsed.hashtags) ? parsed.hashtags : [],
+    };
+
+    return NextResponse.json({ success: true, result });
   } catch (err: any) {
     console.error("Feil i /api/shopify/generate-product-text:", err);
     return NextResponse.json(
