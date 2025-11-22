@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 
 const SHOPIFY_API_VERSION = "2024-01";
 
-type SavePayload = {
+type FlatPayload = {
   productId: number;
   title: string;
   bodyHtml?: string;
@@ -11,18 +11,51 @@ type SavePayload = {
   seoDescription?: string;
 };
 
+type NestedPayload = {
+  productId: number;
+  result: {
+    title: string;
+    bodyHtml?: string;
+    seoTitle?: string;
+    seoDescription?: string;
+  };
+};
+
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as SavePayload;
+    const raw = await req.json();
 
-    const { productId, title, bodyHtml, seoTitle, seoDescription } = body || {};
+    // Støtt både "flat" og "nested" format
+    let productId: number | undefined;
+    let title: string | undefined;
+    let bodyHtml: string | undefined;
+    let seoTitle: string | undefined;
+    let seoDescription: string | undefined;
+
+    if (raw && typeof raw === "object" && "result" in raw) {
+      // Format: { productId, result: { title, bodyHtml, seoTitle, seoDescription } }
+      const body = raw as NestedPayload;
+      productId = body.productId;
+      title = body.result?.title;
+      bodyHtml = body.result?.bodyHtml;
+      seoTitle = body.result?.seoTitle;
+      seoDescription = body.result?.seoDescription;
+    } else {
+      // Format: { productId, title, bodyHtml, seoTitle, seoDescription }
+      const body = raw as FlatPayload;
+      productId = body.productId;
+      title = body.title;
+      bodyHtml = body.bodyHtml;
+      seoTitle = body.seoTitle;
+      seoDescription = body.seoDescription;
+    }
 
     if (!productId || !title) {
       return NextResponse.json(
         {
           success: false,
           error: "Mangler productId eller title.",
-          details: body,
+          details: raw,
         },
         { status: 400 },
       );
@@ -49,7 +82,6 @@ export async function POST(req: Request) {
       title,
     };
 
-    // Bare sett felter hvis vi har noe å lagre
     if (typeof bodyHtml === "string" && bodyHtml.trim().length > 0) {
       productUpdate.body_html = bodyHtml;
     }
