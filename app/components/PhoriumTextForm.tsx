@@ -25,10 +25,7 @@ type GeneratedResult = {
   ad_description?: string;
   social_caption?: string;
   social_hashtags?: string[];
-  // brukes når vi sender til Shopify-route
-  bodyHtml?: string;
 };
-
 
 type ActiveTab = "product" | "seo" | "ads" | "some";
 
@@ -52,19 +49,6 @@ export default function PhoriumTextForm() {
   const [justGenerated, setJustGenerated] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>("product");
 
-  // Tone-analyse av eksisterende tekst
-  const [toneAnalysis, setToneAnalysis] = useState<{
-    tone: string;
-    confidence: number;
-    styleTags: string[];
-    summary: string;
-    suggestions: string;
-  } | null>(null);
-
-  const [toneLoading, setToneLoading] = useState(false);
-  const [toneError, setToneError] = useState<string | null>(null);
-
-
   // Felles brandprofil (tekst + visuals)
   const { brand, loading: brandLoading, updateBrand, source } =
     useBrandProfile();
@@ -86,6 +70,17 @@ export default function PhoriumTextForm() {
 
   // Global historikk for tekststudio
   const [history, setHistory] = useState<TextHistoryItem[]>([]);
+
+  // Tone-analyse av eksisterende/generert tekst
+  const [toneAnalysis, setToneAnalysis] = useState<{
+    tone: string;
+    confidence: number;
+    styleTags: string[];
+    summary: string;
+    suggestions: string;
+  } | null>(null);
+  const [toneLoading, setToneLoading] = useState(false);
+  const [toneError, setToneError] = useState<string | null>(null);
 
   // Hent butikkdomene fra cookie (phorium_shop) – brukes til "Åpne i Shopify"
   useEffect(() => {
@@ -111,20 +106,17 @@ export default function PhoriumTextForm() {
         setProductLoading(true);
         setProductError(null);
 
-        const res = await fetch(`/api/shopify/product?id=${productIdFromUrl}`, {
-          cache: "no-store",
-        });
+        const res = await fetch(
+          `/api/shopify/product?productId=${productIdFromUrl}`,
+        );
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || "Ukjent feil ved henting av produkt.");
+        }
 
         const data = await res.json();
-        if (!data.success) {
-          throw new Error(data.error || "Kunne ikke hente produkt.");
-        }
-
         setLinkedProduct(data.product);
-
-        if (data.product?.title) {
-          setProductName(data.product.title);
-        }
+        setProductName(data.product.title || "");
       } catch (err: any) {
         setProductError(err?.message || "Feil ved henting av produkt.");
       } finally {
@@ -158,7 +150,7 @@ export default function PhoriumTextForm() {
     }
   }, []);
 
-  // Lagre historikk til localStorage
+  // Persist historikk til localStorage
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
@@ -171,20 +163,15 @@ export default function PhoriumTextForm() {
     }
   }, [history]);
 
-  // --- Historikk-hjelper ---
   function addToHistory(
     source: "manual" | "shopify",
     generated: GeneratedResult,
   ) {
     const item: TextHistoryItem = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      productName:
-        generated.title ||
-        productName ||
-        linkedProduct?.title ||
-        "Uten navn",
-      category: category || undefined,
-      tone: tone || undefined,
+      productName,
+      category,
+      tone,
       createdAt: new Date().toISOString(),
       source,
       result: generated,
@@ -210,6 +197,58 @@ export default function PhoriumTextForm() {
     if (item.category) setCategory(item.category);
   }
 
+  // Analysér tone på eksisterende eller generert tekst
+  async function handleAnalyzeTone() {
+    setToneError(null);
+
+    let textToAnalyze =
+      (result?.description && result.description.trim()) ||
+      (result?.shortDescription && result.shortDescription.trim()) ||
+      "";
+
+    if (!textToAnalyze && linkedProduct?.body_html) {
+      textToAnalyze = String(linkedProduct.body_html).replace(
+        /<[^>]+>/g,
+        " ",
+      );
+    }
+
+    if (!textToAnalyze || !textToAnalyze.trim()) {
+      setToneError(
+        "Det finnes ingen tekst å analysere ennå. Generer tekst, eller bruk eksisterende Shopify-tekst først.",
+      );
+      setToneAnalysis(null);
+      return;
+    }
+
+    setToneLoading(true);
+    try {
+      const res = await fetch("/api/analyze-tone", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: textToAnalyze,
+          language: "norsk",
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Kunne ikke analysere tone.");
+      }
+
+      setToneAnalysis(data.result);
+    } catch (err: any) {
+      console.error("Tone-analyse feilet:", err);
+      setToneError(
+        err?.message || "Noe gikk galt under tone-analysen.",
+      );
+      setToneAnalysis(null);
+    } finally {
+      setToneLoading(false);
+    }
+  }
+
   // --- Manuell generering (uten Shopify-produkt) ---
   async function handleGenerateManual() {
     if (!productName.trim()) return;
@@ -223,18 +262,15 @@ export default function PhoriumTextForm() {
     try {
       const effectiveTone = tone || (brand?.tone as string) || "nøytral";
 
-const res = await fetch("/api/generate-text", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    productName,
-    category,
-    tone: effectiveTone,
-    brand, // 🧠 send hele brandprofilen
-  }),
-});
-
-
+      const res = await fetch("/api/generate-text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productName,
+          category,
+          tone: effectiveTone,
+        }),
+      });
 
       const data = await res.json();
 
@@ -280,74 +316,14 @@ const res = await fetch("/api/generate-text", {
         }),
       });
 
-            const data = await res.json();
+      const data = await res.json();
       if (!data.success) {
         throw new Error(data.error || "Kunne ikke generere tekst.");
       }
 
-  // --- Analysér tone på eksisterende tekst / produktbeskrivelse ---
-  async function handleAnalyzeTone() {
-    setToneError(null);
-
-    // Vi prøver i denne rekkefølgen:
-    // 1) Nylig generert tekst (result.description)
-    // 2) Kortbeskrivelse
-    // 3) Eksisterende Shopify-tekst (linkedProduct.body_html)
-    let textToAnalyze =
-      (result?.description && result.description.trim()) ||
-      (result?.shortDescription && result.shortDescription.trim()) ||
-      "";
-
-    if (!textToAnalyze && linkedProduct?.body_html) {
-      // Fjern HTML-tags fra Shopify body_html
-      textToAnalyze = String(linkedProduct.body_html).replace(
-        /<[^>]+>/g,
-        " ",
-      );
-    }
-
-    if (!textToAnalyze || !textToAnalyze.trim()) {
-      setToneError(
-        "Det finnes ingen tekst å analysere ennå. Generer tekst, eller bruk eksisterende Shopify-tekst først.",
-      );
-      setToneAnalysis(null);
-      return;
-    }
-
-    setToneLoading(true);
-    try {
-      const res = await fetch("/api/analyze-tone", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: textToAnalyze,
-          language: "norsk",
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Kunne ikke analysere tone.");
-      }
-
-      setToneAnalysis(data.result);
-    } catch (err: any) {
-      console.error("Tone-analyse feilet:", err);
-      setToneError(
-        err?.message || "Noe gikk galt under tone-analysen.",
-      );
-      setToneAnalysis(null);
-    } finally {
-      setToneLoading(false);
-    }
-  }
-
-
-      // Støtt både { result: {...} } og { data: {...} }
-      const r = (data.result ?? data.data ?? {}) as any;
+      const r = data.result;
 
       const mapped: GeneratedResult = {
-
         title:
           linkedProduct?.title ||
           productName ||
@@ -370,137 +346,77 @@ const res = await fetch("/api/generate-text", {
       setJustGenerated(true);
       addToHistory("shopify", mapped);
     } catch (err: any) {
-      setError(err?.message || "Uventet feil ved generering.");
+      setError(err?.message || "Kunne ikke generere tekst fra Shopify.");
     } finally {
       setLoading(false);
     }
   }
 
-  const primaryButtonLabel = isShopifyMode
-    ? "Generer tekst fra Shopify-produkt"
-    : "Generer tekst";
+  async function handleSaveToShopify() {
+    if (!productIdFromUrl || !result) return;
 
-  const handlePrimaryClick = isShopifyMode
-    ? handleGenerateFromProduct
-    : handleGenerateManual;
+    setSaving(true);
+    setSaveMessage(null);
 
-  // Tone-presets
-  function setTonePreset(preset: "kortere" | "lengre" | "teknisk" | "leken") {
-    if (preset === "kortere") {
-      setTone("Kort, konsis og tydelig. Unngå unødvendige ord.");
-    } else if (preset === "lengre") {
-      setTone(
-        "Litt lengre og mer forklarende, men fortsatt lettlest og oversiktlig.",
+    try {
+      const res = await fetch("/api/shopify/update-product-text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: Number(productIdFromUrl),
+          title:
+            linkedProduct?.title ||
+            result.title ||
+            productName ||
+            "",
+          description: result.description || "",
+          shortDescription: result.shortDescription || "",
+          seoTitle: result.meta_title || "",
+          metaDescription: result.meta_description || "",
+        }),
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || "Klarte ikke å lagre tekst i Shopify.");
+      }
+
+      setSaveMessage("✅ Tekstpakke er lagret i Shopify.");
+    } catch (err: any) {
+      setSaveMessage(
+        err?.message || "❌ Klarte ikke å lagre tekst i Shopify.",
       );
-    } else if (preset === "teknisk") {
-      setTone(
-        "Mer teknisk og faglig, men fortsatt forståelig for vanlige kunder.",
-      );
-    } else if (preset === "leken") {
-      setTone(
-        "Litt leken og uformell tone, men ikke barnslig eller useriøs.",
-      );
+    } finally {
+      setSaving(false);
     }
   }
 
-
-// --- Lagre til Shopify (bruker egen API-route) ---
-async function handleSaveToShopify() {
-  if (!productIdFromUrl || !result) return;
-
-  // 1) Finn tittel – prøv i denne rekkefølgen
-  const title =
-    (result.title && result.title.trim()) ||
-    (productName && productName.trim()) ||
-    (linkedProduct?.title as string | undefined) ||
-    "";
-
-  // 2) Bygg opp bodyHtml av ingress + hovedtekst + bullets
-  const parts: string[] = [];
-
-  if (result.shortDescription && result.shortDescription.trim()) {
-    parts.push(`<p>${result.shortDescription.trim()}</p>`);
+  // --- Kopiering / reset ---
+  function handleCopyActiveTab() {
+    const text = getTextForActiveTab();
+    if (!text) return;
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        setCopyMessage("Kopiert!");
+        setTimeout(() => setCopyMessage(null), 1500);
+      })
+      .catch(() => {
+        setCopyMessage("Kunne ikke kopiere.");
+        setTimeout(() => setCopyMessage(null), 1500);
+      });
   }
 
-  if (result.description && result.description.trim()) {
-    parts.push(`<p>${result.description.trim()}</p>`);
+  function handleResetForm() {
+    setProductName("");
+    setCategory("");
+    setTone("");
+    setResult(null);
+    setError(null);
+    setSaveMessage(null);
+    setCopyMessage(null);
+    setJustGenerated(false);
   }
-
-  if (Array.isArray(result.bullets) && result.bullets.length > 0) {
-    const cleanBullets = result.bullets
-      .map((b) => (b || "").trim())
-      .filter(Boolean);
-
-    if (cleanBullets.length > 0) {
-      parts.push(
-        `<ul>${cleanBullets.map((b) => `<li>${b}</li>`).join("")}</ul>`
-      );
-    }
-  }
-
-  const bodyHtml = parts.join("\n");
-
-  // Hvis vi ikke har noe å lagre, ikke kall API-et
-  if (!title || !bodyHtml) {
-    setSaveMessage(
-      "❌ Mangler tittel eller tekstinnhold. Generer tekst før du lagrer i Shopify.",
-    );
-    return;
-  }
-
-  // 3) SEO-felter
-  const seoTitle = result.meta_title || title;
-  const seoDescription =
-    result.meta_description ||
-    result.shortDescription ||
-    result.description ||
-    "";
-
-  const tags = Array.isArray(result.tags)
-    ? result.tags.map((t) => t.trim()).filter(Boolean)
-    : undefined;
-
-  setSaving(true);
-  setSaveMessage(null);
-
-  try {
-    const res = await fetch("/api/shopify/save-product-text", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        productId: Number(productIdFromUrl),
-        title,
-        bodyHtml,
-        seoTitle,
-        seoDescription,
-        tags,
-      }),
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(
-        `Serverfeil (${res.status}): ${text || "Ukjent feil ved lagring"}`,
-      );
-    }
-
-    const data = await res.json();
-    if (!data.success) {
-      throw new Error(data.error || "Klarte ikke å lagre tekst i Shopify.");
-    }
-
-    setSaveMessage("✅ Tekstpakke er lagret i Shopify.");
-  } catch (err: any) {
-    setSaveMessage(
-      err?.message || "❌ Klarte ikke å lagre tekst i Shopify.",
-    );
-  } finally {
-    setSaving(false);
-  }
-}
-
-
-
 
   // --- Tekst for aktiv fane (brukes til "Kopier") ---
   function getTextForActiveTab(): string {
@@ -513,91 +429,112 @@ async function handleSaveToShopify() {
       if (result.description) parts.push(result.description);
       if (Array.isArray(result.bullets) && result.bullets.length > 0) {
         parts.push(
-          "\nPunkter:\n" + result.bullets.map((b) => `• ${b}`).join("\n"),
+          "",
+          "Nøkkelpunkter:",
+          ...result.bullets.map((b) => `• ${b}`),
         );
       }
       return parts.join("\n\n");
     }
 
     if (activeTab === "seo") {
-      return [
-        "SEO-tittel:",
-        result.meta_title || "",
-        "",
-        "Meta-beskrivelse:",
-        result.meta_description || "",
-        "",
-        "Tags:",
-        Array.isArray(result.tags) && result.tags.length > 0
-          ? result.tags.join(", ")
-          : "",
-      ]
-        .join("\n")
-        .trim();
+      const parts: string[] = [];
+      if (result.meta_title)
+        parts.push(`SEO-tittel:\n${result.meta_title}`);
+      if (result.meta_description)
+        parts.push(
+          `Meta-beskrivelse:\n${result.meta_description}`,
+        );
+      if (Array.isArray(result.tags) && result.tags.length > 0) {
+        parts.push("", "Tags/keywords:", result.tags.join(", "));
+      }
+      return parts.join("\n\n");
     }
 
     if (activeTab === "ads") {
-      return [
-        "Primær annonsetekst:",
-        result.ad_primary || "",
-        "",
-        "Annonseoverskrift:",
-        result.ad_headline || "",
-        "",
-        "Annonsebeskrivelse:",
-        result.ad_description || "",
-      ]
-        .join("\n")
-        .trim();
+      const parts: string[] = [];
+      if (result.ad_headline)
+        parts.push(`Annonseoverskrift:\n${result.ad_headline}`);
+      if (result.ad_primary)
+        parts.push(`Primær annonsetekst:\n${result.ad_primary}`);
+      if (result.ad_description)
+        parts.push(
+          `Tilleggsbeskrivelse:\n${result.ad_description}`,
+        );
+      return parts.join("\n\n");
     }
 
     if (activeTab === "some") {
-      return [
-        "Caption:",
-        result.social_caption || "",
-        "",
-        "Hashtags:",
+      const parts: string[] = [];
+      if (result.social_caption)
+        parts.push(`Caption:\n${result.social_caption}`);
+      if (
         Array.isArray(result.social_hashtags) &&
         result.social_hashtags.length > 0
-          ? result.social_hashtags
-              .map((h) => (h.startsWith("#") ? h : `#${h}`))
-              .join(" ")
-          : "",
-      ]
-        .join("\n")
-        .trim();
+      ) {
+        parts.push(
+          "",
+          "Hashtags:",
+          result.social_hashtags.map((h) => `#${h}`).join(" "),
+        );
+      }
+      return parts.join("\n\n");
     }
 
     return "";
   }
 
-  async function handleCopyActiveTab() {
-    try {
-      const text = getTextForActiveTab();
-      if (!text) return;
-      if (typeof navigator === "undefined" || !navigator.clipboard) {
-        setCopyMessage(
-          "Kopiering støttes ikke i denne nettleseren – marker teksten manuelt.",
-        );
-        return;
-      }
-      await navigator.clipboard.writeText(text);
-      setCopyMessage("Tekst fra aktiv fane er kopiert.");
-      setTimeout(() => setCopyMessage(null), 2000);
-    } catch {
-      setCopyMessage(
-        "Klarte ikke å kopiere – marker og kopier manuelt.",
-      );
-    }
-  }
-
   return (
-    <div className="mt-4 space-y-4">
-      {/* Felles brandlinje øverst */}
-      <BrandIdentityBar brand={brand} source={source} loading={brandLoading} />
+    <div className="space-y-4">
+      {/* Tilbake til produktliste hvis vi er i Shopify-modus */}
+      {isShopifyMode && (
+        <div className="mb-1 flex items-center gap-2 text-[11px] text-phorium-light/70">
+          <ArrowLeft className="h-3 w-3" />
+          <Link href="/studio/produkter" className="hover:underline">
+            Tilbake til produktlisten
+          </Link>
+        </div>
+      )}
+
+      {/* Topprad: brand + status + historikk */}
+      <div className="flex flex-col gap-3 rounded-2xl border border-phorium-off/30 bg-phorium-dark/80 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-1 flex-col gap-1">
+          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.12em] text-phorium-light/50">
+            <Sparkles className="h-3 w-3" />
+            <span>Phorium tekststudio</span>
+          </div>
+          <h2 className="text-sm font-semibold text-phorium-light">
+            Generer tekst for produktsider, SEO og annonser
+          </h2>
+          <p className="text-[11px] text-phorium-light/65">
+            Tilpasset din nettbutikk sin brandprofil og ønsket tone-of-voice.
+          </p>
+        </div>
+
+        <BrandIdentityBar
+          brand={brand}
+          loading={brandLoading}
+          source={source}
+          onUpdateBrand={updateBrand}
+        />
+      </div>
 
       {/* Shopify-produkt header */}
-               {linkedProduct && !productLoading && !productError && (
+      {isShopifyMode && (
+        <div className="rounded-2xl border border-phorium-off/35 bg-phorium-dark px-4 py-3 text-[12px]">
+          {productLoading && (
+            <p className="text-phorium-light/85">
+              Henter produktdata fra Shopify …
+            </p>
+          )}
+
+          {productError && (
+            <p className="text-red-300">
+              Klarte ikke å hente produkt: {productError}
+            </p>
+          )}
+
+          {linkedProduct && !productLoading && !productError && (
             <>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -613,7 +550,7 @@ async function handleSaveToShopify() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  {linkedProduct.image && (
+                  {linkedProduct.image?.src && (
                     <img
                       src={linkedProduct.image.src}
                       alt={linkedProduct.title}
@@ -630,7 +567,6 @@ async function handleSaveToShopify() {
                 </div>
               </div>
 
-              {/* Tone-analyse seksjon */}
               <div className="mt-3 border-t border-phorium-off/20 pt-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="text-[11px] text-phorium-light/70">
@@ -679,40 +615,11 @@ async function handleSaveToShopify() {
               </div>
             </>
           )}
-
-
-      {!isShopifyMode && (
-        <div className="rounded-2xl border border-phorium-off/25 bg-phorium-dark/70 px-4 py-3 text-[12px]">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <div className="text-[11px] font-semibold text-phorium-light/80">
-                Ingen Shopify-produkt valgt
-              </div>
-              <div className="text-[11px] text-phorium-light/60">
-                Velg et produkt fra nettbutikken din for å få auto-utfylte
-                forslag.
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Link
-                href="/studio/produkter"
-                className="btn btn-sm btn-primary"
-              >
-                Velg produkt
-              </Link>
-              <Link
-                href="/studio/koble-nettbutikk"
-                className="btn btn-sm btn-secondary"
-              >
-                Koble nettbutikk
-              </Link>
-            </div>
-          </div>
         </div>
       )}
 
-      {/* Grid: input venstre, resultat høyre */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      {/* Hovedlayout – venstre (input) / høyre (resultat) */}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)]">
         {/* Venstre side – input */}
         <div className="rounded-2xl border border-phorium-off/35 bg-phorium-dark/80 px-5 py-5">
           <h3 className="mb-3 text-sm font-semibold text-phorium-light">
@@ -729,7 +636,7 @@ async function handleSaveToShopify() {
                 value={productName}
                 onChange={(e) => setProductName(e.target.value)}
                 placeholder='F.eks. «Rustfri termokopp 1L – sort»'
-                className="w-full rounded-xl border border-phorium-off/40 bg-[#F3EEE2] px-3 py-2 text-[13px] text-phorium-dark outline-none placeholder:text-phorium-dark/40 focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/25"
+                className="w-full rounded-xl border border-phorium-off/40 bg-phorium-dark px-3 py-2 text-[13px] text-phorium-light placeholder:text-phorium-light/40 focus:border-phorium-accent focus:outline-none focus:ring-2 focus:ring-phorium-accent/25"
               />
             </div>
           )}
@@ -752,130 +659,99 @@ async function handleSaveToShopify() {
               type="text"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              placeholder='F.eks. «Kjøkken & servering», «Hund», «Interiør» …'
-              className="w-full rounded-xl border border-phorium-off/40 bg-[#F3EEE2] px-3 py-2 text-[13px] text-phorium-dark outline-none placeholder:text-phorium-dark/40 focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/25"
+              placeholder="F.eks. kjøkken, interiør, hundeutstyr …"
+              className="w-full rounded-xl border border-phorium-off/40 bg-phorium-dark px-3 py-2 text-[13px] text-phorium-light placeholder:text-phorium-light/40 focus:border-phorium-accent focus:outline-none focus:ring-2 focus:ring-phorium-accent/25"
             />
           </div>
 
           <div className="mb-4">
             <label className="mb-1 block text-[11px] text-phorium-light/70">
-              Tone
+              Tone-of-voice (f.eks. «folkelig og ærlig», «formell og
+              faglig»)
             </label>
             <input
               type="text"
               value={tone}
               onChange={(e) => setTone(e.target.value)}
-              placeholder="F.eks. moderne, teknisk, humoristisk, eksklusiv …"
-              className="w-full rounded-xl border border-phorium-off/40 bg-[#F3EEE2] px-3 py-2 text-[13px] text-phorium-dark outline-none placeholder:text-phorium-dark/40 focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/25"
+              placeholder={
+                brand?.tone
+                  ? `Trykk enter for å bruke brand-tone: ${brand.tone}`
+                  : "F.eks. «ærlig og rett frem», «varm og personlig»"
+              }
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !tone && brand?.tone) {
+                  e.preventDefault();
+                  setTone(brand.tone);
+                }
+              }}
+              className="w-full rounded-xl border border-phorium-off/40 bg-phorium-dark px-3 py-2 text-[13px] text-phorium-light placeholder:text-phorium-light/40 focus:border-phorium-accent focus:outline-none focus:ring-2 focus:ring-phorium-accent/25"
             />
+            {brand?.tone && !tone && (
+              <p className="mt-1 text-[11px] text-phorium-light/60">
+                Brandprofilen din har allerede en tone definert:{" "}
+                <button
+                  type="button"
+                  className="underline"
+                  onClick={() => setTone(brand.tone!)}
+                >
+                  bruk «{brand.tone}»
+                </button>
+                .
+              </p>
+            )}
           </div>
 
-          {/* Refine-rad */}
-          <div className="mb-3 flex flex-wrap items-center gap-2 text-[10px]">
-            <span className="mr-1 text-phorium-light/55">
-              Juster tone med ett klikk:
-            </span>
-            <button
-              type="button"
-              onClick={() => setTonePreset("kortere")}
-              className="btn btn-sm btn-ghost"
-            >
-              Kortere
-            </button>
-            <button
-              type="button"
-              onClick={() => setTonePreset("lengre")}
-              className="btn btn-sm btn-ghost"
-            >
-              Lengre
-            </button>
-            <button
-              type="button"
-              onClick={() => setTonePreset("teknisk")}
-              className="btn btn-sm btn-ghost"
-            >
-              Mer teknisk
-            </button>
-            <button
-              type="button"
-              onClick={() => setTonePreset("leken")}
-              className="btn btn-sm btn-ghost"
-            >
-              Mer leken
-            </button>
-          </div>
-
-          <button
-            onClick={handlePrimaryClick}
-            disabled={loading || (!isShopifyMode && !productName.trim())}
-            className="btn btn-lg btn-primary w-full disabled:opacity-60"
-          >
-            {loading ? "Genererer tekst …" : primaryButtonLabel}
-          </button>
-
-          <p className="mt-2 text-[10px] text-phorium-light/55">
-            Tips: Velg tone først, så generer. Prøv gjerne flere varianter.
-          </p>
-        </div>
-
-        {/* Høyre side – resultat m. tabs, lagre, kopi */}
-        <div className="rounded-2xl border border-phorium-off/35 bg-phorium-dark/80 px-5 py-5">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-phorium-light">
-              Resultat
-            </h3>
-          </div>
-
-          {/* Tabs */}
-          <div className="mb-2 inline-flex rounded-full border border-phorium-off/35 bg-phorium-dark p-1 text-[11px]">
-            <TabButton
-              active={activeTab === "product"}
-              onClick={() => setActiveTab("product")}
-            >
-              Produkttekst
-            </TabButton>
-            <TabButton
-              active={activeTab === "seo"}
-              onClick={() => setActiveTab("seo")}
-            >
-              SEO
-            </TabButton>
-            <TabButton
-              active={activeTab === "ads"}
-              onClick={() => setActiveTab("ads")}
-            >
-              Annonser
-            </TabButton>
-            <TabButton
-              active={activeTab === "some"}
-              onClick={() => setActiveTab("some")}
-            >
-              SoMe
-            </TabButton>
-          </div>
-
-          {/* Action-knapper: lagre / kopier / åpne i Shopify */}
-          <div className="mb-2 flex flex-wrap gap-2 text-[11px]">
-            {isShopifyMode && result && (
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            {!isShopifyMode && (
               <button
                 type="button"
-                onClick={handleSaveToShopify}
-                disabled={saving}
-                className="btn btn-sm btn-primary disabled:opacity-60"
+                onClick={handleGenerateManual}
+                disabled={loading || !productName.trim()}
+                className="btn btn-primary flex items-center gap-1 text-[13px]"
               >
-                {saving ? "Lagrer …" : "Lagre i Shopify"}
+                {loading ? (
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Genererer …
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="h-3 w-3" />
+                    Generer tekst
+                  </>
+                )}
               </button>
             )}
 
-            {result && (
+            {isShopifyMode && (
               <button
                 type="button"
-                onClick={handleCopyActiveTab}
-                className="btn btn-sm btn-secondary"
+                onClick={handleGenerateFromProduct}
+                disabled={loading || !productIdFromUrl}
+                className="btn btn-primary flex items-center gap-1 text-[13px]"
               >
-                Kopier teksten i aktiv fane
+                {loading ? (
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Leser produkt og genererer …
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="h-3 w-3" />
+                    Generer tekst fra Shopify-produkt
+                  </>
+                )}
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={handleResetForm}
+              className="btn btn-ghost btn-sm text-[11px]"
+            >
+              <X className="mr-1 h-3 w-3" />
+              Nullstill
+            </button>
 
             {isShopifyMode && shopDomain && (
               <a
@@ -889,278 +765,271 @@ async function handleSaveToShopify() {
             )}
           </div>
 
-          {(saveMessage || copyMessage) && (
-            <p className="mb-2 text-[11px] text-phorium-light/70">
-              {saveMessage && <span>{saveMessage}</span>}
-              {saveMessage && copyMessage && <span> · </span>}
-              {copyMessage && <span>{copyMessage}</span>}
-            </p>
+          {(saveMessage || copyMessage || error) && (
+            <div className="mt-2 space-y-1 text-[11px]">
+              {saveMessage && (
+                <p className="text-phorium-light/85">{saveMessage}</p>
+              )}
+              {copyMessage && (
+                <p className="text-phorium-light/85">{copyMessage}</p>
+              )}
+              {error && <p className="text-red-300">{error}</p>}
+            </div>
           )}
 
-          <div className="min-h-[230px] rounded-xl border border-phorium-off/30 bg-[#F7F2E8] px-4 py-3 text-[13px] text-phorium-dark">
+          {/* Historikk */}
+          {history.length > 0 && (
+            <div className="mt-5 border-t border-phorium-off/25 pt-3">
+              <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-phorium-light/60">
+                Tidligere genererte tekster
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {history.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => handleLoadFromHistory(item)}
+                    className="group flex flex-col rounded-xl border border-phorium-off/40 bg-phorium-dark px-3 py-2 text-left text-[11px] text-phorium-light/80 hover:border-phorium-accent/60 hover:bg-phorium-dark/90"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="line-clamp-1 font-medium">
+                        {item.productName || "Uten navn"}
+                      </span>
+                      <span className="text-[10px] uppercase text-phorium-light/45">
+                        {item.source === "manual" ? "Manuell" : "Shopify"}
+                      </span>
+                    </div>
+                    <div className="mt-1 line-clamp-1 text-[10px] text-phorium-light/55">
+                      {item.result.shortDescription ||
+                        item.result.description ||
+                        "Ingen kortbeskrivelse"}
+                    </div>
+                    <div className="mt-1 flex items-center justify-between gap-2 text-[9px] text-phorium-light/45">
+                      <span>
+                        {item.category || "Uten kategori"} ·{" "}
+                        {item.tone || "Uten tone"}
+                      </span>
+                      <button
+                        type="button"
+                        className="text-[9px] underline opacity-0 transition-opacity group-hover:opacity-100"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleApplyToneFromHistory(item);
+                        }}
+                      >
+                        Bruk tone
+                      </button>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Høyre side – resultater */}
+        <div className="rounded-2xl border border-phorium-off/35 bg-phorium-dark/80 px-5 py-5">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-[11px] text-phorium-light/70">
+              <Sparkles className="h-3 w-3 text-phorium-accent" />
+              <span>
+                Generert tekst
+                {linkedProduct?.title
+                  ? ` for «${linkedProduct.title}»`
+                  : result?.title
+                    ? ` for «${result.title}»`
+                    : ""}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={!result}
+                onClick={handleCopyActiveTab}
+                className="btn btn-xs btn-secondary"
+              >
+                Kopier aktiv fane
+              </button>
+            </div>
+          </div>
+
+          <div className="mb-3 flex gap-1">
+            {[
+              { id: "product", label: "Produkttekst" },
+              { id: "seo", label: "SEO" },
+              { id: "ads", label: "Annonser" },
+              { id: "some", label: "Sosiale medier" },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id as ActiveTab)}
+                className={`rounded-full px-3 py-1 text-[11px] ${
+                  activeTab === tab.id
+                    ? "bg-phorium-accent text-phorium-dark"
+                    : "bg-phorium-dark text-phorium-light/70 hover:bg-phorium-off/20"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="min-h-[240px] rounded-xl border border-phorium-off/35 bg-phorium-dark px-4 py-3 text-[13px] text-phorium-light">
             {loading && (
               <div className="flex h-full items-center justify-center">
-                <PhoriumLoader label="Genererer tekst … finpusser ordvalg, struktur og SEO" />
+                <PhoriumLoader />
               </div>
             )}
 
-            {!loading && !result && !error && (
-              <p className="text-[12px] text-phorium-dark/70">
-                Når du genererer, får du produkttekst, SEO, annonsetekster og
-                SoMe-forslag her – organisert i faner.
+            {!loading && !result && (
+              <p className="text-[12px] text-phorium-light/65">
+                Ingen tekst generert ennå. Fyll ut produktdata til venstre og
+                klikk på <span className="font-medium">Generer tekst</span>.
               </p>
             )}
 
-            {!loading && error && (
-              <p className="text-[12px] text-red-600">{error}</p>
-            )}
-
-            <AnimatePresence mode="wait">
-              {!loading && result && !error && (
+            {!loading && result && (
+              <AnimatePresence mode="wait">
                 <motion.div
-                  key={activeTab + (result.title || "")}
+                  key={activeTab}
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 4 }}
-                  transition={{ duration: 0.22, delay: 0.03 }}
-                  className="space-y-2"
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.16 }}
+                  className={`space-y-2 ${
+                    justGenerated ? "ring-1 ring-phorium-accent/50" : ""
+                  }`}
                 >
-                  {/* Produkt-tab */}
                   {activeTab === "product" && (
                     <>
                       {result.title && (
-                        <p className="text-[14px] font-semibold text-phorium-dark">
+                        <h3 className="text-[14px] font-semibold text-phorium-accent">
                           {result.title}
-                        </p>
+                        </h3>
                       )}
-
                       {result.shortDescription && (
-                        <p className="text-[12px] text-phorium-dark/80">
+                        <p className="text-[13px] text-phorium-light">
                           {result.shortDescription}
                         </p>
                       )}
-
                       {result.description && (
-                        <motion.div
-                          initial={{
-                            backgroundColor: "rgba(200,183,122,0.18)",
-                          }}
-                          animate={{
-                            backgroundColor: justGenerated
-                              ? "rgba(200,183,122,0.08)"
-                              : "rgba(0,0,0,0)",
-                          }}
-                          transition={{ duration: 0.8 }}
-                          className="-mx-2 rounded-md px-2 py-1"
-                        >
-                          <p>{result.description}</p>
-                        </motion.div>
+                        <p className="whitespace-pre-line text-[13px] text-phorium-light/90">
+                          {result.description}
+                        </p>
                       )}
-
                       {Array.isArray(result.bullets) &&
                         result.bullets.length > 0 && (
-                          <div className="pt-2">
-                            <p className="mb-1 text-[11px] font-semibold text-phorium-dark/80">
-                              Bullet points:
-                            </p>
-                            <ul className="list-disc pl-4 text-[12px]">
-                              {result.bullets.map((b, i) => (
-                                <li key={i}>{b}</li>
-                              ))}
-                            </ul>
-                          </div>
+                          <ul className="mt-2 list-disc space-y-1 pl-4 text-[13px] text-phorium-light/90">
+                            {result.bullets.map((b, i) => (
+                              <li key={i}>{b}</li>
+                            ))}
+                          </ul>
                         )}
                     </>
                   )}
 
-                  {/* SEO-tab */}
                   {activeTab === "seo" && (
-                    <div className="space-y-2 text-[12px]">
+                    <div className="space-y-2 text-[13px]">
                       <div>
-                        <p className="text-[11px] font-semibold text-phorium-dark/80">
+                        <div className="text-[11px] font-semibold text-phorium-light/70">
                           SEO-tittel
-                        </p>
-                        <p>{result.meta_title || "—"}</p>
+                        </div>
+                        <div className="text-phorium-light">
+                          {result.meta_title || "Ingen SEO-tittel generert."}
+                        </div>
                       </div>
                       <div>
-                        <p className="text-[11px] font-semibold text-phorium-dark/80">
+                        <div className="text-[11px] font-semibold text-phorium-light/70">
                           Meta-beskrivelse
-                        </p>
-                        <p>{result.meta_description || "—"}</p>
+                        </div>
+                        <div className="text-phorium-light">
+                          {result.meta_description ||
+                            "Ingen meta-beskrivelse generert."}
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-[11px] font-semibold text-phorium-dark/80">
-                          Tags
-                        </p>
-                        <p>
-                          {Array.isArray(result.tags) &&
-                          result.tags.length > 0
-                            ? result.tags.join(", ")
-                            : "—"}
-                        </p>
-                      </div>
+                      {Array.isArray(result.tags) &&
+                        result.tags.length > 0 && (
+                          <div>
+                            <div className="text-[11px] font-semibold text-phorium-light/70">
+                              Tags / søkeord
+                            </div>
+                            <div className="text-phorium-light">
+                              {result.tags.join(", ")}
+                            </div>
+                          </div>
+                        )}
                     </div>
                   )}
 
-                  {/* Ads-tab */}
                   {activeTab === "ads" && (
-                    <div className="space-y-3 text-[12px]">
+                    <div className="space-y-2 text-[13px]">
                       <div>
-                        <p className="text-[11px] font-semibold text-phorium-dark/80">
-                          Primær annonsetekst
-                        </p>
-                        <p>{result.ad_primary || "—"}</p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] font-semibold text-phorium-dark/80">
+                        <div className="text-[11px] font-semibold text-phorium-light/70">
                           Annonseoverskrift
-                        </p>
-                        <p>{result.ad_headline || "—"}</p>
+                        </div>
+                        <div className="text-phorium-light">
+                          {result.ad_headline ||
+                            "Ingen annonseoverskrift generert."}
+                        </div>
                       </div>
                       <div>
-                        <p className="text-[11px] font-semibold text-phorium-dark/80">
-                          Annonsebeskrivelse
-                        </p>
-                        <p>{result.ad_description || "—"}</p>
+                        <div className="text-[11px] font-semibold text-phorium-light/70">
+                          Primær annonsetekst
+                        </div>
+                        <div className="text-phorium-light">
+                          {result.ad_primary ||
+                            "Ingen primær annonsetekst generert."}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[11px] font-semibold text-phorium-light/70">
+                          Tilleggsbeskrivelse
+                        </div>
+                        <div className="text-phorium-light">
+                          {result.ad_description ||
+                            "Ingen tilleggsbeskrivelse generert."}
+                        </div>
                       </div>
                     </div>
                   )}
 
-                  {/* SoMe-tab */}
                   {activeTab === "some" && (
-                    <div className="space-y-3 text-[12px]">
+                    <div className="space-y-2 text-[13px]">
                       <div>
-                        <p className="text-[11px] font-semibold text-phorium-dark/80">
+                        <div className="text-[11px] font-semibold text-phorium-light/70">
                           Caption
-                        </p>
-                        <p>{result.social_caption || "—"}</p>
+                        </div>
+                        <div className="text-phorium-light">
+                          {result.social_caption ||
+                            "Ingen caption for sosiale medier generert."}
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-[11px] font-semibold text-phorium-dark/80">
-                          Hashtags
-                        </p>
-                        <p>
-                          {Array.isArray(result.social_hashtags) &&
-                          result.social_hashtags.length > 0
-                            ? result.social_hashtags
+                      {Array.isArray(result.social_hashtags) &&
+                        result.social_hashtags.length > 0 && (
+                          <div>
+                            <div className="text-[11px] font-semibold text-phorium-light/70">
+                              Hashtags
+                            </div>
+                            <div className="text-phorium-light">
+                              {result.social_hashtags
                                 .map((h) =>
                                   h.startsWith("#") ? h : `#${h}`,
                                 )
-                                .join(" ")
-                            : "—"}
-                        </p>
-                      </div>
+                                .join(" ")}
+                            </div>
+                          </div>
+                        )}
                     </div>
                   )}
                 </motion.div>
-              )}
-            </AnimatePresence>
+              </AnimatePresence>
+            )}
           </div>
         </div>
-      </div>
-
-      {/* Historikk – global for tekststudio */}
-      <div className="mt-8 border-t border-phorium-off/30 pt-5">
-        <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-phorium-accent">
-              Historikk (tekststudio)
-            </h2>
-            <p className="text-[11px] text-phorium-light/65">
-              Viser de siste genererte tekstpakkene – uansett produkt.
-            </p>
-          </div>
-        </div>
-
-        {history.length === 0 && (
-          <p className="text-[12px] text-phorium-light/70">
-            Når du genererer tekster, dukker de siste her for rask gjenbruk.
-          </p>
-        )}
-
-        {history.length > 0 && (
-          <div className="mt-3 grid gap-3 md:grid-cols-2">
-            {history.map((item) => (
-              <div
-                key={item.id}
-                className="rounded-2xl border border-phorium-off/35 bg-phorium-dark/80 px-4 py-3 text-[11px] text-phorium-light"
-              >
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="line-clamp-2 text-[12px] font-semibold text-phorium-accent">
-                      {item.result.title || item.productName}
-                    </p>
-                    <span className="shrink-0 rounded-full border border-phorium-off/40 bg-phorium-surface px-2 py-0.5 text-[10px] text-phorium-light/70">
-                      {item.source === "shopify"
-                        ? "Fra Shopify-produkt"
-                        : "Manuell"}
-                    </span>
-                  </div>
-                  {item.result.shortDescription && (
-                    <p className="line-clamp-2 text-[11px] text-phorium-light/75">
-                      {item.result.shortDescription}
-                    </p>
-                  )}
-                  <div className="mt-1 flex flex-wrap gap-1.5 text-[10px] text-phorium-light/65">
-                    {item.category && (
-                      <span className="rounded-full border border-phorium-off/40 bg-phorium-surface px-2 py-0.5">
-                        {item.category}
-                      </span>
-                    )}
-                    {item.tone && (
-                      <span className="rounded-full border border-phorium-off/40 bg-phorium-surface px-2 py-0.5">
-                        Tone: {item.tone}
-                      </span>
-                    )}
-                    <span className="text-phorium-light/50">
-                      {new Date(item.createdAt).toLocaleString("no-NO", {
-                        dateStyle: "short",
-                        timeStyle: "short",
-                      })}
-                    </span>
-                  </div>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleLoadFromHistory(item)}
-                    className="btn btn-sm btn-primary"
-                  >
-                    Åpne i resultat
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleApplyToneFromHistory(item)}
-                    className="btn btn-sm btn-ghost"
-                  >
-                    Bruk tone/stil
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
-  );
-}
-
-function TabButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={active ? "btn-tab btn-tab-active" : "btn-tab"}
-    >
-      {children}
-    </button>
   );
 }
