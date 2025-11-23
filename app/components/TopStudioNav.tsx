@@ -63,7 +63,7 @@ export default function TopStudioNav() {
       {/* Tittel / intro */}
       <div className="mb-3 flex items-center justify-between gap-2">
         <div>
-          <p className="text-[18px] font-semibold uppercase tracking-[0.16em] text-phorium-light/75">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-phorium-light/50">
             Phorium Studio
           </p>
           <p className="text-[12px] text-phorium-light/75">
@@ -82,20 +82,27 @@ export default function TopStudioNav() {
             <Link
               key={item.href}
               href={item.href}
-              className={`group flex min-w-[150px] flex-1 cursor-pointer items-center gap-2 rounded-2xl border px-3 py-2 text-left transition
+              className={`
+                group flex min-w-[150px] flex-1 cursor-pointer items-center gap-2 rounded-2xl border px-3 py-2 text-left
+                transition transition-shadow transition-transform
+                hover:shadow-lg hover:shadow-black/30 hover:scale-[1.02]
                 ${
                   active
                     ? "border-phorium-accent bg-phorium-accent/10"
                     : "border-phorium-off/35 bg-phorium-dark/60 hover:border-phorium-accent/60 hover:bg-phorium-dark"
-                }`}
+                }
+              `}
             >
               <div
-                className={`flex h-8 w-8 items-center justify-center rounded-2xl border text-[11px] transition
+                className={`
+                  flex h-8 w-8 items-center justify-center rounded-2xl border text-[11px] transition
+                  group-hover:border-phorium-accent/60 group-hover:text-phorium-accent
                   ${
                     active
                       ? "border-phorium-accent/80 bg-phorium-accent/15 text-phorium-accent"
-                      : "border-phorium-off/40 bg-phorium-dark text-phorium-light/80 group-hover:border-phorium-accent/70 group-hover:text-phorium-accent"
-                  }`}
+                      : "border-phorium-off/40 bg-phorium-dark text-phorium-light/80"
+                  }
+                `}
               >
                 <Icon className="h-4 w-4" />
               </div>
@@ -103,9 +110,7 @@ export default function TopStudioNav() {
               <div className="flex min-w-0 flex-col">
                 <span
                   className={`truncate text-[12px] font-medium ${
-                    active
-                      ? "text-phorium-accent"
-                      : "text-phorium-light/90"
+                    active ? "text-phorium-accent" : "text-phorium-light/90"
                   }`}
                 >
                   {item.label}
