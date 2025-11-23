@@ -49,6 +49,15 @@ export default function PhoriumTextForm() {
   const [error, setError] = useState<string | null>(null);
   const [justGenerated, setJustGenerated] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>("product");
+const [matchScore, setMatchScore] = useState<{
+  score: number;
+  strengths: string[];
+  weaknesses: string[];
+  recommendations: string;
+} | null>(null);
+
+const [matchLoading, setMatchLoading] = useState(false);
+const [matchError, setMatchError] = useState<string | null>(null);
 
   // Tone-analyse
   const [toneAnalysis, setToneAnalysis] = useState<{
@@ -359,6 +368,49 @@ export default function PhoriumTextForm() {
       setToneLoading(false);
     }
   }
+
+async function handleMatchScore() {
+  setMatchError(null);
+
+  const textToCheck =
+    (result?.description && result.description.trim()) ||
+    (result?.shortDescription && result.shortDescription.trim()) ||
+    "";
+
+  if (!textToCheck) {
+    setMatchError("Ingen tekst å evaluere enda.");
+    return;
+  }
+
+  if (!brand) {
+    setMatchError("Brandprofil mangler.");
+    return;
+  }
+
+  setMatchLoading(true);
+  try {
+    const res = await fetch("/api/match-score", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        brand,
+        text: textToCheck,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || "Kunne ikke beregne match-score.");
+    }
+
+    setMatchScore(data.result);
+  } catch (err: any) {
+    setMatchError(err.message);
+  } finally {
+    setMatchLoading(false);
+  }
+}
+
 
   // --- Tone-presets ---
   function setTonePreset(preset: "kortere" | "lengre" | "teknisk" | "leken") {
@@ -677,6 +729,62 @@ export default function PhoriumTextForm() {
           )}
         </div>
       )}
+
+{/* Match-score */}
+<div className="mt-4 border-t border-phorium-off/20 pt-3">
+  <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className="text-[11px] text-phorium-light/70">
+      Matcher teksten brandprofilen din?
+    </div>
+    <button
+      type="button"
+      onClick={handleMatchScore}
+      disabled={matchLoading}
+      className="btn btn-xs btn-secondary"
+    >
+      {matchLoading ? "Analyserer…" : "Beregn match-score"}
+    </button>
+  </div>
+
+  {matchError && (
+    <p className="mt-1 text-[11px] text-red-300">{matchError}</p>
+  )}
+
+  {matchScore && (
+    <div className="mt-2 rounded-xl border border-phorium-off/25 bg-phorium-dark/70 p-3 text-[11px] text-phorium-light/90 space-y-2">
+      <div className="text-[13px] font-semibold text-phorium-accent">
+        Match-score: {matchScore.score}%
+      </div>
+
+      {matchScore.strengths.length > 0 && (
+        <>
+          <p className="text-[10px] text-phorium-light/60">Styrker:</p>
+          <ul className="list-disc pl-4">
+            {matchScore.strengths.map((s, i) => (
+              <li key={i}>{s}</li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {matchScore.weaknesses.length > 0 && (
+        <>
+          <p className="text-[10px] text-phorium-light/60">Svakheter:</p>
+          <ul className="list-disc pl-4">
+            {matchScore.weaknesses.map((w, i) => (
+              <li key={i}>{w}</li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      <p className="text-[10px] text-phorium-light/70">
+        {matchScore.recommendations}
+      </p>
+    </div>
+  )}
+</div>
+
 
       {/* Info når man IKKE er i Shopify-modus */}
       {!isShopifyMode && (
