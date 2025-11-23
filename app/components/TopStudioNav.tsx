@@ -1,90 +1,123 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, FileText, Image as ImageIcon, Link2 } from "lucide-react";
-import ShopifyStatusDot from "@/app/components/ShopifyStatusDot";
+import {
+  Sparkles,
+  ImageIcon,
+  Settings2,
+  Store,
+  LayoutDashboard,
+} from "lucide-react";
+
+type StudioNavItem = {
+  href: string;
+  label: string;
+  description: string;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+};
+
+const items: StudioNavItem[] = [
+  {
+    href: "/studio",
+    label: "Oversikt",
+    description: "Snarveier og status for butikken",
+    icon: LayoutDashboard,
+  },
+  {
+    href: "/studio/tekst",
+    label: "Tekststudio",
+    description: "Produkttekster, SEO og annonser",
+    icon: Sparkles,
+  },
+  {
+    href: "/studio/visuals",
+    label: "Visuals",
+    description: "Produktbilder, bannere og kampanjer",
+    icon: ImageIcon,
+  },
+  {
+    href: "/studio/brandprofil",
+    label: "Brandprofil",
+    description: "Farger, tone-of-voice og stil",
+    icon: Settings2,
+  },
+  {
+    href: "/studio/produkter",
+    label: "Produkter",
+    description: "Liste fra Shopify-butikken din",
+    icon: Store,
+  },
+];
 
 export default function TopStudioNav() {
   const pathname = usePathname();
 
-  const isHub = pathname === "/studio";
-  const isText = pathname.startsWith("/studio/text");
-  const isVisuals = pathname.startsWith("/studio/visuals");
-  const isConnect = pathname.startsWith("/studio/koble-nettbutikk");
-
-  // 🔌 Hent Shopify-status for å styre knappetekst
-  const [connected, setConnected] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function fetchStatus() {
-      try {
-        const res = await fetch("/api/shopify/status", { cache: "no-store" });
-        const data = await res.json();
-        if (!cancelled) {
-          setConnected(!!data.connected);
-        }
-      } catch {
-        if (!cancelled) {
-          setConnected(false);
-        }
-      }
-    }
-
-    fetchStatus();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  function isActive(href: string) {
+    if (href === "/studio") return pathname === "/studio";
+    return pathname.startsWith(href);
+  }
 
   return (
-    <div className="mb-8 flex justify-center">
-      <div className="flex w-full max-w-6xl items-center justify-between rounded-3xl border border-phorium-off/25 bg-phorium-surface px-5 py-4 shadow-[0_18px_70px_rgba(0,0,0,0.55)] flex justify-center">
-        {/* Venstre: tabs */}
-        <nav className="flex flex-wrap items-center gap-3">
-          <Link
-            href="/studio"
-            className={`btn-tab ${isHub ? "btn-tab-active" : ""}`}
-          >
-            <Home />
-            Studio-oversikt
-          </Link>
-
-          <Link
-            href="/studio/text"
-            className={`btn-tab ${isText ? "btn-tab-active" : ""}`}
-          >
-            <FileText />
-            Tekst
-          </Link>
-
-          <Link
-            href="/studio/visuals"
-            className={`btn-tab ${isVisuals ? "btn-tab-active" : ""}`}
-          >
-            <ImageIcon />
-            Visuals
-          </Link>
-
-          <Link
-            href="/studio/koble-nettbutikk"
-            className={`btn-tab ${isConnect ? "btn-tab-active" : ""}`}
-          >
-            <Link2 />
-            {connected ? "Tilkoblet" : "Koble til nettbutikk"}
-          </Link>
-        </nav>
-
-        {/* Høyre: liten status-prikk */}
-        <div className="ml-4 pl-4 border-l border-phorium-off/20">
-  <ShopifyStatusDot />
-</div>
-
+    <nav className="mb-4 rounded-2xl border border-phorium-off/35 bg-phorium-dark/80 px-3 py-2 sm:px-4 sm:py-3">
+      {/* Tittel / intro */}
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div>
+          <p className="text-[18px] font-semibold uppercase tracking-[0.16em] text-phorium-light/75">
+            Phorium Studio
+          </p>
+          <p className="text-[12px] text-phorium-light/75">
+            Velg hva du vil jobbe med i butikken din.
+          </p>
+        </div>
       </div>
-    </div>
+
+      {/* Meny-knapper */}
+      <div className="-mx-1 flex gap-2 overflow-x-auto pb-1 pt-1">
+        {items.map((item) => {
+          const Icon = item.icon;
+          const active = isActive(item.href);
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`group flex min-w-[150px] flex-1 cursor-pointer items-center gap-2 rounded-2xl border px-3 py-2 text-left transition
+                ${
+                  active
+                    ? "border-phorium-accent bg-phorium-accent/10"
+                    : "border-phorium-off/35 bg-phorium-dark/60 hover:border-phorium-accent/60 hover:bg-phorium-dark"
+                }`}
+            >
+              <div
+                className={`flex h-8 w-8 items-center justify-center rounded-2xl border text-[11px] transition
+                  ${
+                    active
+                      ? "border-phorium-accent/80 bg-phorium-accent/15 text-phorium-accent"
+                      : "border-phorium-off/40 bg-phorium-dark text-phorium-light/80 group-hover:border-phorium-accent/70 group-hover:text-phorium-accent"
+                  }`}
+              >
+                <Icon className="h-4 w-4" />
+              </div>
+
+              <div className="flex min-w-0 flex-col">
+                <span
+                  className={`truncate text-[12px] font-medium ${
+                    active
+                      ? "text-phorium-accent"
+                      : "text-phorium-light/90"
+                  }`}
+                >
+                  {item.label}
+                </span>
+                <span className="truncate text-[10px] text-phorium-light/60">
+                  {item.description}
+                </span>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
   );
 }

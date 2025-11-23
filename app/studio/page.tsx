@@ -8,6 +8,10 @@ import {
   Image as ImageIcon,
   Link2,
   ChevronRight,
+  Gauge,
+  Blocks,
+  Store,
+  Settings2,
 } from "lucide-react";
 
 type StatusResponse = {
@@ -36,7 +40,6 @@ export default function DashboardHubPage() {
     fetchStatus();
   }, []);
 
-  // Lager en badge basert på status (samme stil som før, men nå live)
   function renderStatusBadge() {
     if (statusLoading) {
       return (
@@ -61,7 +64,7 @@ export default function DashboardHubPage() {
 
     return (
       <div className="inline-flex items-center gap-2 rounded-full border border-phorium-off/40 bg-phorium-dark px-3 py-1.5 text-[11px] text-phorium-light/80">
-        <span className="h-2.5 w-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.7)]" />
+        <span className="h-2.5 w-2.5 rounded-full bg-red-500 shadow-[0_0_8x_rgba(239,68,68,0.7)]" />
         <span className="font-semibold">Ikke koblet</span>
         <span className="opacity-80">Koble til for best resultater</span>
       </div>
@@ -69,125 +72,194 @@ export default function DashboardHubPage() {
   }
 
   return (
-    <>
-      {/* Header */}
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            Phorium Studio
-          </h1>
-          <p className="mt-1 text-[13px] text-phorium-light/80 sm:text-[14px]">
-            Hub for alt innhold: norsk tekst, bannere, produktscener — tunet for
-            nettbutikker.
-          </p>
+    <main className="min-h-screen pt-8 pb-20 text-phorium-light">
+      <section className="mx-auto max-w-5xl px-4">
+
+        {/* Studio-header */}
+        <div className="mb-8 flex flex-col gap-3 rounded-2xl border border-phorium-off/30 bg-phorium-dark/80 p-5 sm:flex-row sm:items-center sm:justify-between">
+
+          <div className="flex flex-1 flex-col gap-1">
+            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.12em] text-phorium-light/50">
+              <Gauge className="h-3 w-3" />
+              Studio-hub
+            </div>
+
+            <h1 className="text-xl font-semibold sm:text-2xl text-phorium-light">
+              Velkommen til Phorium Studio
+            </h1>
+
+            <p className="text-[12px] text-phorium-light/70 max-w-md">
+              Her styrer du alt innhold for nettbutikken din – tekster, bilder,
+              bannere, brandprofil og produktadministrasjon.
+            </p>
+          </div>
+
+          <div className="flex flex-col items-start gap-2 sm:items-end">
+            {renderStatusBadge()}
+
+            {/* Kredittlinje */}
+            <div className="text-[11px] text-phorium-accent/90 mt-2">Kreditter igjen</div>
+            <div className="text-[14px]">
+              <span className="font-semibold text-phorium-light">994</span>
+              <span className="text-phorium-light/55"> / 1000</span>
+            </div>
+
+            <div className="h-2.5 w-40 overflow-hidden rounded-full border border-phorium-off/40 bg-phorium-dark">
+              <motion.div
+                className="h-full bg-phorium-accent"
+                initial={{ width: "0%" }}
+                animate={{ width: "99.4%" }}
+                transition={{ duration: 1 }}
+              />
+            </div>
+          </div>
         </div>
 
-        {/* Høyreside: status + kreditter */}
-        <div className="flex flex-col items-start gap-2 sm:items-end">
-          {renderStatusBadge()}
-          <div className="text-[11px] text-phorium-accent/90">
-            Kreditter igjen
-          </div>
-          <div className="text-[14px]">
-            <span className="font-semibold text-phorium-light">994</span>
-            <span className="text-phorium-light/55"> / 1000</span>
-          </div>
-          <div className="h-2.5 w-40 overflow-hidden rounded-full border border-phorium-off/40 bg-phorium-dark">
+        {/* Modul-grid */}
+        <div className="mb-10 grid gap-6 sm:grid-cols-2">
+
+          {/* Tekststudio */}
+          <Link href="/studio/tekst">
             <motion.div
-              className="h-full bg-phorium-accent"
-              initial={{ width: "0%" }}
-              animate={{ width: "99.4%" }}
-              transition={{ duration: 1 }}
-            />
-          </div>
+              whileHover={{ y: -2 }}
+              transition={{ type: "spring", stiffness: 260, damping: 22 }}
+              className="group relative overflow-hidden rounded-2xl border border-phorium-off/30 bg-phorium-dark px-6 py-6"
+            >
+              <div className="pointer-events-none absolute -right-10 -top-16 h-40 w-40 rounded-full bg-phorium-accent/10 blur-2xl" />
+              <div className="flex items-start gap-3">
+                <div className="shrink-0 rounded-xl border border-phorium-off/35 bg-phorium-surface px-3 py-3">
+                  <TypeIcon className="h-5 w-5 text-phorium-accent" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-phorium-light">
+                    Phorium Tekst
+                  </h2>
+                  <p className="mt-1 text-[12px] text-phorium-light/75">
+                    Produkttekster, SEO-innhold, annonser og SoMe-tekster – i én pakke.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 inline-flex items-center gap-1.5 text-[12px] text-phorium-accent">
+                Åpne <ChevronRight className="h-3.5 w-3.5" />
+              </div>
+            </motion.div>
+          </Link>
+
+          {/* Visuals */}
+          <Link href="/studio/visuals">
+            <motion.div
+              whileHover={{ y: -2 }}
+              transition={{ type: "spring", stiffness: 260, damping: 22 }}
+              className="group relative overflow-hidden rounded-2xl border border-phorium-off/30 bg-phorium-dark px-6 py-6"
+            >
+              <div className="pointer-events-none absolute -left-10 -bottom-16 h-40 w-40 rounded-full bg-phorium-accent/10 blur-2xl" />
+
+              <div className="flex items-start gap-3">
+                <div className="shrink-0 rounded-xl border border-phorium-off/35 bg-phorium-surface px-3 py-3">
+                  <ImageIcon className="h-5 w-5 text-phorium-accent" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-phorium-light">
+                    Phorium Visuals
+                  </h2>
+                  <p className="mt-1 text-[12px] text-phorium-light/75">
+                    Flotte bannere, produktscener, kampanjepakker og AI-bilder.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 inline-flex items-center gap-1.5 text-[12px] text-phorium-accent">
+                Åpne <ChevronRight className="h-3.5 w-3.5" />
+              </div>
+            </motion.div>
+          </Link>
+
+          {/* Brandprofil */}
+          <Link href="/studio/brandprofil">
+            <motion.div
+              whileHover={{ y: -2 }}
+              transition={{ type: "spring", stiffness: 260, damping: 22 }}
+              className="group relative overflow-hidden rounded-2xl border border-phorium-off/30 bg-phorium-dark px-6 py-6"
+            >
+              <div className="pointer-events-none absolute -bottom-16 right-0 h-32 w-32 rounded-full bg-phorium-accent/5 blur-2xl" />
+
+              <div className="flex items-start gap-3">
+                <div className="shrink-0 rounded-xl border border-phorium-off/35 bg-phorium-surface px-3 py-3">
+                  <Settings2 className="h-5 w-5 text-phorium-accent" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-phorium-light">
+                    Brandprofil
+                  </h2>
+                  <p className="mt-1 text-[12px] text-phorium-light/75">
+                    Tone-of-voice, bransje, stil og identitet for hele butikken.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 inline-flex items-center gap-1.5 text-[12px] text-phorium-accent">
+                Åpne <ChevronRight className="h-3.5 w-3.5" />
+              </div>
+            </motion.div>
+          </Link>
+
+          {/* Produkter */}
+          <Link href="/studio/produkter">
+            <motion.div
+              whileHover={{ y: -2 }}
+              transition={{ type: "spring", stiffness: 260, damping: 22 }}
+              className="group relative overflow-hidden rounded-2xl border border-phorium-off/30 bg-phorium-dark px-6 py-6"
+            >
+              <div className="pointer-events-none absolute left-0 top-0 h-32 w-32 rounded-full bg-phorium-accent/5 blur-2xl" />
+
+              <div className="flex items-start gap-3">
+                <div className="shrink-0 rounded-xl border border-phorium-off/35 bg-phorium-surface px-3 py-3">
+                  <Store className="h-5 w-5 text-phorium-accent" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-phorium-light">
+                    Produkter
+                  </h2>
+                  <p className="mt-1 text-[12px] text-phorium-light/75">
+                    Se produktene fra Shopify og åpne dem i Studio.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 inline-flex items-center gap-1.5 text-[12px] text-phorium-accent">
+                Åpne <ChevronRight className="h-3.5 w-3.5" />
+              </div>
+            </motion.div>
+          </Link>
         </div>
-      </div>
 
-      {/* Modul-kort */}
-      <div className="mb-8 grid gap-5 sm:grid-cols-2">
-        {/* Tekst */}
-        <Link href="/studio/text">
-          <motion.div
-            whileHover={{ y: -2 }}
-            transition={{ type: "spring", stiffness: 300, damping: 22 }}
-            className="group relative overflow-hidden rounded-2xl border border-phorium-off/30 bg-phorium-dark px-5 py-5"
-          >
-            <div className="pointer-events-none absolute -top-16 -right-10 h-40 w-40 rounded-full bg-phorium-accent/10 blur-2xl" />
-            <div className="flex items-start gap-3">
-              <div className="shrink-0 rounded-xl border border-phorium-off/35 bg-phorium-surface px-2.5 py-2.5">
-                <TypeIcon className="h-5 w-5 text-phorium-accent" />
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold text-phorium-light">
-                  Phorium Tekst
-                </h2>
-                <p className="mt-1 text-[13px] text-phorium-light/80">
-                  Produkt- og kategoritekster på norsk, med meta-felt og riktig
-                  tone.
-                </p>
-              </div>
-            </div>
-            <div className="mt-4 inline-flex items-center gap-1.5 text-[12px] text-phorium-accent">
-              Åpne <ChevronRight className="h-3.5 w-3.5" />
-            </div>
-          </motion.div>
-        </Link>
+        {/* CTA */}
+        <div className="flex flex-wrap items-center gap-3">
+          {status?.connected ? (
+            <Link
+              href="/studio/produkter"
+              className="btn btn-primary btn-lg inline-flex items-center gap-2"
+            >
+              <Blocks className="h-4 w-4" />
+              Gå til produkter
+            </Link>
+          ) : (
+            <Link
+              href="/studio/koble-nettbutikk"
+              className="btn btn-primary btn-lg inline-flex items-center gap-2"
+            >
+              <Link2 className="h-4 w-4" />
+              Koble til nettbutikk
+            </Link>
+          )}
 
-        {/* Visuals */}
-        <Link href="/studio/visuals">
-          <motion.div
-            whileHover={{ y: -2 }}
-            transition={{ type: "spring", stiffness: 300, damping: 22 }}
-            className="group relative overflow-hidden rounded-2xl border border-phorium-off/30 bg-phorium-dark px-5 py-5"
-          >
-            <div className="pointer-events-none absolute -bottom-16 -left-10 h-40 w-40 rounded-full bg-phorium-accent/10 blur-2xl" />
-            <div className="flex items-start gap-3">
-              <div className="shrink-0 rounded-xl border border-phorium-off/35 bg-phorium-surface px-2.5 py-2.5">
-                <ImageIcon className="h-5 w-5 text-phorium-accent" />
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold text-phorium-light">
-                  Phorium Visuals
-                </h2>
-                <p className="mt-1 text-[13px] text-phorium-light/80">
-                  Bannere med trygg tekst, kampanjepakker og produktscener.
-                </p>
-              </div>
-            </div>
-            <div className="mt-4 inline-flex items-center gap-1.5 text-[12px] text-phorium-accent transition group-hover:translate-x-[1px]">
-              Åpne <ChevronRight className="h-3.5 w-3.5" />
-            </div>
-          </motion.div>
-        </Link>
-      </div>
-
-            {/* CTA */}
-      <div className="flex flex-wrap items-center gap-3">
-        {status?.connected ? (
-          // Når Shopify er koblet → vis "Gå til produkter"
-          <Link
-            href="/studio/produkter"
-            className="btn btn-primary btn-lg inline-flex items-center gap-2"
-          >
-            <Link2 className="h-4 w-4" />
-            Gå til produkter
+          <Link href="/guide" className="btn btn-secondary btn-lg inline-flex items-center gap-2">
+            <Gauge className="h-4 w-4" />
+            Brukerguide
           </Link>
-        ) : (
-          // Når ikke koblet (eller mens vi ikke har fått status) → "Koble til nettbutikk"
-          <Link
-            href="/studio/koble-nettbutikk"
-            className="btn btn-primary btn-lg inline-flex items-center gap-2"
-          >
-            <Link2 className="h-4 w-4" />
-            Koble til nettbutikk
-          </Link>
-        )}
-
-        <Link href="/guide" className="btn btn-secondary btn-lg">
-          Brukerguide
-        </Link>
-      </div>
-
-    </>
+        </div>
+      </section>
+    </main>
   );
 }

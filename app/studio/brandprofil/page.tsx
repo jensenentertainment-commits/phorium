@@ -1,9 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Sparkles, RefreshCw, Save, ScanEye } from "lucide-react";
+import {
+  Sparkles,
+  RefreshCw,
+  Save,
+  ScanEye,
+  Settings2,
+  Type,
+  Palette,
+  NotebookPen,
+} from "lucide-react";
+
+// NB: relative paths fra app/studio/brandprofil/page.tsx
 import useBrandProfile from "@/hooks/useBrandProfile";
 import PhoriumLoader from "../../components/PhoriumLoader";
+import BrandIdentityBar from "../../components/BrandIdentityBar";
+
+type LocalBrand = {
+  storeName: string;
+  industry: string;
+  tone: string;
+};
 
 export default function BrandProfilePage() {
   const {
@@ -14,7 +32,7 @@ export default function BrandProfilePage() {
     autoGenerateBrandProfile,
   } = useBrandProfile();
 
-  const [localBrand, setLocalBrand] = useState({
+  const [localBrand, setLocalBrand] = useState<LocalBrand>({
     storeName: "",
     industry: "",
     tone: "",
@@ -26,14 +44,16 @@ export default function BrandProfilePage() {
 
   // Sync inn når brand endrer seg
   useEffect(() => {
+    const b: any = brand || {};
     setLocalBrand({
-      storeName: brand?.storeName ?? "",
-      industry: brand?.industry ?? "",
-      tone: brand?.tone ?? "",
+      // støtter både camelCase og snake_case bare for safety
+      storeName: b.storeName ?? b.store_name ?? "",
+      industry: b.industry ?? "",
+      tone: b.tone ?? b.tone_of_voice ?? "",
     });
   }, [brand]);
 
-  function updateField(key: "storeName" | "industry" | "tone", value: string) {
+  function updateField(key: keyof LocalBrand, value: string) {
     setLocalBrand((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -70,38 +90,74 @@ export default function BrandProfilePage() {
 
   return (
     <main className="min-h-screen pt-8 pb-20 text-phorium-light">
-      <section className="mx-auto max-w-4xl px-4">
-        <h1 className="mb-2 text-3xl font-semibold tracking-tight sm:text-4xl">
-          Brandprofil
-        </h1>
-        <p className="mb-6 text-[13px] text-phorium-light/80 sm:text-[14px]">
-          Phorium bruker dette på tvers av tekst og bilder – så alt føles som
-          én og samme nettbutikk.
-        </p>
+      <section className="mx-auto max-w-4xl px-4 space-y-4">
+        {/* Studio-header */}
+        <div className="flex flex-col gap-3 rounded-2xl border border-phorium-off/30 bg-phorium-dark/80 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-1 flex-col gap-1">
+            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.12em] text-phorium-light/50">
+              <Settings2 className="h-3 w-3" />
+              <span>Phorium brandprofil</span>
+            </div>
+            <h1 className="text-sm font-semibold text-phorium-light sm:text-[15px]">
+              Sett “stemmen” og stilen til nettbutikken din én gang – bruk den
+              overalt.
+            </h1>
+            <p className="text-[11px] text-phorium-light/65">
+              Phorium bruker dette på tvers av tekst og bilder, så alt føles
+              som én og samme nettbutikk – uansett om du genererer 5 eller 500
+              produkter.
+            </p>
+          </div>
 
-        <div className="mb-6 rounded-2xl border border-phorium-off/35 bg-phorium-dark/70 px-5 py-4 text-[12px] text-phorium-light/75">
-  <h2 className="mb-1 text-[13px] font-semibold text-phorium-light">
-    Hvordan fungerer Brandprofil?
-  </h2>
-  <p className="mb-2">
-    Brandprofilen gir Phorium informasjon om hvordan nettbutikken din skal
-    høres ut og se ut. Dette brukes i både tekst- og bildegenerering, slik at
-    alt som produseres passer inn i butikkens identitet.
-  </p>
+          <BrandIdentityBar
+            brand={brand}
+            loading={brandLoading}
+            source={source}
+            onUpdateBrand={updateBrand}
+          />
+        </div>
 
-  <ul className="mb-3 list-disc pl-5 space-y-1">
-    <li>Styrer tone of voice i produkttekster, SEO, annonser og SoMe.</li>
-    <li>Brukes i bildeprompting for å sikre at bildene matcher stil, bransje og uttrykk.</li>
-    <li>Gjør produksjonen konsistent, selv når du genererer 50+ produkter.</li>
-    <li>Kan enten settes manuelt eller auto-genereres ved å lese butikken din.</li>
-  </ul>
+        {/* Forklaringskort */}
+        <div className="mb-2 rounded-2xl border border-phorium-off/35 bg-phorium-dark/70 px-5 py-4 text-[12px] text-phorium-light/75">
+          <h2 className="mb-2 flex items-center gap-2 text-[13px] font-semibold text-phorium-light">
+            <Sparkles className="h-4 w-4 text-phorium-accent" />
+            Hvordan fungerer Brandprofil?
+          </h2>
+          <p className="mb-2">
+            Brandprofilen forteller Phorium hvordan nettbutikken din skal høres
+            ut og se ut. Den brukes i både tekst- og bildegenerering, slik at
+            alt som produseres matcher identiteten din.
+          </p>
 
-  <p className="text-[11px] text-phorium-light/60">
-    Du kan oppdatere brandprofilen når som helst uten å påvirke produkter som
-    allerede ligger i Shopify.
-  </p>
-</div>
+          <ul className="mb-3 ml-1 space-y-1 text-[11px]">
+            <li className="flex gap-2">
+              <Type className="mt-[3px] h-3.5 w-3.5 text-phorium-accent/80" />
+              <span>
+                Styrer tone of voice i produkttekster, SEO-tekster, annonser og
+                SoMe.
+              </span>
+            </li>
+            <li className="flex gap-2">
+              <Palette className="mt-[3px] h-3.5 w-3.5 text-phorium-accent/80" />
+              <span>
+                Brukes i bildeprompting for å matche stil, bransje og visuelt
+                uttrykk.
+              </span>
+            </li>
+            <li className="flex gap-2">
+              <NotebookPen className="mt-[3px] h-3.5 w-3.5 text-phorium-accent/80" />
+              <span>
+                Holder ting konsistent, selv når du genererer tekst og bilder
+                for mange produkter samtidig.
+              </span>
+            </li>
+          </ul>
 
+          <p className="text-[11px] text-phorium-light/60">
+            Du kan oppdatere brandprofilen når som helst uten å endre produkter
+            som allerede ligger i Shopify.
+          </p>
+        </div>
 
         {busy && (
           <div className="rounded-2xl border border-phorium-off/35 bg-phorium-dark/80 px-4 py-6">
@@ -111,14 +167,12 @@ export default function BrandProfilePage() {
 
         {!busy && (
           <div className="space-y-4">
-            {/* --- MAGIC BRAND SCAN – PREMIUM KORT ------------------------ */}
+            {/* MAGIC BRAND SCAN */}
             <div className="relative overflow-hidden rounded-3xl border border-phorium-accent/45 bg-gradient-to-br from-phorium-dark/95 via-phorium-dark to-black/80 px-5 py-6 shadow-[0_18px_60px_rgba(0,0,0,0.70)]">
-              {/* Glød / dekor bakgrunn */}
               <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-phorium-accent/15 blur-3xl" />
               <div className="pointer-events-none absolute bottom-0 left-0 h-24 w-24 rounded-full bg-phorium-accent/10 blur-2xl" />
 
               <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                {/* Venstre: tittel + tekst */}
                 <div className="max-w-md space-y-2">
                   <div className="inline-flex items-center gap-2 rounded-full border border-phorium-accent/40 bg-black/30 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-phorium-accent/95">
                     <ScanEye className="h-3.5 w-3.5" />
@@ -140,11 +194,9 @@ export default function BrandProfilePage() {
                   </ul>
                 </div>
 
-                {/* Høyre: status + knapp */}
                 <div className="mt-3 flex flex-col items-start gap-3 sm:mt-0 sm:items-end">
-                  {/* Status-chip hvis vi har profil */}
                   {brand && (
-                    <div className="flex flex-col items-start sm:items-end gap-1 text-[10px]">
+                    <div className="flex flex-col items-start gap-1 text-[10px] sm:items-end">
                       <div className="inline-flex items-center gap-2 rounded-full border border-phorium-off/35 bg-black/40 px-3 py-1">
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
                         <span className="text-phorium-light/80">
@@ -154,17 +206,17 @@ export default function BrandProfilePage() {
                         </span>
                       </div>
                       <div className="text-[10px] text-phorium-light/70">
-                        {brand.storeName && (
+                        {localBrand.storeName && (
                           <>
                             <span className="font-semibold text-phorium-accent">
-                              {brand.storeName}
+                              {localBrand.storeName}
                             </span>
                           </>
                         )}
-                        {(brand.industry || brand.tone) && " · "}
-                        {brand.industry && <span>{brand.industry}</span>}
-                        {brand.industry && brand.tone && " · "}
-                        {brand.tone && <span>tone: {brand.tone}</span>}
+                        {(localBrand.industry || localBrand.tone) && " · "}
+                        {localBrand.industry && <span>{localBrand.industry}</span>}
+                        {localBrand.industry && localBrand.tone && " · "}
+                        {localBrand.tone && <span>tone: {localBrand.tone}</span>}
                       </div>
                     </div>
                   )}
@@ -201,17 +253,17 @@ export default function BrandProfilePage() {
                 </p>
               )}
             </div>
-            {/* ------------------------------------------------------------- */}
 
-            {/* GRUNNPROFIL-KORTET (manuell redigering) */}
+            {/* Manuell grunnprofil */}
             <div className="rounded-2xl border border-phorium-off/35 bg-phorium-dark/80 px-5 py-5">
-              <div className="mb-3 flex items-center justify-between">
+              <div className="mb-3 flex items-center justify-between gap-2">
                 <div>
-                  <p className="text-sm font-semibold text-phorium-light">
+                  <p className="flex items-center gap-2 text-sm font-semibold text-phorium-light">
+                    <Settings2 className="h-4 w-4 text-phorium-accent" />
                     Grunnprofil
                   </p>
                   <p className="text-[11px] text-phorium-light/65">
-                    Navn, bransje og tone of voice.
+                    Navn på butikken, bransje og ønsket tone of voice.
                   </p>
                 </div>
                 {source === "auto" && (
@@ -223,7 +275,8 @@ export default function BrandProfilePage() {
 
               <div className="space-y-3 text-[12px]">
                 <div>
-                  <label className="mb-1 block text-[11px] text-phorium-light/70">
+                  <label className="mb-1 flex items-center gap-1 text-[11px] text-phorium-light/70">
+                    <Sparkles className="h-3.5 w-3.5 text-phorium-accent/90" />
                     Butikknavn / brand
                   </label>
                   <input
@@ -235,7 +288,8 @@ export default function BrandProfilePage() {
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-[11px] text-phorium-light/70">
+                  <label className="mb-1 flex items-center gap-1 text-[11px] text-phorium-light/70">
+                    <Palette className="h-3.5 w-3.5 text-phorium-accent/90" />
                     Bransje / kategori
                   </label>
                   <input
@@ -247,7 +301,8 @@ export default function BrandProfilePage() {
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-[11px] text-phorium-light/70">
+                  <label className="mb-1 flex items-center gap-1 text-[11px] text-phorium-light/70">
+                    <Type className="h-3.5 w-3.5 text-phorium-accent/90" />
                     Tone of voice
                   </label>
                   <input
@@ -264,16 +319,16 @@ export default function BrandProfilePage() {
                   type="button"
                   onClick={handleSave}
                   disabled={saving}
-                  className="btn btn-primary btn-sm disabled:opacity-60"
+                  className="btn btn-primary btn-sm inline-flex items-center gap-1 disabled:opacity-60"
                 >
                   {saving ? (
                     <>
-                      <RefreshCw className="mr-1 h-3.5 w-3.5 animate-spin" />
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
                       Lagrer …
                     </>
                   ) : (
                     <>
-                      <Save className="mr-1 h-3.5 w-3.5" />
+                      <Save className="h-3.5 w-3.5" />
                       Lagre profil
                     </>
                   )}

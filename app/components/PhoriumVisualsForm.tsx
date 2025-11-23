@@ -2,7 +2,23 @@
 
 import React, { useState, useEffect, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { RotateCcw, Palette, Download } from "lucide-react";
+import {
+  RotateCcw,
+  Palette,
+  Download,
+  Image as ImageIcon,
+  LayoutTemplate,
+  Sparkles,
+  Store,
+  AlertCircle,
+  History,
+  ZoomIn,
+  ZoomOut,
+  Loader2,
+  Wand2,
+  Link2,
+  Crop,
+} from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import PhoriumLoader from "./PhoriumLoader";
@@ -28,23 +44,26 @@ type BannerSource = "ai" | "upload";
 function ModeButton({
   active,
   onClick,
+  icon,
   children,
 }: {
   active: boolean;
   onClick: () => void;
+  icon: ReactNode;
   children: ReactNode;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full px-3 py-1.5 transition ${
+      className={`rounded-full px-3 py-1.5 transition inline-flex items-center gap-1 ${
         active
           ? "bg-phorium-accent text-phorium-dark shadow-sm"
           : "text-phorium-light/70 hover:bg-phorium-off/10"
       }`}
     >
-      {children}
+      {icon}
+      <span>{children}</span>
     </button>
   );
 }
@@ -727,13 +746,15 @@ export default function PhoriumVisualsForm() {
       {isShopifyMode && (
         <div className="mb-4 rounded-2xl border border-phorium-off/35 bg-phorium-dark px-4 py-3 text-[12px]">
           {productLoading && (
-            <p className="text-phorium-light/85">
+            <p className="flex items-center gap-1.5 text-phorium-light/85">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
               Henter produktdata fra Shopify …
             </p>
           )}
 
           {productError && (
-            <p className="text-red-300">
+            <p className="mt-1 flex items-center gap-1.5 text-red-300">
+              <AlertCircle className="h-3.5 w-3.5" />
               Klarte ikke å hente produkt: {productError}
             </p>
           )}
@@ -741,7 +762,8 @@ export default function PhoriumVisualsForm() {
           {linkedProduct && !productLoading && !productError && (
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <div className="text-[11px] text-phorium-light/60">
+                <div className="flex items-center gap-1.5 text-[11px] text-phorium-light/60">
+                  <Store className="h-3.5 w-3.5" />
                   Jobber mot produkt:
                 </div>
                 <div className="text-[13px] font-semibold text-phorium-accent">
@@ -777,8 +799,9 @@ export default function PhoriumVisualsForm() {
                         }/admin/products/${productIdFromUrl}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="btn btn-sm btn-secondary"
+                        className="btn btn-sm btn-secondary inline-flex items-center gap-1.5"
                       >
+                        <Store className="h-3.5 w-3.5" />
                         Åpne i Shopify
                       </a>
                     )}
@@ -793,7 +816,8 @@ export default function PhoriumVisualsForm() {
         <div className="mb-4 rounded-2xl border border-phorium-off/25 bg-phorium-dark/70 px-4 py-3 text-[12px]">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <div className="text-[11px] text-phorium-light/70">
+              <div className="flex items-center gap-1.5 text-[11px] text-phorium-light/70">
+                <AlertCircle className="h-3.5 w-3.5" />
                 Ingen nettbutikk koblet til Visuals enda.
               </div>
               <div className="text-[11px] text-phorium-light/60">
@@ -807,8 +831,9 @@ export default function PhoriumVisualsForm() {
               </Link>
               <Link
                 href="/studio/koble-nettbutikk"
-                className="btn btn-sm btn-ghost"
+                className="btn btn-sm btn-ghost inline-flex items-center gap-1"
               >
+                <Link2 className="h-3.5 w-3.5" />
                 Koble nettbutikk
               </Link>
             </div>
@@ -821,18 +846,21 @@ export default function PhoriumVisualsForm() {
         <ModeButton
           active={mode === "image"}
           onClick={() => setMode("image")}
+          icon={<ImageIcon className="h-3.5 w-3.5" />}
         >
           Standardbilde
         </ModeButton>
         <ModeButton
           active={mode === "banner"}
           onClick={() => setMode("banner")}
+          icon={<LayoutTemplate className="h-3.5 w-3.5" />}
         >
           Banner med tekst
         </ModeButton>
         <ModeButton
           active={mode === "product"}
           onClick={() => setMode("product")}
+          icon={<Sparkles className="h-3.5 w-3.5" />}
         >
           Produktbilde til scene
         </ModeButton>
@@ -841,7 +869,8 @@ export default function PhoriumVisualsForm() {
       {/* MODE: Standardbilde */}
       {mode === "image" && (
         <div className="mb-8">
-          <p className="mb-2 text-[11px] text-phorium-light/70">
+          <p className="mb-2 flex items-center gap-1.5 text-[11px] text-phorium-light/70">
+            <ImageIcon className="h-3.5 w-3.5" />
             Fritt bilde / konseptbilde. Bruk dette til miljøbilder,
             illustrasjoner og generelle visuals til nettbutikken.
           </p>
@@ -857,7 +886,7 @@ export default function PhoriumVisualsForm() {
                 (!isMac && e.ctrlKey && e.key === "Enter");
               if (submitCombo) {
                 e.preventDefault();
-                handleGenerate();
+                void handleGenerate();
               }
             }}
             placeholder="Beskriv bildet du vil ha – f.eks. «Stemningsfullt produktfoto av kopp på mørkt trebord, mykt lys, skandinavisk stil»."
@@ -893,7 +922,7 @@ export default function PhoriumVisualsForm() {
                 className="rounded-full border border-phorium-off/40 bg-phorium-dark px-2 py-1 text-[11px] text-phorium-light/85 outline-none focus:border-phorium-accent"
               >
                 <option value="1024x1024">
-                  1024×1024 – Produkt (kvadrat)
+                  1024×1024 – Produkt / kvadrat
                 </option>
                 <option value="768x768">768×768 – Mindre kvadrat</option>
                 <option value="1200x628">1200×628 – Banner / hero</option>
@@ -906,13 +935,24 @@ export default function PhoriumVisualsForm() {
               type="button"
               onClick={handleGenerate}
               disabled={!prompt.trim() || isBusy || imageCooldown > 0}
-              className="btn btn-primary btn-lg disabled:cursor-not-allowed disabled:opacity-50"
+              className="btn btn-primary btn-lg inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {imageCooldown > 0
-                ? `Vent ${imageCooldown}s`
-                : imageLoading
-                ? "Genererer bilde…"
-                : "Generer bilde"}
+              {imageCooldown > 0 ? (
+                <>
+                  <Clock className="h-4 w-4" />
+                  Vent {imageCooldown}s
+                </>
+              ) : imageLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Genererer bilde…
+                </>
+              ) : (
+                <>
+                  <Wand2 className="h-4 w-4" />
+                  Generer bilde
+                </>
+              )}
             </button>
             <p className="text-[10px] text-phorium-light/60">
               Tips: Unngå for mye tekstbeskrivelse her – bruk heller
@@ -925,7 +965,8 @@ export default function PhoriumVisualsForm() {
       {/* MODE: Banner med tekst */}
       {mode === "banner" && (
         <div className="mb-8 space-y-4 rounded-2xl border border-phorium-off/30 bg-phorium-dark p-5">
-          <p className="mb-2 text-[11px] text-phorium-light/70">
+          <p className="mb-2 flex items-center gap-1.5 text-[11px] text-phorium-light/70">
+            <LayoutTemplate className="h-3.5 w-3.5" />
             Bannere for kampanjer, nyheter og tilbud. Perfekt til forsiden,
             kampanjesider og sosiale medier.
           </p>
@@ -967,7 +1008,7 @@ export default function PhoriumVisualsForm() {
           </div>
 
           {/* Templates / forslag */}
-          <div className="flex flex-wrap gap-2 text-[10px]">
+          <div className="flex flex-wrap gap-2 text-[10px] text-phorium-light/70">
             {["Sommersalg", "Nyhet", "Black Week", "Outlet"].map((tpl) => (
               <button
                 key={tpl}
@@ -1005,23 +1046,25 @@ export default function PhoriumVisualsForm() {
                   <button
                     type="button"
                     onClick={() => setBannerSource("ai")}
-                    className={`rounded-full px-2 py-0.5 text-[10px] ${
+                    className={`rounded-full px-2 py-0.5 text-[10px] inline-flex items-center gap-1 ${
                       bannerSource === "ai"
                         ? "bg-phorium-accent text-phorium-dark"
                         : "text-phorium-light/70"
                     }`}
                   >
+                    <Sparkles className="h-3 w-3" />
                     AI-bakgrunn
                   </button>
                   <button
                     type="button"
                     onClick={() => setBannerSource("upload")}
-                    className={`rounded-full px-2 py-0.5 text-[10px] ${
+                    className={`rounded-full px-2 py-0.5 text-[10px] inline-flex items-center gap-1 ${
                       bannerSource === "upload"
                         ? "bg-phorium-accent text-phorium-dark"
                         : "text-phorium-light/70"
                     }`}
                   >
+                    <ImageIcon className="h-3 w-3" />
                     Mitt bilde
                   </button>
                 </div>
@@ -1060,7 +1103,7 @@ export default function PhoriumVisualsForm() {
                         setSafeSubline(data.suggestion);
                       }
                     } catch {
-                      // stille – dette er en luksusfunksjon
+                      // stille – luksusfunksjon
                     }
                   }}
                   className="btn btn-xs btn-ghost inline-flex items-center gap-1"
@@ -1128,29 +1171,52 @@ export default function PhoriumVisualsForm() {
                   bannerCooldown > 0 ||
                   (bannerSource === "upload" && !textBgFile)
                 }
-                className="btn btn-primary btn-lg disabled:cursor-not-allowed disabled:opacity-50"
+                className="btn btn-primary btn-lg inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {bannerCooldown > 0
-                  ? `Vent ${bannerCooldown}s`
-                  : safeLoading || overlayLoading
-                  ? "Genererer banner…"
-                  : bannerSource === "ai"
-                  ? "Generer banner med trygg tekst"
-                  : "Generer banner med mitt bilde"}
+                {bannerCooldown > 0 ? (
+                  <>
+                    <Clock className="h-4 w-4" />
+                    Vent {bannerCooldown}s
+                  </>
+                ) : safeLoading || overlayLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Genererer banner…
+                  </>
+                ) : bannerSource === "ai" ? (
+                  <>
+                    <Wand2 className="h-4 w-4" />
+                    Generer banner med trygg tekst
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="h-4 w-4" />
+                    Generer banner med mitt bilde
+                  </>
+                )}
               </button>
               <button
                 type="button"
                 onClick={handleCampaignPack}
-                disabled={
-                  !safeHeadline.trim() || isBusy || packCooldown > 0
-                }
-                className="btn btn-secondary btn-lg disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={!safeHeadline.trim() || isBusy || packCooldown > 0}
+                className="btn btn-secondary btn-lg inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {packCooldown > 0
-                  ? `Vent ${packCooldown}s`
-                  : campaignLoading
-                  ? "Lager kampanjepakke…"
-                  : "Lag kampanjepakke"}
+                {packCooldown > 0 ? (
+                  <>
+                    <Clock className="h-4 w-4" />
+                    Vent {packCooldown}s
+                  </>
+                ) : campaignLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Lager kampanjepakke…
+                  </>
+                ) : (
+                  <>
+                    <LayoutTemplate className="h-4 w-4" />
+                    Lag kampanjepakke
+                  </>
+                )}
               </button>
               <button
                 type="button"
@@ -1173,7 +1239,8 @@ export default function PhoriumVisualsForm() {
       {/* MODE: Produktbilde til scene */}
       {mode === "product" && (
         <div className="mb-8 space-y-4 rounded-2xl border border-phorium-off/30 bg-phorium-dark p-5">
-          <p className="mb-2 text-[11px] text-phorium-light/70">
+          <p className="mb-2 flex items-center gap-1.5 text-[11px] text-phorium-light/70">
+            <Sparkles className="h-3.5 w-3.5" />
             Plasser produktet ditt i en AI-generert scene. Bruk et tydelig
             produktbilde – vi bygger miljøet rundt det.
           </p>
@@ -1192,7 +1259,8 @@ export default function PhoriumVisualsForm() {
           />
           {baseImage && (
             <div className="flex flex-col gap-2 rounded-2xl border border-phorium-off/35 bg-phorium-dark/70 p-3 text-[11px]">
-              <div className="text-[10px] text-phorium-light/60">
+              <div className="flex items-center gap-1.5 text-[10px] text-phorium-light/60">
+                <ImageIcon className="h-3.5 w-3.5" />
                 Utgangspunkt:
               </div>
               <div className="flex items-center justify-center overflow-hidden rounded-xl bg-phorium-dark">
@@ -1217,11 +1285,19 @@ export default function PhoriumVisualsForm() {
             type="button"
             onClick={handleEditGenerate}
             disabled={!baseImage || !editPrompt.trim() || isBusy}
-            className="btn btn-primary btn-lg w-full disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+            className="btn btn-primary btn-lg inline-flex items-center gap-2 w-full disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
-            {editing
-              ? "Genererer scene…"
-              : "Generer scene rundt produktet"}
+            {editing ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Genererer scene…
+              </>
+            ) : (
+              <>
+                <Wand2 className="h-4 w-4" />
+                Generer scene rundt produktet
+              </>
+            )}
           </button>
         </div>
       )}
@@ -1229,7 +1305,8 @@ export default function PhoriumVisualsForm() {
       {/* Forhåndsvisning + kampanjepakke */}
       <div className="mt-2 border-t border-phorium-off/30 pt-6">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold text-phorium-accent">
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-phorium-accent">
+            <ImageIcon className="h-4 w-4" />
             Forhåndsvisning
           </h2>
           <label className="flex items-center gap-2 text-[10px] text-phorium-light/65">
@@ -1239,19 +1316,21 @@ export default function PhoriumVisualsForm() {
               onChange={(e) => setShowSafeZone(e.target.checked)}
               className="accent-phorium-accent"
             />
+            <Crop className="h-3.5 w-3.5" />
             Vis trygg tekst-sone
           </label>
         </div>
 
         {error && (
-          <div className="mb-3 rounded-2xl border border-phorium-accent/40 bg-phorium-accent/10 px-3 py-2 text-[11px] text-phorium-light">
-            {error}
+          <div className="mb-3 rounded-2xl border border-phorium-accent/40 bg-phorium-accent/10 px-3 py-2 text-[11px] text-phorium-light flex items-start gap-2">
+            <AlertCircle className="h-3.5 w-3.5 mt-[2px]" />
+            <span>{error}</span>
           </div>
         )}
 
         <div className="flex min-h-[240px] flex-col items-center justify-center rounded-2xl border border-phorium-off/35 bg-phorium-dark/60 px-4 py-6">
           {isBusy && (
-            <PhoriumLoader label="Genererer billede … finjusterer komposisjon og tekstplass" />
+            <PhoriumLoader label="Genererer bilde … finjusterer komposisjon og tekstplass" />
           )}
 
           {!isBusy && imageUrl && (
@@ -1292,9 +1371,17 @@ export default function PhoriumVisualsForm() {
                       disabled={saving}
                       className="btn btn-primary btn-sm inline-flex items-center gap-1 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {saving
-                        ? "Lagrer i Shopify…"
-                        : "Lagre som produktbilde i Shopify"}
+                      {saving ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Lagrer i Shopify…
+                        </>
+                      ) : (
+                        <>
+                          <Store className="h-3.5 w-3.5" />
+                          Lagre som produktbilde i Shopify
+                        </>
+                      )}
                     </button>
                   )}
                 </div>
@@ -1324,13 +1411,14 @@ export default function PhoriumVisualsForm() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="absolute right-6 top-6 rounded-full bg-phorium-accent px-3 py-1 text-[11px] font-semibold text-phorium-dark shadow-lg transition hover:bg-phorium-accent/90"
+                        className="absolute right-6 top-6 rounded-full bg-phorium-accent px-3 py-1 text-[11px] font-semibold text-phorium-dark shadow-lg transition hover:bg-phorium-accent/90 inline-flex items-center gap-1"
                         onClick={(e) => {
                           e.stopPropagation();
                           setFullscreenImage(null);
                         }}
                       >
-                        Lukk ✕
+                        <ZoomOut className="h-3.5 w-3.5" />
+                        Lukk
                       </motion.button>
                     </motion.div>
                   )}
@@ -1340,7 +1428,8 @@ export default function PhoriumVisualsForm() {
           )}
 
           {!isBusy && !imageUrl && !error && (
-            <p className="text-center text-[12px] text-phorium-light/70">
+            <p className="flex items-center gap-1.5 text-center text-[12px] text-phorium-light/70">
+              <ImageIcon className="h-3.5 w-3.5" />
               Velg modus, fyll inn det viktigste – forhåndsvisningen dukker opp
               her.
             </p>
@@ -1365,11 +1454,11 @@ export default function PhoriumVisualsForm() {
                   key={item.label + item.size}
                   className="flex flex-col gap-2 rounded-2xl border border-phorium-off/35 bg-phorium-dark p-2 text-[11px]"
                 >
-                  <div className="text-[10px] font-semibold text-phorium-accent">
-                    {item.label}
-                  </div>
-                  <div className="text-[9px] text-phorium-light/60">
-                    {item.size}
+                  <div className="text-[10px] font-semibold text-phorium-accent flex items-center justify-between gap-2">
+                    <span>{item.label}</span>
+                    <span className="text-[9px] text-phorium-light/60">
+                      {item.size}
+                    </span>
                   </div>
                   <div className="mt-1 flex flex-1 items-center justify-center overflow-hidden rounded-xl bg-phorium-dark">
                     <img
@@ -1395,7 +1484,8 @@ export default function PhoriumVisualsForm() {
 
       {/* Historikk */}
       <div className="mt-8 border-t border-phorium-off/30 pt-5">
-        <h2 className="mb-3 text-lg font-semibold text-phorium-accent">
+        <h2 className="mb-2 flex items-center gap-2 text-lg font-semibold text-phorium-accent">
+          <History className="h-4 w-4" />
           Historikk (siste 3)
         </h2>
         <p className="mb-2 text-[11px] text-phorium-light/65">
