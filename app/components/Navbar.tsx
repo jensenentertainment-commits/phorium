@@ -3,8 +3,25 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import {
+  Menu,
+  X,
+  Home,
+  BadgeDollarSign,
+  Info,
+  BookOpenText,
+  Mail,
+  LayoutDashboard,
+  LogIn,
+} from "lucide-react";
 
+type NavItem = {
+  href: string;
+  label: string;
+  isApp?: boolean;
+  icon?: LucideIcon;
+};
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -25,13 +42,13 @@ export default function Navbar() {
     setOpen(false);
   }, [pathname]);
 
-  const navItems = [
-    { href: "/", label: "Forside" },
-    { href: "/priser", label: "Priser" },
-    { href: "/om", label: "Om" },
-    { href: "/guide", label: "Guide" },
-    { href: "/kontakt", label: "Kontakt" },
-    { href: "/studio", label: "Studio", isApp: true },
+  const navItems: NavItem[] = [
+    { href: "/", label: "Forside", icon: Home },
+    { href: "/priser", label: "Priser", icon: BadgeDollarSign },
+    { href: "/om", label: "Om", icon: Info },
+    { href: "/guide", label: "Guide", icon: BookOpenText },
+    { href: "/kontakt", label: "Kontakt", icon: Mail },
+    { href: "/studio", label: "Studio", isApp: true, icon: LayoutDashboard },
   ];
 
   return (
@@ -45,16 +62,20 @@ export default function Navbar() {
       <nav className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group">
-  <img
-    src="/favicon.ico"
-    alt="Phorium logo"
-    className="h-10 w-10 object-contain transition-transform group-hover:scale-[1.05]"
-  />
-  <span className="text-sm font-semibold uppercase tracking-[0.14em] text-phorium-dark">
-    Phorium
-  </span>
-</Link>
-
+          <img
+            src="/favicon.ico"
+            alt="Phorium logo"
+            className="h-10 w-10 object-contain transition-transform group-hover:scale-[1.05]"
+          />
+          <div className="flex flex-col leading-tight">
+            <span className="text-sm font-semibold uppercase tracking-[0.14em] text-phorium-dark">
+              Phorium
+            </span>
+            <span className="text-[10px] text-phorium-dark/60">
+              AI for nettbutikker
+            </span>
+          </div>
+        </Link>
 
         {/* Desktop-nav */}
         <div className="hidden items-center gap-3 text-[12px] sm:flex">
@@ -62,14 +83,25 @@ export default function Navbar() {
             const active =
               pathname === item.href ||
               (item.isApp && pathname.startsWith("/studio"));
+            const Icon = item.icon;
 
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`btn-nav ${active ? "btn-nav-active" : ""}`}
+                className={`btn-nav inline-flex items-center gap-1.5 ${
+                  active ? "btn-nav-active" : ""
+                }`}
               >
-                {item.label}
+                {Icon && (
+                  <Icon
+                    className={`h-3.5 w-3.5 ${
+                      active ? "text-phorium-dark" : "text-phorium-dark/60"
+                    }`}
+                  />
+                )}
+                <span>{item.label}</span>
+              
               </Link>
             );
           })}
@@ -77,9 +109,10 @@ export default function Navbar() {
           {/* Logg inn CTA */}
           <Link
             href="/sign-in"
-            className="ml-1 rounded-full bg-phorium-dark px-3 py-1.5 text-[11px] font-semibold text-phorium-light shadow-sm transition hover:bg-black/85"
+            className="ml-1 inline-flex items-center gap-1.5 rounded-full bg-phorium-dark px-3 py-1.5 text-[11px] font-semibold text-phorium-light shadow-sm transition hover:bg-black/85"
           >
-            Logg inn
+            <LogIn className="h-3.5 w-3.5" />
+            <span>Logg inn</span>
           </Link>
         </div>
 
@@ -87,7 +120,7 @@ export default function Navbar() {
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="inline-flex items-center justify-center rounded-full border border-phorium-off/60 bg-[#F5E9D8]/90 p-1.5 text-[#3E3A30] hover:bg-phorium-off/40 sm:hidden"
+          className="inline-flex items-center justify-center rounded-full border border-phorium-off/60 bg-[#F5E9D8]/90 p-1.5 text-[#3E3A30] shadow-sm hover:bg-phorium-off/40 sm:hidden"
           aria-label="Åpne / lukk meny"
         >
           {open ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
@@ -103,6 +136,7 @@ export default function Navbar() {
                 const active =
                   pathname === item.href ||
                   (item.isApp && pathname.startsWith("/studio"));
+                const Icon = item.icon;
 
                 return (
                   <Link
@@ -115,7 +149,18 @@ export default function Navbar() {
                         : "text-[#3E3A30] hover:bg-phorium-off/40 hover:text-phorium-dark",
                     ].join(" ")}
                   >
-                    <span>{item.label}</span>
+                    <span className="flex items-center gap-1.5">
+                      {Icon && (
+                        <Icon
+                          className={`h-4 w-4 ${
+                            active
+                              ? "text-phorium-light"
+                              : "text-[#3E3A30]/70"
+                          }`}
+                        />
+                      )}
+                      {item.label}
+                    </span>
                     {item.isApp && (
                       <span className="rounded-full bg-phorium-dark/10 px-2 py-0.5 text-[10px] text-phorium-dark/80">
                         Studio
@@ -127,9 +172,10 @@ export default function Navbar() {
 
               <Link
                 href="/sign-in"
-                className="mt-1 flex items-center justify-center rounded-full bg-phorium-dark px-3 py-1.5 text-[12px] font-semibold text-phorium-light hover:bg-black/85"
+                className="mt-1 flex items-center justify-center gap-1.5 rounded-full bg-phorium-dark px-3 py-1.5 text-[12px] font-semibold text-phorium-light hover:bg-black/85"
               >
-                Logg inn
+                <LogIn className="h-4 w-4" />
+                <span>Logg inn</span>
               </Link>
             </div>
           </div>

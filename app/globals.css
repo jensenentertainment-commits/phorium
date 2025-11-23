@@ -283,7 +283,7 @@ h4 {
 
 /* Hover – “løfter” litt ut */
 .btn-nav:hover {
-  background: #f7edde;
+  background: #C8B77A;;
   border-color: rgba(24, 27, 21, 0.08);
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.10);
   transform: translateY(-1px);
@@ -291,7 +291,7 @@ h4 {
 
 /* Aktiv side – ser ut som den allerede er løftet ut */
 .btn-nav-active {
-  background: #181B15;
+  background: #184242;;
   color: #F5E9D8;
   border-color: rgba(24, 27, 21, 0.35);
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22);

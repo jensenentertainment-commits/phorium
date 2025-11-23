@@ -62,8 +62,8 @@ export default function HomePage() {
           </div>
 
           {/* Høyre kolonne – “preview” av Studio (skjules på mobil) */}
-          <div className="hidden flex-1 rounded-[28px] bg-phorium-surface/40 p-[2px] shadow-[0_30px_100px_rgba(0,0,0,0.6)] backdrop-blur-sm lg:block">
-            <div className="h-full rounded-[26px] bg-phorium-dark/80 px-5 py-4">
+          <div className="hidden flex-1 rounded-[28px] border border-phorium-off/30 bg-phorium-surface/50 p-[2px] shadow-[0_30px_100px_rgba(0,0,0,0.65)] backdrop-blur-md lg:block">
+            <div className="h-full rounded-[26px] bg-phorium-dark/90 px-5 py-4 shadow-[0_18px_60px_rgba(0,0,0,0.7)]">
               <div className="mb-4 flex items-center justify-between text-[11px] text-phorium-light/60">
                 <span>Phorium Studio</span>
                 <span className="rounded-full bg-phorium-accent/15 px-3 py-1 text-[10px] font-medium text-phorium-accent">
@@ -72,7 +72,7 @@ export default function HomePage() {
               </div>
 
               <div className="space-y-3">
-                <div className="rounded-[18px] bg-phorium-surface px-4 py-3">
+                <div className="rounded-[18px] border border-phorium-off/35 bg-phorium-surface px-4 py-3 shadow-[0_10px_35px_rgba(0,0,0,0.55)]">
                   <p className="text-[11px] uppercase tracking-[0.22em] text-phorium-accent">
                     Produkttekst
                   </p>
@@ -82,7 +82,7 @@ export default function HomePage() {
                   </p>
                 </div>
 
-                <div className="rounded-[18px] bg-phorium-surface px-4 py-3">
+                <div className="rounded-[18px] border border-phorium-off/35 bg-phorium-surface px-4 py-3 shadow-[0_10px_35px_rgba(0,0,0,0.55)]">
                   <p className="text-[11px] uppercase tracking-[0.22em] text-phorium-accent">
                     Kampanjebanner
                   </p>
@@ -92,7 +92,7 @@ export default function HomePage() {
                   </p>
                 </div>
 
-                <div className="rounded-[18px] bg-phorium-surface px-4 py-3">
+                <div className="rounded-[18px] border border-phorium-off/35 bg-phorium-surface px-4 py-3 shadow-[0_10px_35px_rgba(0,0,0,0.55)]">
                   <p className="text-[11px] uppercase tracking-[0.22em] text-phorium-accent">
                     Tone-of-voice
                   </p>
@@ -125,47 +125,41 @@ export default function HomePage() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-2xl border border-phorium-off/28 bg-phorium-surface/90 p-4">
-              <p className="text-[11px] uppercase tracking-[0.22em] text-phorium-accent">
-                Tekst
-              </p>
-              <h3 className="mt-2 text-sm font-semibold text-phorium-light">
-                Produkt- og kategoritekster
-              </h3>
-              <p className="mt-2 text-xs text-phorium-light/80">
-                Skriv tekster som matcher brandet ditt og er klare til å lime
-                rett inn i Shopify eller andre plattformer.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-phorium-off/28 bg-phorium-surface/90 p-4">
-              <p className="text-[11px] uppercase tracking-[0.22em] text-phorium-accent">
-                Kampanjer
-              </p>
-              <h3 className="mt-2 text-sm font-semibold text-phorium-light">
-                Kampanjer uten kaos
-              </h3>
-              <p className="mt-2 text-xs text-phorium-light/80">
-                Lag tekster til forsiden, nyhetsbrev, sosiale medier og annonser
-                på samme sted – med konsistent budskap.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-phorium-off/28 bg-phorium-surface/90 p-4">
-              <p className="text-[11px] uppercase tracking-[0.22em] text-phorium-accent">
-                Visuals
-              </p>
-              <h3 className="mt-2 text-sm font-semibold text-phorium-light">
-                Bannere og kampanjebilder
-              </h3>
-              <p className="mt-2 text-xs text-phorium-light/80">
-                Generer enkle bannere og kampanjebilder med norsk tekst, tilpasset
-                butikken din – ikke generisk stock.
-              </p>
-            </div>
+            {[
+              {
+                title: "Produkt- og kategoritekster",
+                tag: "Tekst",
+                body: "Skriv tekster som matcher brandet ditt og er klare til å lime rett inn i Shopify eller andre plattformer.",
+              },
+              {
+                title: "Kampanjer uten kaos",
+                tag: "Kampanjer",
+                body: "Lag tekster til forsiden, nyhetsbrev, sosiale medier og annonser på samme sted – med konsistent budskap.",
+              },
+              {
+                title: "Bannere og kampanjebilder",
+                tag: "Visuals",
+                body: "Generer enkle bannere og kampanjebilder med norsk tekst, tilpasset butikken din – ikke generisk stock.",
+              },
+            ].map((card) => (
+              <div
+                key={card.title}
+                className="rounded-2xl border border-phorium-off/28 bg-phorium-surface/95 p-4 shadow-[0_18px_45px_rgba(0,0,0,0.55)] transition-transform transition-shadow hover:-translate-y-[2px] hover:shadow-[0_24px_70px_rgba(0,0,0,0.75)]"
+              >
+                <p className="text-[11px] uppercase tracking-[0.22em] text-phorium-accent">
+                  {card.tag}
+                </p>
+                <h3 className="mt-2 text-sm font-semibold text-phorium-light">
+                  {card.title}
+                </h3>
+                <p className="mt-2 text-xs text-phorium-light/80">
+                  {card.body}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
-    </section>
+      </section>
 
       {/* Seksjon: Hvem er det for? */}
       <section className="px-4 py-12 sm:py-14">
@@ -185,7 +179,7 @@ export default function HomePage() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-phorium-off/28 bg-phorium-surface/95 p-5">
+            <div className="rounded-2xl border border-phorium-off/28 bg-phorium-surface/95 p-5 shadow-[0_18px_45px_rgba(0,0,0,0.55)] transition-transform transition-shadow hover:-translate-y-[2px] hover:shadow-[0_24px_70px_rgba(0,0,0,0.8)]">
               <h3 className="text-sm font-semibold text-phorium-light">
                 Nettbutikker
               </h3>
@@ -200,7 +194,7 @@ export default function HomePage() {
               </ul>
             </div>
 
-            <div className="rounded-2xl border border-phorium-off/28 bg-phorium-surface/95 p-5">
+            <div className="rounded-2xl border border-phorium-off/28 bg-phorium-surface/95 p-5 shadow-[0_18px_45px_rgba(0,0,0,0.55)] transition-transform transition-shadow hover:-translate-y-[2px] hover:shadow-[0_24px_70px_rgba(0,0,0,0.8)]">
               <h3 className="text-sm font-semibold text-phorium-light">
                 Byråer og frilansere
               </h3>
@@ -220,27 +214,29 @@ export default function HomePage() {
 
       {/* Bunn-CTA */}
       <section className="border-t border-phorium-off/20 bg-phorium-surface/40 px-4 py-12 sm:py-14">
-        <div className="mx-auto flex w-full max-w-5xl flex-col items-start gap-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.26em] text-phorium-accent">
-              Klar når du er
-            </p>
-            <h2 className="mt-3 text-lg font-semibold text-phorium-light sm:text-xl">
-              Test Phorium Studio og se om det passer for deg.
-            </h2>
-            <p className="mt-2 text-sm text-phorium-light/80">
-              Du kan starte i Studio og prøve tekst og visuals, og heller ta en
-              prat med oss før du velger plan.
-            </p>
-          </div>
+        <div className="mx-auto w-full max-w-5xl">
+          <div className="flex flex-col items-start gap-5 rounded-3xl border border-phorium-off/30 bg-phorium-dark/90 px-5 py-6 shadow-[0_22px_70px_rgba(0,0,0,0.7)] sm:flex-row sm:items-center sm:justify-between sm:px-7 sm:py-8">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.26em] text-phorium-accent">
+                Klar når du er
+              </p>
+              <h2 className="mt-3 text-lg font-semibold text-phorium-light sm:text-xl">
+                Test Phorium Studio og se om det passer for deg.
+              </h2>
+              <p className="mt-2 text-sm text-phorium-light/80">
+                Du kan starte i Studio og prøve tekst og visuals, og heller ta en
+                prat med oss før du velger plan.
+              </p>
+            </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <Link href="/studio" className="btn btn-primary btn-lg">
-              Gå til Studio
-            </Link>
-            <Link href="/kontakt" className="btn btn-secondary btn-lg">
-              Ta en prat først
-            </Link>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link href="/studio" className="btn btn-primary btn-lg">
+                Gå til Studio
+              </Link>
+              <Link href="/kontakt" className="btn btn-secondary btn-lg">
+                Ta en prat først
+              </Link>
+            </div>
           </div>
         </div>
       </section>
