@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 
 const PUBLIC_PATHS = [
   "/maintenance",
+  "/access",
   "/favicon.ico",
   "/robots.txt",
   "/sitemap.xml",
@@ -15,17 +16,17 @@ export function middleware(req: NextRequest) {
 
   const localHosts = ["localhost", "127.0.0.1", "::1"];
 
-  // 🔓 1) Lokalt (localhost) → alltid tilgang
-  if (localHosts.includes(hostname)) {
-    return NextResponse.next();
-  }
+  // 1) Lokalt = full tilgang
+  if (localHosts.includes(hostname)) return NextResponse.next();
 
-  // 🔓 2) Vercel preview / vercel.app → alltid tilgang
-  if (hostname.endsWith(".vercel.app")) {
-    return NextResponse.next();
-  }
+  // 2) Vercel preview = full tilgang
+  if (hostname.endsWith(".vercel.app")) return NextResponse.next();
 
-  // 🔓 3) Tillat statiske filer og maintenance
+  // 3) Access code bypass-cookie
+  const hasBypass = req.cookies.get("phorium_bypass")?.value === "true";
+  if (hasBypass) return NextResponse.next();
+
+  // 4) Tillat statiske filer + maintenance + access
   if (
     PUBLIC_PATHS.includes(pathname) ||
     pathname.startsWith("/_next") ||
@@ -34,14 +35,12 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 🔒 4) ALLE ANDRE DOMENER (phorium.no) → redirect til /maintenance
-  url.pathname = "/maintenance";
+  // 5) Ellers → redirect til access-kode side
+  url.pathname = "/access";
   url.search = "";
   return NextResponse.redirect(url);
 }
 
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)"],
 };
