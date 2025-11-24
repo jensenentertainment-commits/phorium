@@ -15,12 +15,17 @@ export function middleware(req: NextRequest) {
 
   const localHosts = ["localhost", "127.0.0.1", "::1"];
 
-  // 1) Lokalt og på vercel.app → alltid full tilgang (ingen lås)
-  if (localHosts.includes(hostname) || hostname.endsWith(".vercel.app")) {
+  // 🔓 1) Lokalt (localhost) → alltid tilgang
+  if (localHosts.includes(hostname)) {
     return NextResponse.next();
   }
 
-  // 2) Tillat statiske filer + maintenance
+  // 🔓 2) Vercel preview / vercel.app → alltid tilgang
+  if (hostname.endsWith(".vercel.app")) {
+    return NextResponse.next();
+  }
+
+  // 🔓 3) Tillat statiske filer og maintenance
   if (
     PUBLIC_PATHS.includes(pathname) ||
     pathname.startsWith("/_next") ||
@@ -29,12 +34,14 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 3) Alle andre (phorium.no) → redirect til /maintenance
+  // 🔒 4) ALLE ANDRE DOMENER (phorium.no) → redirect til /maintenance
   url.pathname = "/maintenance";
   url.search = "";
   return NextResponse.redirect(url);
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)",
+  ],
 };
