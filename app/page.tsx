@@ -2,9 +2,12 @@
 
 import Link from "next/link";
 import { Sparkles, Boxes, ShieldCheck } from "lucide-react";
+import { usePhoriumUser } from "@/hooks/usePhoriumUser";
+
 
 export default function HomePage() {
   return (
+    
     <main className="min-h-[80vh] bg-phorium-dark">
       {/* HERO */}
       <section className="relative px-4 py-16 sm:py-20">

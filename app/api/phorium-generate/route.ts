@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import sharp from "sharp";
-
+import { useCredits } from "@/lib/credits"; //
 export const runtime = "nodejs";
 
 const apiKey = process.env.OPENAI_API_KEY;
@@ -19,6 +19,7 @@ type Body = {
   headline: string;
   subline?: string;
   size?: string; // ønsket sluttstørrelse, f.eks. "1200x628"
+    userId?: string;
 };
 
 export async function POST(req: Request) {
@@ -34,6 +35,30 @@ export async function POST(req: Request) {
     }
 
     const body = (await req.json()) as Body;
+        const userId = body.userId;
+
+    // 🔹 Kreditt-trekk før OpenAI + sharp (banner-generering)
+    // Forslag: 6 kreditter per phorium-banner (juster tallet hvis du vil)
+    if (userId) {
+      const creditResult = await useCredits(userId, 6);
+
+      if (!creditResult.ok) {
+        return NextResponse.json(
+          {
+            error:
+              creditResult.error ||
+              "Ikke nok kreditter til å generere flere bannere.",
+          },
+          { status: 403 }
+        );
+      }
+    } else {
+      // Dev/beta: la det gå igjennom, men logg
+      console.warn(
+        "[/api/phorium-generate] Ingen userId – hoppet over kreditt-trekk (dev/beta)."
+      );
+    }
+
 
     if (!body?.backgroundPrompt || !body?.headline) {
       return NextResponse.json(
@@ -163,7 +188,7 @@ return new NextResponse(pngBytes as any, {
   }
 }
 
-// ---------- helpers ----------
+// helpers
 
 function parseSize(size: string): [number, number] {
   try {

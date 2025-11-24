@@ -14,6 +14,8 @@ import {
   Settings2,
 } from "lucide-react";
 
+import CreditsBadge from "../components/CreditsBadge";
+
 type StatusResponse = {
   connected: boolean;
   shop?: string;
@@ -74,10 +76,8 @@ export default function DashboardHubPage() {
   return (
     <main className="min-h-screen pt-8 pb-20 text-phorium-light">
       <section className="mx-auto max-w-5xl px-4">
-
         {/* Studio-header */}
         <div className="mb-8 flex flex-col gap-3 rounded-2xl border border-phorium-off/30 bg-phorium-dark/80 p-5 sm:flex-row sm:items-center sm:justify-between">
-
           <div className="flex flex-1 flex-col gap-1">
             <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.12em] text-phorium-light/50">
               <Gauge className="h-3 w-3" />
@@ -96,28 +96,12 @@ export default function DashboardHubPage() {
 
           <div className="flex flex-col items-start gap-2 sm:items-end">
             {renderStatusBadge()}
-
-            {/* Kredittlinje */}
-            <div className="text-[11px] text-phorium-accent/90 mt-2">Kreditter igjen</div>
-            <div className="text-[14px]">
-              <span className="font-semibold text-phorium-light">994</span>
-              <span className="text-phorium-light/55"> / 1000</span>
-            </div>
-
-            <div className="h-2.5 w-40 overflow-hidden rounded-full border border-phorium-off/40 bg-phorium-dark">
-              <motion.div
-                className="h-full bg-phorium-accent"
-                initial={{ width: "0%" }}
-                animate={{ width: "99.4%" }}
-                transition={{ duration: 1 }}
-              />
-            </div>
+            <CreditsBadge />
           </div>
         </div>
 
         {/* Modul-grid */}
         <div className="mb-10 grid gap-6 sm:grid-cols-2">
-
           {/* Tekststudio */}
           <Link href="/studio/tekst">
             <motion.div
@@ -135,7 +119,8 @@ export default function DashboardHubPage() {
                     Phorium Tekst
                   </h2>
                   <p className="mt-1 text-[12px] text-phorium-light/75">
-                    Produkttekster, SEO-innhold, annonser og SoMe-tekster – i én pakke.
+                    Produkttekster, SEO-innhold, annonser og SoMe-tekster – i én
+                    pakke.
                   </p>
                 </div>
               </div>
@@ -254,7 +239,10 @@ export default function DashboardHubPage() {
             </Link>
           )}
 
-          <Link href="/guide" className="btn btn-secondary btn-lg inline-flex items-center gap-2">
+          <Link
+            href="/guide"
+            className="btn btn-secondary btn-lg inline-flex items-center gap-2"
+          >
             <Gauge className="h-4 w-4" />
             Brukerguide
           </Link>

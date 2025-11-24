@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { useCredits } from "@/lib/credits"; // 👈 NY!
 
 export async function POST(req: Request) {
   try {
@@ -12,8 +13,8 @@ export async function POST(req: Request) {
     const formData = await req.formData();
     const file = formData.get("image") as File | null;
     const promptRaw = formData.get("prompt");
-    const prompt =
-      typeof promptRaw === "string" ? promptRaw.trim() : "";
+    const prompt = typeof promptRaw === "string" ? promptRaw.trim() : "";
+    const userId = formData.get("userId") as string | null; // 👈 NY!
 
     if (!file || !prompt) {
       return NextResponse.json(
@@ -22,13 +23,33 @@ export async function POST(req: Request) {
       );
     }
 
-    // Lag et nytt FormData-objekt til OpenAI sitt /images/edits-endepunkt
+    // 🔹 1) Kreditt-trekk
+    // edit-image = produktscene → foreslår 5 credits
+    if (userId) {
+      const creditResult = await useCredits(userId, 5);
+
+      if (!creditResult.ok) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              creditResult.error ||
+              "Ikke nok kreditter til å generere flere produktbilder.",
+          },
+          { status: 403 }
+        );
+      }
+    } else {
+      // Lokalt: ingen userId → ingen trekk
+      console.warn("[/api/edit-image] Ingen userId – hoppet over kreditt-trekk (dev/beta)");
+    }
+
+    // 🔹 2) Send redigeringen videre til OpenAI
     const upstream = new FormData();
     upstream.append("model", "gpt-image-1");
     upstream.append("prompt", prompt);
     upstream.append("image", file); // bruker opplastet fil direkte
 
-    // Viktig: ikke sett Content-Type manuelt, fetch håndterer boundary
     const response = await fetch("https://api.openai.com/v1/images/edits", {
       method: "POST",
       headers: {

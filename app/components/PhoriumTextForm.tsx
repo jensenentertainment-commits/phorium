@@ -8,6 +8,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import PhoriumLoader from "./PhoriumLoader";
 import useBrandProfile from "@/hooks/useBrandProfile";
 import BrandIdentityBar from "./BrandIdentityBar";
+import { supabase } from "@/lib/supabaseClient";
+
 
 // Ikoner – brukes etter hvert om du vil
 import {
@@ -64,6 +66,8 @@ export default function PhoriumTextForm() {
   const [error, setError] = useState<string | null>(null);
   const [justGenerated, setJustGenerated] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>("product");
+ 
+
 
   const [matchScore, setMatchScore] = useState<{
     score: number;
@@ -104,9 +108,32 @@ export default function PhoriumTextForm() {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
   const [shopDomain, setShopDomain] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   // Historikk for tekststudio
   const [history, setHistory] = useState<TextHistoryItem[]>([]);
+
+  useEffect(() => {
+  async function loadUser() {
+    try {
+      const { data, error } = await supabase.auth.getUser();
+
+      if (error) {
+        console.error("Kunne ikke hente bruker:", error);
+        setUserId(null);
+        return;
+      }
+
+      setUserId(data.user?.id ?? null);
+    } catch (err) {
+      console.error("Uventet feil ved henting av bruker:", err);
+      setUserId(null);
+    }
+  }
+
+  void loadUser();
+}, []);
+
 
   // Hent butikkdomene fra cookie (phorium_shop)
   useEffect(() => {
@@ -122,6 +149,28 @@ export default function PhoriumTextForm() {
       // stille
     }
   }, []);
+
+useEffect(() => {
+  async function loadUser() {
+    try {
+      const { data, error } = await supabase.auth.getUser();
+
+      if (error) {
+        console.error("Kunne ikke hente bruker:", error);
+        setUserId(null);
+        return;
+      }
+
+      setUserId(data.user?.id ?? null);
+    } catch (err) {
+      console.error("Uventet feil ved henting av bruker:", err);
+      setUserId(null);
+    }
+  }
+
+  void loadUser();
+}, []);
+
 
   // Les historikk fra localStorage
   useEffect(() => {
@@ -289,6 +338,7 @@ export default function PhoriumTextForm() {
         body: JSON.stringify({
           productId: linkedProduct.id,
           brandProfile: brand || null,
+           userId,
         }),
       });
 
@@ -346,16 +396,18 @@ export default function PhoriumTextForm() {
       const prompt = buildPrompt();
 
       const res = await fetch("/api/generate-text", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt,
-          productName,
-          category,
-          tone,
-          brandProfile: brand || null,
-        }),
-      });
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    prompt,
+    productName,
+    category,
+    tone,
+    brandProfile: brand || null,
+    userId, // 👈 ny
+  }),
+});
+
 
       const data = await res.json();
 

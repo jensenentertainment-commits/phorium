@@ -4,6 +4,8 @@ import { Suspense } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import PhoriumVisualsForm from "@/app/components/PhoriumVisualsForm";
+import CreditsBadge from "@/app/components/CreditsBadge";
+
 
 export default function VisualsPage() {
   return (
@@ -36,27 +38,9 @@ export default function VisualsPage() {
             for å endre stil og tone.
           </p>
         </div>
+<CreditsBadge compact />
 
-        {/* Kreditt-indikator – samme stil som Tekststudio */}
-        <div className="flex flex-col items-start gap-1 sm:items-end">
-          <div className="text-[11px] text-phorium-accent/90">
-            Kreditter igjen
-          </div>
-
-          <div className="text-[14px]">
-            <span className="font-semibold text-phorium-light">994</span>
-            <span className="text-phorium-light/55"> / 1000</span>
-          </div>
-
-          <div className="h-2 w-36 overflow-hidden rounded-full border border-phorium-off/40 bg-phorium-dark">
-            <motion.div
-              className="h-full bg-phorium-accent"
-              initial={{ width: "0%" }}
-              animate={{ width: "99.4%" }}
-              transition={{ duration: 1 }}
-            />
-          </div>
-        </div>
+       
       </div>
 
       {/* Selve Visuals-opplevelsen */}

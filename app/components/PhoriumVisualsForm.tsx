@@ -24,6 +24,8 @@ import Link from "next/link";
 import PhoriumLoader from "./PhoriumLoader";
 import useBrandProfile from "@/hooks/useBrandProfile";
 import BrandIdentityBar from "./BrandIdentityBar";
+import { supabase } from "@/lib/supabaseClient";
+
 
 type HistoryItem = {
   prompt: string;
@@ -85,6 +87,8 @@ export default function PhoriumVisualsForm() {
   const [productLoading, setProductLoading] = useState(false);
   const [productError, setProductError] = useState<string | null>(null);
   const [shopDomain, setShopDomain] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+
 
   // Brandprofil (felles med tekst)
   const {
@@ -196,6 +200,28 @@ export default function PhoriumVisualsForm() {
       // stille
     }
   }, []);
+
+useEffect(() => {
+  async function loadUser() {
+    try {
+      const { data, error } = await supabase.auth.getUser();
+
+      if (error) {
+        console.error("Kunne ikke hente bruker (Visuals):", error);
+        setUserId(null);
+        return;
+      }
+
+      setUserId(data.user?.id ?? null);
+    } catch (err) {
+      console.error("Uventet feil ved henting av bruker (Visuals):", err);
+      setUserId(null);
+    }
+  }
+
+  void loadUser();
+}, []);
+
 
   // Hent produkt fra Shopify når productId finnes i URL
   useEffect(() => {
@@ -376,6 +402,7 @@ export default function PhoriumVisualsForm() {
         body: JSON.stringify({
           prompt: contextPrefix() + trimmed,
           size: imageSize,
+           userId,
         }),
       });
 
@@ -434,6 +461,7 @@ export default function PhoriumVisualsForm() {
           headline: safeHeadline.trim(),
           subline: safeSubline.trim() || undefined,
           size: "1200x628",
+           userId,
         }),
       });
 
@@ -498,6 +526,9 @@ export default function PhoriumVisualsForm() {
       formData.append("headline", safeHeadline.trim());
       if (safeSubline.trim()) formData.append("subline", safeSubline.trim());
       formData.append("backgroundPrompt", backgroundPrompt);
+      if (userId) {
+  formData.append("userId", userId);
+}
 
       const res = await fetch("/api/phorium-overlay", {
         method: "POST",
@@ -582,6 +613,7 @@ export default function PhoriumVisualsForm() {
             headline: safeHeadline.trim(),
             subline: safeSubline.trim() || undefined,
             size: fmt.size,
+             userId,
           }),
         });
 
@@ -650,6 +682,7 @@ export default function PhoriumVisualsForm() {
           headline: lastBannerConfig.headline,
           subline: lastBannerConfig.subline,
           size: "1200x628",
+           userId,
         }),
       });
 
@@ -685,14 +718,16 @@ export default function PhoriumVisualsForm() {
     setCampaignPack([]);
 
     try {
-      const res = await fetch("/api/edit-image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          imageUrl: baseImage,
-          prompt: contextPrefix() + editPrompt.trim(),
-        }),
-      });
+     const fd = new FormData();
+fd.append("image", selectedFile);   // bildet brukeren lastet opp
+fd.append("prompt", contextPrefix() + editPrompt.trim());
+if (userId) fd.append("userId", userId);
+
+const res = await fetch("/api/edit-image", {
+  method: "POST",
+  body: fd,
+});
+
 
       if (!res.ok) {
         throw new Error("Kunne ikke generere scene rundt produktet.");

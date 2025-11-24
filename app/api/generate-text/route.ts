@@ -1,6 +1,7 @@
 // app/api/generate-text/route.ts
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
+import { useCredits } from "@/lib/credits";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
@@ -18,10 +19,12 @@ type BrandProfile = {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+
     const productName = (body.productName as string | undefined) || "";
     const category = (body.category as string | undefined) || "";
     const tone = (body.tone as string | undefined) || "nøytral";
     const brand = (body.brand as BrandProfile | undefined) || null;
+    const userId = body.userId as string | undefined;
 
     if (!productName.trim()) {
       return NextResponse.json(
@@ -30,6 +33,29 @@ export async function POST(req: Request) {
           error: "Produktnavn mangler.",
         },
         { status: 400 },
+      );
+    }
+
+    // 🔹 Trekk kreditter hvis vi har userId
+    // Midlertidig: 2 kreditter per tekstgenerering
+    if (userId) {
+      const creditResult = await useCredits(userId, 2);
+
+      if (!creditResult.ok) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              creditResult.error ||
+              "Ikke nok kreditter til å generere mer tekst.",
+          },
+          { status: 403 },
+        );
+      }
+    } else {
+      // Dev/beta: vi lar det passere, men logger
+      console.warn(
+        "[/api/generate-text] Ingen userId sendt inn – hoppet over kreditt-trekk.",
       );
     }
 
@@ -112,14 +138,23 @@ VIKTIG:
       parsed = JSON.parse(cleaned);
     }
 
+    // 🔹 Viktig: PhoriumTextForm forventer `result`, ikke `data`
     return NextResponse.json(
       {
         success: true,
-        data: {
+        result: {
           title: parsed.title || productName,
           description: parsed.description || "",
+          shortDescription: "", // kan fylles senere
           meta_title: parsed.meta_title || parsed.title || productName,
           meta_description: parsed.meta_description || "",
+          bullets: [],
+          tags: [],
+          ad_primary: "",
+          ad_headline: "",
+          ad_description: "",
+          social_caption: "",
+          social_hashtags: [],
         },
       },
       { status: 200 },
