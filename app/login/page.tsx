@@ -92,7 +92,21 @@ export default function LoginPage() {
           );
         }
 
-        // 3) Inn i Studio
+        // 3) Logg inn den nye brukeren eksplisitt
+        const { error: loginError } =
+          await supabase.auth.signInWithPassword({
+            email: email.trim(),
+            password: password.trim(),
+          });
+
+        if (loginError) {
+          console.error("Auto-login etter signup feilet:", loginError);
+          // Faller tilbake til at bruker må logge inn manuelt
+          router.push("/login");
+          return;
+        }
+
+        // 4) Inn i Studio
         router.push("/studio");
       } else {
         // LOGIN
@@ -117,8 +131,10 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-[#050806] via-[#050806] to-[#0C1510] flex items-center justify-center px-4">
-      <div className="w-full max-w-md rounded-2xl border border-phorium-off/40 bg-[#070C0A]/95 p-6 shadow-[0_24px_70px_rgba(0,0,0,0.85)]">
+    <main className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-b from-[#1A4242] via-[#06231E] to-[#071F1B] ">
+
+      <div className="w-full max-w-md rounded-2xl border border-phorium-off/40 bg-[#1A4242]/95 p-6 shadow-[0_24px_70px_rgba(0,0,0,0.85)]">
+
         <div className="mb-5">
           <p className="text-[11px] uppercase tracking-[0.18em] text-phorium-accent/80">
             Phorium Beta
