@@ -1,46 +1,52 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
 
-const PUBLIC_PATHS = [
-  "/maintenance",
-  "/access",
-  "/favicon.ico",
-  "/robots.txt",
-  "/sitemap.xml",
-];
+export async function middleware(req: NextRequest) {
+  const res = NextResponse.next();
+  const supabase = createMiddlewareClient({ req, res });
 
-export function middleware(req: NextRequest) {
-  const url = req.nextUrl.clone();
-  const { pathname } = req.nextUrl;
-  const hostname = req.nextUrl.hostname;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const localHosts = ["localhost", "127.0.0.1", "::1"];
+  const pathname = req.nextUrl.pathname;
 
-  // 1) Lokalt = full tilgang
-  if (localHosts.includes(hostname)) return NextResponse.next();
+  // 👇 1. Sider som ALLTID skal være åpne
+  const publicPaths = [
+    "/", 
+    "/login",
+    "/om",
+    "/priser",
+    "/guide",
+    "/kontakt",
+    "/favicon.ico",
+    "/robots.txt",
+    "/sitemap.xml",
+  ];
 
-  // 2) Vercel preview = full tilgang
-  if (hostname.endsWith(".vercel.app")) return NextResponse.next();
-
-  // 3) Access code bypass-cookie
-  const hasBypass = req.cookies.get("phorium_bypass")?.value === "true";
-  if (hasBypass) return NextResponse.next();
-
-  // 4) Tillat statiske filer + maintenance + access
+  // Åpne alle statiske filer
   if (
-    PUBLIC_PATHS.includes(pathname) ||
+    publicPaths.includes(pathname) ||
     pathname.startsWith("/_next") ||
     pathname.match(/\.(css|js|png|jpg|jpeg|svg|webp|ico)$/)
   ) {
-    return NextResponse.next();
+    return res;
   }
 
-  // 5) Ellers → redirect til access-kode side
-  url.pathname = "/access";
-  url.search = "";
-  return NextResponse.redirect(url);
+  // 👇 2. Beskytter /studio og alt under
+  if (pathname.startsWith("/studio")) {
+    if (!user) {
+      const loginUrl = req.nextUrl.clone();
+      loginUrl.pathname = "/login";
+      return NextResponse.redirect(loginUrl);
+    }
+  }
+
+  return res;
 }
 
+// Matcher ALLE ruter bortsett fra API-ruter
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)"],
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
 };

@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import PhoriumTextForm from "@/app/components/PhoriumTextForm";
-import CreditsBadge from "@/app/components/CreditsBadge";
+
 
 
 export default function TextPage() {
@@ -40,7 +40,7 @@ export default function TextPage() {
             </Link>
           </div>
         </div>
-<CreditsBadge compact />
+
 
       </div>
 

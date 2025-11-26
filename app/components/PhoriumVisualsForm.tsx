@@ -18,6 +18,7 @@ import {
   Wand2,
   Link2,
   Crop,
+  Clock,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -77,6 +78,27 @@ function parseRetrySeconds(text: string | null | undefined): number | null {
   return parseInt(match[1], 10) || null;
 }
 
+function handleCreditAwareError(
+  rawError: any,
+  setError: (msg: string) => void,
+  fallback: string
+) {
+  console.error("Visuals error:", rawError);
+
+  const msg =
+    typeof rawError === "string"
+      ? rawError
+      : rawError?.message || rawError?.error || "";
+
+  if (msg.includes("Ikke nok kreditter")) {
+    setError(
+      "Du er tom for kreditter i denne betaen. Ta kontakt hvis du vil ha flere."
+    );
+  } else {
+    setError(fallback);
+  }
+}
+
 export default function PhoriumVisualsForm() {
   // Shopify-kontekst
   const searchParams = useSearchParams();
@@ -112,6 +134,7 @@ export default function PhoriumVisualsForm() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
 
   const [baseImage, setBaseImage] = useState<string | null>(null);
+  const [sceneFile, setSceneFile] = useState<File | null>(null);
   const [editPrompt, setEditPrompt] = useState("");
   const [editing, setEditing] = useState(false);
 
@@ -386,82 +409,244 @@ useEffect(() => {
   }
 
   // 1) Standard bildegenerering
-  async function handleGenerate() {
-    const trimmed = prompt.trim();
-    if (!trimmed || isBusy) return;
+  // 1) Standard bildegenerering
+async function handleGenerate() {
+  const trimmed = prompt.trim();
+  if (!trimmed || isBusy) return;
 
-    setError(null);
-    setImageUrl(null);
-    setCampaignPack([]);
-    setImageLoading(true);
+  setError(null);
+  setImageUrl(null);
+  setCampaignPack([]);
+  setImageLoading(true);
 
-    try {
-      const res = await fetch("/api/generate-image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: contextPrefix() + trimmed,
-          size: imageSize,
-           userId,
-        }),
-      });
+  try {
+    const res = await fetch("/api/generate-image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt: contextPrefix() + trimmed,
+        size: imageSize,
+        userId,
+      }),
+    });
 
-      if (res.status === 429) {
-        const txt = await res.text().catch(() => "");
-        const secs = parseRetrySeconds(txt);
-        if (typeof secs === "number") {
-          setImageCooldown(secs);
-        }
-        throw new Error(
-          "Du har nådd en grense for bildegenerering. Vent litt og prøv igjen.",
-        );
+    if (res.status === 429) {
+      const txt = await res.text().catch(() => "");
+      const secs = parseRetrySeconds(txt);
+      if (typeof secs === "number") {
+        setImageCooldown(secs);
       }
-
-      if (!res.ok) {
-        throw new Error("Kunne ikke generere bilde.");
-      }
-
-      const data = await res.json();
-      if (!data?.imageUrl) {
-        throw new Error("Svar fra tjenesten mangler bilde-URL.");
-      }
-
-      setImageUrl(data.imageUrl);
-      addToHistory(trimmed, data.imageUrl, "Standardbilde");
-    } catch (err: any) {
-      setError(
-        err?.message ||
-          "Noe gikk galt ved generering av bilde. Prøv igjen om litt.",
+      throw new Error(
+        "Du har nådd en grense for bildegenerering. Vent litt og prøv igjen."
       );
-    } finally {
-      setImageLoading(false);
     }
+
+    if (!res.ok) {
+      throw new Error("Kunne ikke generere bilde.");
+    }
+
+    const data = await res.json();
+    if (!data?.imageUrl) {
+      throw new Error("Svar fra tjenesten mangler bilde-URL.");
+    }
+
+    setImageUrl(data.imageUrl);
+    addToHistory(trimmed, data.imageUrl, "Standardbilde");
+  } catch (err: any) {
+    handleCreditAwareError(
+      err,
+      (msg) => setError(msg),
+      "Kunne ikke generere bilde akkurat nå. Prøv igjen om litt."
+    );
+  } finally {
+    setImageLoading(false);
   }
+}
+
+
 
   // 2A) Banner med trygg tekst – AI-bakgrunn
-  async function handleSmartTextGenerate() {
-    if (!safeHeadline.trim() || isBusy) return;
+  // 2A) Banner med trygg tekst – AI-bakgrunn
+async function handleSmartTextGenerate() {
+  if (!safeHeadline.trim() || isBusy) return;
 
-    setSafeLoading(true);
-    setError(null);
-    setImageUrl(null);
-    setCampaignPack([]);
+  setSafeLoading(true);
+  setError(null);
+  setImageUrl(null);
+  setCampaignPack([]);
 
-    const backgroundPrompt =
-      contextPrefix() +
-      (safeBgPrompt.trim() ||
-        "Ren, kommersiell stil som matcher nettbutikk og brand.");
+  const backgroundPrompt =
+    contextPrefix() +
+    (safeBgPrompt.trim() ||
+      "Ren, kommersiell stil som matcher nettbutikk og brand.");
 
-    try {
+  try {
+    const res = await fetch("/api/phorium-generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        backgroundPrompt,
+        headline: safeHeadline.trim(),
+        subline: safeSubline.trim() || undefined,
+        size: "1200x628",
+        userId,
+      }),
+    });
+
+    if (res.status === 429) {
+      const txt = await res.text().catch(() => "");
+      const secs = parseRetrySeconds(txt);
+      if (typeof secs === "number") {
+        setBannerCooldown(secs);
+      }
+      throw new Error(
+        "Du har nådd en grense for bannergenerering. Vent litt og prøv igjen."
+      );
+    }
+
+    if (!res.ok) {
+      throw new Error("Kunne ikke generere banner.");
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    setImageUrl(url);
+    setLastBannerConfig({
+      source: "ai",
+      backgroundPrompt,
+      headline: safeHeadline.trim(),
+      subline: safeSubline.trim() || undefined,
+    });
+    addToHistory(
+      `[Banner AI] ${safeHeadline.trim()}${
+        safeSubline ? " – " + safeSubline.trim() : ""
+      }`,
+      url,
+      "Banner"
+    );
+  } catch (err: any) {
+    handleCreditAwareError(
+      err,
+      (msg) => setError(msg),
+      "Kunne ikke generere banner akkurat nå. Prøv igjen om litt."
+    );
+  } finally {
+    setSafeLoading(false);
+  }
+}
+
+
+  // 2B) Banner med trygg tekst – egen bakgrunn
+async function handleOverlayGenerate() {
+  if (!safeHeadline.trim() || !textBgFile || isBusy) return;
+
+  setOverlayLoading(true);
+  setError(null);
+  setImageUrl(null);
+  setCampaignPack([]);
+
+  const backgroundPrompt =
+    contextPrefix() +
+    (safeBgPrompt.trim() ||
+      "Ren, kommersiell stil som matcher nettbutikk og brand.");
+
+  try {
+    const formData = new FormData();
+    formData.append("image", textBgFile);
+    formData.append("headline", safeHeadline.trim());
+    if (safeSubline.trim()) formData.append("subline", safeSubline.trim());
+    formData.append("backgroundPrompt", backgroundPrompt);
+    if (userId) {
+      formData.append("userId", userId);
+    }
+
+    const res = await fetch("/api/phorium-overlay", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (res.status === 429) {
+      const txt = await res.text().catch(() => "");
+      const secs = parseRetrySeconds(txt);
+      if (typeof secs === "number") {
+        setBannerCooldown(secs);
+      }
+      throw new Error(
+        "Du har nådd en grense for bannergenerering. Vent litt og prøv igjen."
+      );
+    }
+
+    if (!res.ok) {
+      let msg = "Kunne ikke legge tekst på bildet.";
+      try {
+        const data = await res.json();
+        if (data?.error) msg = data.error;
+      } catch {}
+      throw new Error(msg);
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    setImageUrl(url);
+    addToHistory(
+      `[Banner eget bilde] ${safeHeadline.trim()}${
+        safeSubline ? " – " + safeSubline.trim() : ""
+      }`,
+      url,
+      "Banner"
+    );
+    setLastBannerConfig({
+      source: "upload",
+      backgroundPrompt,
+      headline: safeHeadline.trim(),
+      subline: safeSubline.trim() || undefined,
+    });
+  } catch (err: any) {
+    handleCreditAwareError(
+      err,
+      (msg) => setError(msg),
+      "Kunne ikke generere banner akkurat nå. Prøv igjen om litt."
+    );
+  } finally {
+    setOverlayLoading(false);
+  }
+}
+
+
+  // 2C) Kampanjepakke (hero / IG / story)
+  // 2C) Kampanjepakke (hero / IG / story)
+async function handleCampaignPack() {
+  if (!safeHeadline.trim() || isBusy) return;
+
+  setCampaignLoading(true);
+  setError(null);
+  setCampaignPack([]);
+  setImageUrl(null);
+
+  const baseBg =
+    contextPrefix() +
+    (safeBgPrompt.trim() ||
+      "Ren, kommersiell stil som matcher nettbutikk og brand.");
+
+  const formats = [
+    { label: "Web hero", size: "1200x628" },
+    { label: "Instagram", size: "1080x1080" },
+    { label: "Story / Reel", size: "1080x1920" },
+  ];
+
+  try {
+    const results: CampaignImage[] = [];
+
+    for (const fmt of formats) {
       const res = await fetch("/api/phorium-generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          backgroundPrompt,
+          backgroundPrompt: baseBg,
           headline: safeHeadline.trim(),
           subline: safeSubline.trim() || undefined,
-          size: "1200x628",
-           userId,
+          size: fmt.size,
+          userId,
         }),
       });
 
@@ -469,194 +654,44 @@ useEffect(() => {
         const txt = await res.text().catch(() => "");
         const secs = parseRetrySeconds(txt);
         if (typeof secs === "number") {
-          setBannerCooldown(secs);
+          setPackCooldown(secs);
         }
         throw new Error(
-          "Du har nådd en grense for bannergenerering. Vent litt og prøv igjen.",
+          "Du har nådd en grense for kampanjepakke. Vent litt og prøv igjen."
         );
       }
 
       if (!res.ok) {
-        throw new Error("Kunne ikke generere banner.");
+        throw new Error("Kunne ikke generere ett av kampanjebildene.");
       }
 
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
-      setImageUrl(url);
-      setLastBannerConfig({
-        source: "ai",
-        backgroundPrompt,
-        headline: safeHeadline.trim(),
-        subline: safeSubline.trim() || undefined,
-      });
-      addToHistory(
-        `[Banner AI] ${safeHeadline.trim()}${
-          safeSubline ? " – " + safeSubline.trim() : ""
-        }`,
+      results.push({
+        label: fmt.label,
+        size: fmt.size,
         url,
-        "Banner",
-      );
-    } catch (err: any) {
-      setError(
-        err?.message ||
-          "Noe gikk galt ved generering av banner. Prøv igjen om litt.",
-      );
-    } finally {
-      setSafeLoading(false);
+      });
     }
+
+    setCampaignPack(results);
+    setLastBannerConfig({
+      source: "ai",
+      backgroundPrompt: baseBg,
+      headline: safeHeadline.trim(),
+      subline: safeSubline.trim() || undefined,
+    });
+  } catch (err: any) {
+    handleCreditAwareError(
+      err,
+      (msg) => setError(msg),
+      "Noe gikk galt ved generering av kampanjepakke. Prøv igjen om litt."
+    );
+  } finally {
+    setCampaignLoading(false);
   }
-
-  // 2B) Banner med trygg tekst – egen bakgrunn
-  async function handleOverlayGenerate() {
-    if (!safeHeadline.trim() || !textBgFile || isBusy) return;
-
-    setOverlayLoading(true);
-    setError(null);
-    setImageUrl(null);
-    setCampaignPack([]);
-
-    const backgroundPrompt =
-      contextPrefix() +
-      (safeBgPrompt.trim() ||
-        "Ren, kommersiell stil som matcher nettbutikk og brand.");
-
-    try {
-      const formData = new FormData();
-      formData.append("image", textBgFile);
-      formData.append("headline", safeHeadline.trim());
-      if (safeSubline.trim()) formData.append("subline", safeSubline.trim());
-      formData.append("backgroundPrompt", backgroundPrompt);
-      if (userId) {
-  formData.append("userId", userId);
 }
 
-      const res = await fetch("/api/phorium-overlay", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (res.status === 429) {
-        const txt = await res.text().catch(() => "");
-        const secs = parseRetrySeconds(txt);
-        if (typeof secs === "number") {
-          setBannerCooldown(secs);
-        }
-        throw new Error(
-          "Du har nådd en grense for bannergenerering. Vent litt og prøv igjen.",
-        );
-      }
-
-      if (!res.ok) {
-        let msg = "Kunne ikke legge tekst på bildet.";
-        try {
-          const data = await res.json();
-          if (data?.error) msg = data.error;
-        } catch {}
-        throw new Error(msg);
-      }
-
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      setImageUrl(url);
-      addToHistory(
-        `[Banner eget bilde] ${safeHeadline.trim()}${
-          safeSubline ? " – " + safeSubline.trim() : ""
-        }`,
-        url,
-        "Banner",
-      );
-      setLastBannerConfig({
-        source: "upload",
-        backgroundPrompt,
-        headline: safeHeadline.trim(),
-        subline: safeSubline.trim() || undefined,
-      });
-    } catch (err: any) {
-      setError(
-        err?.message ||
-          "Noe gikk galt ved generering av banner. Prøv igjen om litt.",
-      );
-    } finally {
-      setOverlayLoading(false);
-    }
-  }
-
-  // 2C) Kampanjepakke (hero / IG / story)
-  async function handleCampaignPack() {
-    if (!safeHeadline.trim() || isBusy) return;
-
-    setCampaignLoading(true);
-    setError(null);
-    setCampaignPack([]);
-    setImageUrl(null);
-
-    const baseBg =
-      contextPrefix() +
-      (safeBgPrompt.trim() ||
-        "Ren, kommersiell stil som matcher nettbutikk og brand.");
-
-    const formats = [
-      { label: "Web hero", size: "1200x628" },
-      { label: "Instagram", size: "1080x1080" },
-      { label: "Story / Reel", size: "1080x1920" },
-    ];
-
-    try {
-      const results: CampaignImage[] = [];
-
-      for (const fmt of formats) {
-        const res = await fetch("/api/phorium-generate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            backgroundPrompt: baseBg,
-            headline: safeHeadline.trim(),
-            subline: safeSubline.trim() || undefined,
-            size: fmt.size,
-             userId,
-          }),
-        });
-
-        if (res.status === 429) {
-          const txt = await res.text().catch(() => "");
-          const secs = parseRetrySeconds(txt);
-          if (typeof secs === "number") {
-            setPackCooldown(secs);
-          }
-          throw new Error(
-            "Du har nådd en grense for kampanjepakke. Vent litt og prøv igjen.",
-          );
-        }
-
-        if (!res.ok) {
-          throw new Error("Kunne ikke generere ett av kampanjebildene.");
-        }
-
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        results.push({
-          label: fmt.label,
-          size: fmt.size,
-          url,
-        });
-      }
-
-      setCampaignPack(results);
-      setLastBannerConfig({
-        source: "ai",
-        backgroundPrompt: baseBg,
-        headline: safeHeadline.trim(),
-        subline: safeSubline.trim() || undefined,
-      });
-    } catch (err: any) {
-      setError(
-        err?.message ||
-          "Noe gikk galt ved generering av kampanjepakke. Prøv igjen om litt.",
-      );
-    } finally {
-      setCampaignLoading(false);
-    }
-  }
 
   // 2D) Ny variant (samme config, nytt forslag)
   async function handleVariant() {
@@ -709,50 +744,52 @@ useEffect(() => {
   }
 
   // 3) Produktbilde → scene
-  async function handleEditGenerate() {
-    if (!baseImage || !editPrompt.trim() || isBusy) return;
+ // 3) Produktbilde → scene
+async function handleEditGenerate() {
+  if (!sceneFile || !editPrompt.trim() || isBusy) return;
 
-    setEditing(true);
-    setError(null);
-    setImageUrl(null);
-    setCampaignPack([]);
+  setEditing(true);
+  setError(null);
+  setImageUrl(null);
+  setCampaignPack([]);
 
-    try {
-     const fd = new FormData();
-fd.append("image", selectedFile);   // bildet brukeren lastet opp
-fd.append("prompt", contextPrefix() + editPrompt.trim());
-if (userId) fd.append("userId", userId);
+  try {
+    const fd = new FormData();
+    fd.append("image", sceneFile);
+    fd.append("prompt", contextPrefix() + editPrompt.trim());
+    if (userId) fd.append("userId", userId);
 
-const res = await fetch("/api/edit-image", {
-  method: "POST",
-  body: fd,
-});
+    const res = await fetch("/api/edit-image", {
+      method: "POST",
+      body: fd,
+    });
 
-
-      if (!res.ok) {
-        throw new Error("Kunne ikke generere scene rundt produktet.");
-      }
-
-      const data = await res.json();
-      if (!data?.imageUrl) {
-        throw new Error("Svar fra tjenesten mangler bilde-URL.");
-      }
-
-      setImageUrl(data.imageUrl);
-      addToHistory(
-        `[Scene] ${editPrompt.trim()}`,
-        data.imageUrl,
-        "Produktscene",
-      );
-    } catch (err: any) {
-      setError(
-        err?.message ||
-          "Noe gikk galt ved generering av scene. Prøv igjen om litt.",
-      );
-    } finally {
-      setEditing(false);
+    if (!res.ok) {
+      throw new Error("Kunne ikke generere scene rundt produktet.");
     }
+
+    const data = await res.json();
+    if (!data?.imageUrl) {
+      throw new Error("Svar fra tjenesten mangler bilde-URL.");
+    }
+
+    setImageUrl(data.imageUrl);
+    addToHistory(
+      `[Scene] ${editPrompt.trim()}`,
+      data.imageUrl,
+      "Produktscene"
+    );
+  } catch (err: any) {
+    handleCreditAwareError(
+      err,
+      (msg) => setError(msg),
+      "Noe gikk galt ved generering av scene. Prøv igjen om litt."
+    );
+  } finally {
+    setEditing(false);
   }
+}
+
 
   function handleReusePrompt(item: HistoryItem) {
     setPrompt(item.prompt);
@@ -967,9 +1004,15 @@ const res = await fetch("/api/edit-image", {
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
             <button
-              type="button"
-              onClick={handleGenerate}
-              disabled={!prompt.trim() || isBusy || imageCooldown > 0}
+  type="button"
+  onClick={handleGenerate}
+  disabled={
+    !prompt.trim() ||
+    isBusy ||
+    imageCooldown > 0 ||
+    (error && error.toLowerCase().includes("tom for kreditter"))
+  }
+
               className="btn btn-primary btn-lg inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {imageCooldown > 0 ? (
@@ -1201,11 +1244,13 @@ const res = await fetch("/api/edit-image", {
                     : handleOverlayGenerate
                 }
                 disabled={
-                  !safeHeadline.trim() ||
-                  isBusy ||
-                  bannerCooldown > 0 ||
-                  (bannerSource === "upload" && !textBgFile)
-                }
+  !safeHeadline.trim() ||
+  isBusy ||
+  bannerCooldown > 0 ||
+  (bannerSource === "upload" && !textBgFile) ||
+  (error && error.toLowerCase().includes("tom for kreditter"))
+}
+
                 className="btn btn-primary btn-lg inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {bannerCooldown > 0 ? (
@@ -1233,7 +1278,13 @@ const res = await fetch("/api/edit-image", {
               <button
                 type="button"
                 onClick={handleCampaignPack}
-                disabled={!safeHeadline.trim() || isBusy || packCooldown > 0}
+                disabled={
+  !safeHeadline.trim() ||
+  isBusy ||
+  packCooldown > 0 ||
+  (error && error.toLowerCase().includes("tom for kreditter"))
+}
+
                 className="btn btn-secondary btn-lg inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {packCooldown > 0 ? (
@@ -1256,7 +1307,12 @@ const res = await fetch("/api/edit-image", {
               <button
                 type="button"
                 onClick={handleVariant}
-                disabled={!lastBannerConfig || isBusy}
+           disabled={
+  !lastBannerConfig ||
+  isBusy ||
+  (error && error.toLowerCase().includes("tom for kreditter"))
+}
+
                 className="btn btn-ghost btn-sm inline-flex items-center gap-1 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
@@ -1287,6 +1343,7 @@ const res = await fetch("/api/edit-image", {
               if (!file) return;
               const url = URL.createObjectURL(file);
               setBaseImage(url);
+              setSceneFile(file); 
               setImageUrl(null);
               setCampaignPack([]);
             }}
@@ -1329,7 +1386,7 @@ const res = await fetch("/api/edit-image", {
               </>
             ) : (
               <>
-                <Wand2 className="h-4 w-4" />
+                <Wand2 className="h-4 w-4" />©
                 Generer scene rundt produktet
               </>
             )}

@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import PhoriumVisualsForm from "@/app/components/PhoriumVisualsForm";
-import CreditsBadge from "@/app/components/CreditsBadge";
+
 
 
 export default function VisualsPage() {
@@ -38,7 +38,6 @@ export default function VisualsPage() {
             for å endre stil og tone.
           </p>
         </div>
-<CreditsBadge compact />
 
        
       </div>

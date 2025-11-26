@@ -11,6 +11,7 @@ import BrandIdentityBar from "./BrandIdentityBar";
 import { supabase } from "@/lib/supabaseClient";
 
 
+
 // Ikoner – brukes etter hvert om du vil
 import {
   Wand2,
@@ -113,26 +114,7 @@ export default function PhoriumTextForm() {
   // Historikk for tekststudio
   const [history, setHistory] = useState<TextHistoryItem[]>([]);
 
-  useEffect(() => {
-  async function loadUser() {
-    try {
-      const { data, error } = await supabase.auth.getUser();
 
-      if (error) {
-        console.error("Kunne ikke hente bruker:", error);
-        setUserId(null);
-        return;
-      }
-
-      setUserId(data.user?.id ?? null);
-    } catch (err) {
-      console.error("Uventet feil ved henting av bruker:", err);
-      setUserId(null);
-    }
-  }
-
-  void loadUser();
-}, []);
 
 
   // Hent butikkdomene fra cookie (phorium_shop)
@@ -372,12 +354,24 @@ useEffect(() => {
       setActiveTab("product");
       setJustGenerated(true);
       addToHistory("shopify", mapped);
-    } catch (err: any) {
-      setError(err?.message || "Noe gikk galt ved genereringen.");
-      setResult(null);
-    } finally {
-      setLoading(false);
+      } catch (err: any) {
+    console.error("Feil ved generering (Shopify):", err);
+
+    const msg = err?.message || "";
+
+    if (msg.includes("Ikke nok kreditter")) {
+      setError(
+        "Du er tom for kreditter i denne betaen. Ta kontakt hvis du vil ha flere."
+      );
+    } else {
+      setError("Kunne ikke generere tekst fra Shopify-produktet. Prøv igjen om litt.");
     }
+
+    setResult(null);
+  } finally {
+    setLoading(false);
+  }
+
   }
 
   async function handleGenerateFromManual() {
@@ -438,13 +432,24 @@ useEffect(() => {
       setActiveTab("product");
       setJustGenerated(true);
       addToHistory("manual", mapped);
-    } catch (err: any) {
-      console.error("Feil ved generering:", err);
-      setError(err?.message || "Noe gikk galt ved genereringen.");
-      setResult(null);
-    } finally {
-      setLoading(false);
+      } catch (err: any) {
+    console.error("Feil ved generering:", err);
+
+    const msg = err?.message || "";
+
+    if (msg.includes("Ikke nok kreditter")) {
+      setError(
+        "Du er tom for kreditter i denne betaen. Ta kontakt hvis du vil ha flere."
+      );
+    } else {
+      setError("Kunne ikke generere tekst akkurat nå. Prøv igjen om litt.");
     }
+
+    setResult(null);
+  } finally {
+    setLoading(false);
+  }
+
   }
 
   function handlePrimaryClick() {
@@ -902,11 +907,12 @@ useEffect(() => {
               Produktnavn
             </label>
             <input
-              value={productName}
-              onChange={(e) => setProductName(e.target.value)}
-              placeholder="F.eks. «Rustfri vannflaske 750 ml»"
-              className="w-full rounded-xl border border-phorium-off/35 bg-phorium-dark px-3 py-2 text-[12px] text-phorium-light placeholder:text-phorium-light/40 focus:border-phorium-accent focus:outline-none focus:ring-2 focus:ring-phorium-accent/20"
-            />
+  value={productName}
+  onChange={(e) => setProductName(e.target.value)}
+  placeholder="F.eks. «Rustfri vannflaske 750 ml»"
+  className="w-full rounded-xl border border-phorium-off/35 bg-white text-[#0f1512] px-3 py-2 text-[12px] placeholder:text-[#6c7a75] focus:border-phorium-accent focus:outline-none focus:ring-2 focus:ring-phorium-accent/20"
+/>
+
           </div>
 
           <div className="grid gap-2 sm:grid-cols-2">
@@ -915,22 +921,24 @@ useEffect(() => {
                 Kategori
               </label>
               <input
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                placeholder="F.eks. «Kjøkken & Husholdning»"
-                className="w-full rounded-xl border border-phorium-off/35 bg-phorium-dark px-3 py-2 text-[12px] text-phorium-light placeholder:text-phorium-light/40 focus:border-phorium-accent focus:outline-none focus:ring-2 focus:ring-phorium-accent/20"
-              />
+  value={category}
+  onChange={(e) => setCategory(e.target.value)}
+  placeholder="F.eks. «Kjøkken & Husholdning»"
+  className="w-full rounded-xl border border-phorium-off/35 bg-white text-[#0f1512] px-3 py-2 text-[12px] placeholder:text-[#6c7a75] focus:border-phorium-accent focus:outline-none focus:ring-2 focus:ring-phorium-accent/20"
+/>
+
             </div>
             <div>
               <label className="text-[11px] text-phorium-light/75">
                 Ønsket tone
               </label>
-              <input
-                value={tone}
-                onChange={(e) => setTone(e.target.value)}
-                placeholder="F.eks. «Tydelig og trygg», «Leken og uformell»"
-                className="w-full rounded-xl border border-phorium-off/35 bg-phorium-dark px-3 py-2 text-[12px] text-phorium-light placeholder:text-phorium-light/40 focus:border-phorium-accent focus:outline-none focus:ring-2 focus:ring-phorium-accent/20"
-              />
+             <input
+  value={tone}
+  onChange={(e) => setTone(e.target.value)}
+  placeholder="F.eks. «Tydelig og trygg», «Leken og uformell»"
+  className="w-full rounded-xl border border-phorium-off/35 bg-white text-[#0f1512] px-3 py-2 text-[12px] placeholder:text-[#6c7a75] focus:border-phorium-accent focus:outline-none focus:ring-2 focus:ring-phorium-accent/20"
+/>
+
             </div>
           </div>
 
@@ -1021,23 +1029,29 @@ useEffect(() => {
             </div>
           </div>
 
-          <button
-            onClick={handlePrimaryClick}
-            disabled={loading || (!isShopifyMode && !productName.trim())}
-            className="btn btn-lg btn-primary w-full disabled:opacity-60"
-          >
-            {loading ? (
-              <span className="inline-flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Genererer tekst …
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-2">
-                <Wand2 className="h-4 w-4" />
-                {primaryButtonLabel}
-              </span>
-            )}
-          </button>
+        <button
+  onClick={handlePrimaryClick}
+  disabled={
+    loading ||
+    (!isShopifyMode && !productName.trim()) ||
+    (!!error && error.toLowerCase().includes("tom for kreditter"))
+  }
+  className="btn btn-lg btn-primary w-full disabled:opacity-60"
+>
+  {loading ? (
+    <span className="inline-flex items-center gap-2">
+      <Loader2 className="h-4 w-4 animate-spin" />
+      Genererer tekst …
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-2">
+      <Wand2 className="h-4 w-4" />
+      {primaryButtonLabel}
+    </span>
+  )}
+</button>
+
+
 
           <div className="mt-2 flex items-center justify-between text-[10px] text-phorium-light/55">
             <p>

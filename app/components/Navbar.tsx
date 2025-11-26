@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { LucideIcon } from "lucide-react";
 import {
   Menu,
   X,
@@ -15,6 +14,9 @@ import {
   LayoutDashboard,
   LogIn,
 } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
+
+
 
 type NavItem = {
   href: string;
@@ -27,6 +29,14 @@ export default function Navbar() {
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const [user, setUser] = useState(null);
+
+useEffect(() => {
+  supabase.auth.getUser().then(({ data }) => {
+    setUser(data.user || null);
+  });
+}, []);
+
 
   useEffect(() => {
     const onScroll = () => {
@@ -107,13 +117,27 @@ export default function Navbar() {
           })}
 
           {/* Logg inn CTA */}
-          <Link
-            href="/sign-in"
-            className="ml-1 inline-flex items-center gap-1.5 rounded-full bg-phorium-dark px-3 py-1.5 text-[11px] font-semibold text-phorium-light shadow-sm transition hover:bg-black/85"
-          >
-            <LogIn className="h-3.5 w-3.5" />
-            <span>Logg inn</span>
-          </Link>
+          
+ {user ? (
+  // INNLOGGET → STUDIO SOM CTA-KNAPP
+  <Link
+    href="/studio"
+    className="inline-flex items-center rounded-full bg-phorium-dark px-5 py-1.5 text-[13px] font-semibold text-phorium-light shadow-[0_4px_10px_rgba(0,0,0,0.35)] hover:bg-phorium-dark/90 hover:shadow-[0_6px_16px_rgba(0,0,0,0.5)] transition"
+  >
+    STUDIO
+  </Link>
+) : (
+  // UINNLOGGET → LOGG INN SOM VANLIG MENY-LENKE
+  <Link
+    href="/login"
+    className="inline-flex items-center gap-1 text-[13px] text-phorium-dark hover:text-phorium-accent transition"
+  >
+    <LogIn className="h-4 w-4" />
+    <span>Logg inn</span>
+  </Link>
+)}
+
+
         </div>
 
         {/* Mobil: burger-knapp */}
@@ -170,13 +194,23 @@ export default function Navbar() {
                 );
               })}
 
-              <Link
-                href="/sign-in"
-                className="mt-1 flex items-center justify-center gap-1.5 rounded-full bg-phorium-dark px-3 py-1.5 text-[12px] font-semibold text-phorium-light hover:bg-black/85"
-              >
-                <LogIn className="h-4 w-4" />
-                <span>Logg inn</span>
-              </Link>
+             
+              {user ? (
+  <Link
+    href="/studio"
+    className="rounded-full border border-phorium-off/50 px-4 py-1.5 text-[13px] text-phorium-light hover:border-phorium-accent/70 hover:text-phorium-accent transition"
+  >
+    Studio
+  </Link>
+) : (
+  <Link
+    href="/login"
+    className="rounded-full border border-phorium-off/50 px-4 py-1.5 text-[13px] text-phorium-light hover:border-phorium-accent/70 hover:text-phorium-accent transition"
+  >
+    Logg inn
+  </Link>
+)}
+
             </div>
           </div>
         </div>

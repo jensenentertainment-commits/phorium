@@ -9,6 +9,9 @@ import {
   Store,
   LayoutDashboard,
 } from "lucide-react";
+import CreditsBadge from "@/app/components/CreditsBadge";
+
+
 
 type StudioNavItem = {
   href: string;
@@ -70,6 +73,7 @@ export default function TopStudioNav() {
             Velg hva du vil jobbe med i butikken din.
           </p>
         </div>
+        <CreditsBadge compact />
       </div>
 
       {/* Meny-knapper */}
@@ -85,7 +89,7 @@ export default function TopStudioNav() {
               className={`
                 group flex min-w-[160px] flex-1 cursor-pointer items-center gap-2 rounded-2xl border px-3 py-2.5 text-left
                 transition-all duration-150
-                hover:-translate-y-[1px] hover:shadow-[0_10px_30px_rgba(0,0,0,0.55)] hover:ring-1 hover:ring-phorium-accent/50
+                hover:-translate-y-[2px] shadow-[0_2px_4px_rgba(0,0,0,0.45),0_6px_12px_rgba(0,0,0,0.35)]
                 ${
                   active
                     ? "border-phorium-accent/80 bg-phorium-accent/12 shadow-[0_10px_30px_rgba(0,0,0,0.65)]"
