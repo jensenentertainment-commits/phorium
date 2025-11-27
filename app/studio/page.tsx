@@ -13,7 +13,7 @@ import {
   Store,
   Settings2,
 } from "lucide-react";
-import StudioAuthGate from "./StudioAuthGate";
+
 import CreditsBadge from "../components/CreditsBadge";
 
 type StatusResponse = {
@@ -74,7 +74,7 @@ function renderStatusBadge() {
   }
 
   return (
-    <StudioAuthGate>
+ 
     <main className="min-h-screen pt-8 pb-20 text-phorium-light">
       <section className="mx-auto max-w-5xl px-4">
         {/* Studio-header */}
@@ -250,6 +250,6 @@ function renderStatusBadge() {
           </div>
         </section>
       </main>
-    </StudioAuthGate>
+  
   );
 }

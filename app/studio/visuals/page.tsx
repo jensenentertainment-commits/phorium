@@ -4,13 +4,13 @@ import { Suspense } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import PhoriumVisualsForm from "@/app/components/PhoriumVisualsForm";
-import StudioAuthGate from "../StudioAuthGate";
+
 
 
 
 export default function VisualsPage() {
   return (
-     <StudioAuthGate>
+  
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
@@ -49,6 +49,5 @@ export default function VisualsPage() {
         <PhoriumVisualsForm />
       </Suspense>
     </motion.div>
-    </StudioAuthGate>
   );
 }

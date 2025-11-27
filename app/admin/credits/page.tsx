@@ -8,6 +8,12 @@ export default function AdminCreditsPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const cookieStore = cookies();
+  const isAdmin = cookieStore.get("phorium_admin")?.value === "1";
+
+  if (!isAdmin) {
+    redirect("/admin/login");
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

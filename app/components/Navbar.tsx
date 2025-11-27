@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Menu,
   X,
@@ -13,10 +13,10 @@ import {
   Mail,
   LayoutDashboard,
   LogIn,
+  LogOut,
+  type LucideIcon,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
-
-
 
 type NavItem = {
   href: string;
@@ -27,17 +27,22 @@ type NavItem = {
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
+
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<any>(null);
+  const [authChecking, setAuthChecking] = useState(true);
 
-useEffect(() => {
-  supabase.auth.getUser().then(({ data }) => {
-    setUser(data.user || null);
-  });
-}, []);
+  // Hent innlogget bruker ved mount
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user || null);
+      setAuthChecking(false);
+    });
+  }, []);
 
-
+  // Scroll-shadow
   useEffect(() => {
     const onScroll = () => {
       setScrolled(window.scrollY > 4);
@@ -47,7 +52,7 @@ useEffect(() => {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Lukk meny når man navigerer til ny route
+  // Lukk mobilmeny ved route-endring
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
@@ -60,6 +65,24 @@ useEffect(() => {
     { href: "/kontakt", label: "Kontakt", icon: Mail },
     { href: "/studio", label: "Studio", isApp: true, icon: LayoutDashboard },
   ];
+
+  async function handleLogout() {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      router.push("/login");
+    } catch (err) {
+      console.error("Feil ved utlogging:", err);
+    }
+  }
+
+  function handleLogin() {
+    router.push("/login");
+  }
+
+  // Avatar-initial basert på e-post
+  const email = user?.email as string | undefined;
+  const initial = email ? email.charAt(0).toUpperCase() : "?";
 
   return (
     <header
@@ -82,7 +105,7 @@ useEffect(() => {
               Phorium
             </span>
             <span className="text-[10px] text-phorium-dark/60">
-              AI for nettbutikker
+            
             </span>
           </div>
         </Link>
@@ -111,33 +134,43 @@ useEffect(() => {
                   />
                 )}
                 <span>{item.label}</span>
-              
               </Link>
             );
           })}
 
-          {/* Logg inn CTA */}
-          
- {user ? (
-  // INNLOGGET → STUDIO SOM CTA-KNAPP
-  <Link
-    href="/studio"
-    className="inline-flex items-center rounded-full bg-phorium-dark px-5 py-1.5 text-[13px] font-semibold text-phorium-light shadow-[0_4px_10px_rgba(0,0,0,0.35)] hover:bg-phorium-dark/90 hover:shadow-[0_6px_16px_rgba(0,0,0,0.5)] transition"
-  >
-    STUDIO
-  </Link>
+          {/* Høyreside: login / avatar + studio + logg ut */}
+          {!authChecking && (
+           user ? (
+  <div className="flex items-center gap-3">
+    {/* Avatar – klikker til Studio */}
+    <Link
+      href="/konto"
+      className="flex h-7 w-7 items-center justify-center rounded-full border border-phorium-off/40 bg-phorium-dark text-[11px] font-semibold text-phorium-light/85 hover:border-phorium-accent/70 hover:text-phorium-accent transition"
+      aria-label="Gå til Konto"
+    >
+      {initial}
+    </Link>
+
+    {/* Logg ut */}
+    <button
+      onClick={handleLogout}
+      className="inline-flex items-center gap-1.5 rounded-full border border-phorium-off/60 bg-[#F5E9D8] px-3 py-1.5 text-[11px] text-phorium-dark/80 hover:border-phorium-accent/80 hover:text-phorium-accent transition"
+    >
+      <LogOut className="h-3.5 w-3.5" />
+      <span>Logg ut</span>
+    </button>
+  </div>
 ) : (
-  // UINNLOGGET → LOGG INN SOM VANLIG MENY-LENKE
-  <Link
-    href="/login"
-    className="inline-flex items-center gap-1 text-[13px] text-phorium-dark hover:text-phorium-accent transition"
+  <button
+    onClick={handleLogin}
+    className="inline-flex items-center gap-1.5 rounded-full border border-phorium-off/60 bg-[#F5E9D8] px-4 py-1.5 text-[13px] text-phorium-dark hover:border-phorium-accent/80 hover:text-phorium-accent transition"
   >
     <LogIn className="h-4 w-4" />
     <span>Logg inn</span>
-  </Link>
-)}
+  </button>
+)
 
-
+          )}
         </div>
 
         {/* Mobil: burger-knapp */}
@@ -194,23 +227,32 @@ useEffect(() => {
                 );
               })}
 
-             
-              {user ? (
-  <Link
-    href="/studio"
-    className="rounded-full border border-phorium-off/50 px-4 py-1.5 text-[13px] text-phorium-light hover:border-phorium-accent/70 hover:text-phorium-accent transition"
-  >
-    Studio
-  </Link>
-) : (
-  <Link
-    href="/login"
-    className="rounded-full border border-phorium-off/50 px-4 py-1.5 text-[13px] text-phorium-light hover:border-phorium-accent/70 hover:text-phorium-accent transition"
-  >
-    Logg inn
-  </Link>
-)}
-
+              {/* Mobil: login / studio + logg ut */}
+              {!authChecking && (
+                user ? (
+                  <div className="flex flex-col gap-2 pt-2">
+                    <Link
+                      href="/studio"
+                      className="rounded-full bg-phorium-dark px-4 py-1.5 text-center text-[13px] font-semibold text-phorium-light hover:bg-phorium-dark/90 transition"
+                    >
+                      Åpne Studio
+                    </Link>
+                    <button
+                      onClick={handleLogout}
+                      className="rounded-full border border-phorium-off/50 px-4 py-1.5 text-[13px] text-[#3E3A30] hover:border-phorium-accent/70 hover:text-phorium-accent transition"
+                    >
+                      Logg ut
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleLogin}
+                    className="w-full rounded-full border border-phorium-off/50 px-4 py-1.5 text-[13px] text-[#3E3A30] hover:border-phorium-accent/70 hover:text-phorium-accent transition"
+                  >
+                    Logg inn
+                  </button>
+                )
+              )}
             </div>
           </div>
         </div>

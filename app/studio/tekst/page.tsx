@@ -4,13 +4,11 @@ import { Suspense } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import PhoriumTextForm from "@/app/components/PhoriumTextForm";
-import StudioAuthGate from "../StudioAuthGate";
 
 
 
 export default function TextPage() {
   return (
-     <StudioAuthGate>
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
@@ -51,6 +49,5 @@ export default function TextPage() {
         <PhoriumTextForm />
       </Suspense>
     </motion.div>
-    </StudioAuthGate>
   );
 }

@@ -31,110 +31,97 @@ export default function LoginPage() {
     void checkUser();
   }, [router]);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setMessage(null);
-    setError(null);
+ async function handleSubmit(e: React.FormEvent) {
+  e.preventDefault();
+  setLoading(true);
+  setMessage(null);
+  setError(null);
 
-    try {
-      if (!email.trim() || !password.trim()) {
-        setError("Skriv inn både e-post og passord.");
+  try {
+    if (!email.trim() || !password.trim()) {
+      setError("Skriv inn både e-post og passord.");
+      return;
+    }
+
+    if (mode === "signup") {
+      // 🔐 Sjekk invite-kode først
+      if (!inviteCode.trim()) {
+        setError("Du må skrive inn invite-koden.");
         return;
       }
 
-      if (mode === "signup") {
-        // 🔐 Beta-kode-sjekk
-        if (!inviteCode.trim()) {
-          setError("Du må skrive inn beta-koden du har fått av Lars.");
-          return;
-        }
-
-        if (!BETA_CODE || inviteCode.trim() !== BETA_CODE) {
-          setError("Ugyldig beta-kode. Ta kontakt med Lars for riktig kode.");
-          return;
-        }
-
-        // 1) Opprett bruker i Supabase Auth
-        const { data, error } = await supabase.auth.signUp({
-          email: email.trim(),
-          password: password.trim(),
-        });
-
-        if (error) {
-          setError(error.message || "Kunne ikke opprette konto.");
-          return;
-        }
-
-        if (!data.user) {
-          setError("Kunne ikke opprette bruker. Prøv igjen.");
-          return;
-        }
-
-        // 2) Gi startkreditter via API-et ditt
-        try {
-          await fetch("/api/credits/give", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              user_id: data.user.id,
-              amount: INITIAL_CREDITS,
-            }),
-          });
-
-          setMessage(
-            `Konto opprettet. Du har fått ${INITIAL_CREDITS} kreditter i betaen.`
-          );
-        } catch (err) {
-          console.error("Kunne ikke gi startkreditter:", err);
-          setMessage(
-            "Konto opprettet. (Obs: Klarte ikke å gi kreditter automatisk.)"
-          );
-        }
-
-        // 3) Logg inn den nye brukeren eksplisitt
-        const { error: loginError } =
-          await supabase.auth.signInWithPassword({
-            email: email.trim(),
-            password: password.trim(),
-          });
-
-        if (loginError) {
-          console.error("Auto-login etter signup feilet:", loginError);
-          // Faller tilbake til at bruker må logge inn manuelt
-          router.push("/login");
-          return;
-        }
-
-        // 4) Inn i Studio
-        router.push("/studio");
-      } else {
-        // LOGIN
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password: password.trim(),
-        });
-
-        if (error || !data.user) {
-          setError(error?.message || "Feil e-post eller passord.");
-          return;
-        }
-
-        router.push("/studio");
+      if (BETA_CODE && inviteCode.trim() !== BETA_CODE) {
+        setError("Feil invite-kode. Dobbeltsjekk eller kontakt Lars.");
+        return;
       }
-    } catch (err: any) {
-      console.error("Login error:", err);
-      setError("Noe gikk galt. Prøv igjen om litt.");
-    } finally {
-      setLoading(false);
+
+      // 🧾 Opprett bruker i Supabase
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (error) {
+        console.error("Signup error:", error);
+        setError(error.message || "Kunne ikke opprette konto.");
+        return; // ⛔️ VIKTIG: stopp her hvis det feilet
+      }
+
+      // (Valgfritt) Gi startkreditter – hvis dette feiler, skal ikke signup ryke
+      try {
+        await fetch("/api/credits/give", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email,
+            amount: INITIAL_CREDITS,
+            reason: "beta_signup",
+          }),
+        });
+      } catch (creditError) {
+        console.error("Feil ved tildeling av kreditter:", creditError);
+        // Ikke sett error til bruker – kreditter kan du fikse manuelt om det knoter
+      }
+
+      setMessage("Konto opprettet! Du kan nå logge inn.");
+      setMode("login");
+      setPassword("");
+      setInviteCode("");
+      return; // ⛔️ Ferdig med signup
     }
+
+    if (mode === "login") {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        console.error("Login error:", error);
+
+        if (error.message === "Invalid login credentials") {
+          setError("Feil e-post eller passord.");
+        } else {
+          setError(error.message || "Kunne ikke logge inn.");
+        }
+
+        return; // stopp her
+      }
+
+      // Alt ok → inn i appen
+      router.push("/studio");
+    }
+  } catch (err) {
+    console.error("Uventet feil i handleSubmit:", err);
+    setError("Noe gikk galt. Prøv igjen om litt.");
+  } finally {
+    setLoading(false);
   }
+}
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-b from-[#1A4242] via-[#06231E] to-[#071F1B] ">
-
+    <main className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-b from-[#1A4242] via-[#06231E] to-[#071F1B]">
       <div className="w-full max-w-md rounded-2xl border border-phorium-off/40 bg-[#1A4242]/95 p-6 shadow-[0_24px_70px_rgba(0,0,0,0.85)]">
-
         <div className="mb-5">
           <p className="text-[11px] uppercase tracking-[0.18em] text-phorium-accent/80">
             Phorium Beta

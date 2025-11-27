@@ -13,6 +13,12 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+   const cookieStore = cookies();
+  const isAdmin = cookieStore.get("phorium_admin")?.value === "1";
+
+  if (!isAdmin) {
+    redirect("/admin/login");
+  }
 
   async function loadUsers() {
     try {

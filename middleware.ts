@@ -18,24 +18,28 @@ export function middleware(req: NextRequest) {
 
   const localHosts = ["localhost", "127.0.0.1", "::1"];
 
-  // 1) Lokalt og på vercel.app → full tilgang (ingen lås)
+  // Lokalt + vercel.app → alltid full tilgang
   if (localHosts.includes(hostname) || hostname.endsWith(".vercel.app")) {
     return NextResponse.next();
   }
 
-  // 2) Tillat statiske filer + public paths
-  if (
+  const isPublic =
     PUBLIC_PATHS.includes(pathname) ||
     pathname.startsWith("/_next") ||
-    pathname.match(/\.(css|js|png|jpg|jpeg|svg|webp|ico)$/)
-  ) {
-    return NextResponse.next();
+    pathname.match(/\.(css|js|png|jpg|jpeg|svg|webp|ico)$/);
+
+  // Slå av/på maintenance med env-variabel
+  const maintenanceEnabled =
+    process.env.NEXT_PUBLIC_MAINTENANCE === "true";
+
+  if (maintenanceEnabled && !isPublic) {
+    url.pathname = "/maintenance";
+    url.search = "";
+    return NextResponse.redirect(url);
   }
 
-  // 3) Alt annet på f.eks. phorium.no → maintenance (inntil du åpner)
-  url.pathname = "/maintenance";
-  url.search = "";
-  return NextResponse.redirect(url);
+  // Normal drift
+  return NextResponse.next();
 }
 
 export const config = {
