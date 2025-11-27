@@ -13,7 +13,7 @@ import {
   Store,
   Settings2,
 } from "lucide-react";
-
+import StudioAuthGate from "./StudioAuthGate";
 import CreditsBadge from "../components/CreditsBadge";
 
 type StatusResponse = {
@@ -42,7 +42,7 @@ export default function DashboardHubPage() {
     fetchStatus();
   }, []);
 
-  function renderStatusBadge() {
+function renderStatusBadge() {
     if (statusLoading) {
       return (
         <div className="inline-flex items-center gap-2 rounded-full border border-phorium-off/40 bg-phorium-dark px-3 py-1.5 text-[11px] text-phorium-light/80">
@@ -74,6 +74,7 @@ export default function DashboardHubPage() {
   }
 
   return (
+    <StudioAuthGate>
     <main className="min-h-screen pt-8 pb-20 text-phorium-light">
       <section className="mx-auto max-w-5xl px-4">
         {/* Studio-header */}
@@ -246,8 +247,9 @@ export default function DashboardHubPage() {
             <Gauge className="h-4 w-4" />
             Brukerguide
           </Link>
-        </div>
-      </section>
-    </main>
+         </div>
+        </section>
+      </main>
+      </StudioAuthGate>
   );
-}
+  ]

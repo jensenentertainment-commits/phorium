@@ -1,52 +1,43 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
 
-export async function middleware(req: NextRequest) {
-  const res = NextResponse.next();
-  const supabase = createMiddlewareClient({ req, res });
+const PUBLIC_PATHS = [
+  "/",            // forsiden
+  "/login",       // login/beta
+  "/access",
+  "/maintenance",
+  "/favicon.ico",
+  "/robots.txt",
+  "/sitemap.xml",
+];
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export function middleware(req: NextRequest) {
+  const url = req.nextUrl.clone();
+  const { pathname } = req.nextUrl;
+  const hostname = req.nextUrl.hostname;
 
-  const pathname = req.nextUrl.pathname;
+  const localHosts = ["localhost", "127.0.0.1", "::1"];
 
-  // 👇 1. Sider som ALLTID skal være åpne
-  const publicPaths = [
-    "/", 
-    "/login",
-    "/om",
-    "/priser",
-    "/guide",
-    "/kontakt",
-    "/favicon.ico",
-    "/robots.txt",
-    "/sitemap.xml",
-  ];
+  // 1) Lokalt og på vercel.app → full tilgang (ingen lås)
+  if (localHosts.includes(hostname) || hostname.endsWith(".vercel.app")) {
+    return NextResponse.next();
+  }
 
-  // Åpne alle statiske filer
+  // 2) Tillat statiske filer + public paths
   if (
-    publicPaths.includes(pathname) ||
+    PUBLIC_PATHS.includes(pathname) ||
     pathname.startsWith("/_next") ||
     pathname.match(/\.(css|js|png|jpg|jpeg|svg|webp|ico)$/)
   ) {
-    return res;
+    return NextResponse.next();
   }
 
-  // 👇 2. Beskytter /studio og alt under
-  if (pathname.startsWith("/studio")) {
-    if (!user) {
-      const loginUrl = req.nextUrl.clone();
-      loginUrl.pathname = "/login";
-      return NextResponse.redirect(loginUrl);
-    }
-  }
-
-  return res;
+  // 3) Alt annet på f.eks. phorium.no → maintenance (inntil du åpner)
+  url.pathname = "/maintenance";
+  url.search = "";
+  return NextResponse.redirect(url);
 }
 
-// Matcher ALLE ruter bortsett fra API-ruter
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)"],
 };
