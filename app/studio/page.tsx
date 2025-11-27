@@ -221,35 +221,35 @@ function renderStatusBadge() {
         </div>
 
         {/* CTA */}
-        <div className="flex flex-wrap items-center gap-3">
-          {status?.connected ? (
-            <Link
-              href="/studio/produkter"
-              className="btn btn-primary btn-lg inline-flex items-center gap-2"
-            >
-              <Blocks className="h-4 w-4" />
-              Gå til produkter
-            </Link>
-          ) : (
-            <Link
-              href="/studio/koble-nettbutikk"
-              className="btn btn-primary btn-lg inline-flex items-center gap-2"
-            >
-              <Link2 className="h-4 w-4" />
-              Koble til nettbutikk
-            </Link>
-          )}
+                  <div className="flex flex-wrap items-center gap-3">
+            {status?.connected ? (
+              <Link
+                href="/studio/produkter"
+                className="btn btn-primary btn-lg inline-flex items-center gap-2"
+              >
+                <Blocks className="h-4 w-4" />
+                Gå til produkter
+              </Link>
+            ) : (
+              <Link
+                href="/studio/koble-nettbutikk"
+                className="btn btn-primary btn-lg inline-flex items-center gap-2"
+              >
+                <Link2 className="h-4 w-4" />
+                Koble til nettbutikk
+              </Link>
+            )}
 
-          <Link
-            href="/guide"
-            className="btn btn-secondary btn-lg inline-flex items-center gap-2"
-          >
-            <Gauge className="h-4 w-4" />
-            Brukerguide
-          </Link>
-         </div>
+            <Link
+              href="/guide"
+              className="btn btn-secondary btn-lg inline-flex items-center gap-2"
+            >
+              <Gauge className="h-4 w-4" />
+              Brukerguide
+            </Link>
+          </div>
         </section>
       </main>
-      </StudioAuthGate>
+    </StudioAuthGate>
   );
-  ]
+}
