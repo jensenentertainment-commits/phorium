@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { Loader2, Lock, Mail, KeyRound } from "lucide-react";
+import { Loader2, Lock, Mail, KeyRound, Eye, EyeOff } from "lucide-react";
 
 type Mode = "login" | "signup";
 
@@ -19,6 +19,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+
 
   // Hvis bruker allerede er logget inn → rett til /studio
   useEffect(() => {
@@ -188,27 +190,49 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <div>
-            <label className="mb-1 block text-[11px] text-phorium-light/80">
-              Passord
-            </label>
-            <div className="relative">
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-phorium-light/40">
-                <Lock className="h-4 w-4" />
-              </span>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-xl border border-phorium-off/40 bg-white px-9 py-2 text-[13px] text-[#0f1512] placeholder:text-[#6c7a75] focus:border-phorium-accent/80 focus:outline-none focus:ring-2 focus:ring-phorium-accent/20"
-                placeholder={
-                  mode === "login"
-                    ? "Passordet du har fått"
-                    : "Minst 6 tegn"
-                }
-              />
-            </div>
-          </div>
+          <div className="relative">
+  {/* Venstre ikon (lås) */}
+  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-phorium-light/40">
+    <Lock className="h-4 w-4" />
+  </span>
+
+  {/* Selve input-feltet */}
+  <input
+    type={showPassword ? "text" : "password"}
+    value={password}
+    onChange={(e) => setPassword(e.target.value)}
+    className="w-full rounded-xl border border-phorium-off/40 bg-phorium-dark/80 px-9 pr-9 py-2 text-[13px] outline-none transition focus:border-phorium-accent/80"
+    placeholder="••••••••"
+    autoComplete={mode === "login" ? "current-password" : "new-password"}
+  />
+
+  {/* Høyre ikon (vis/skjul) */}
+  <button
+    type="button"
+    onClick={() => setShowPassword((prev) => !prev)}
+    className="absolute right-3 top-1/2 -translate-y-1/2 text-phorium-light/50 hover:text-phorium-accent transition"
+    aria-label={showPassword ? "Skjul passord" : "Vis passord"}
+  >
+    {showPassword ? (
+      <EyeOff className="h-4 w-4" />
+    ) : (
+      <Eye className="h-4 w-4" />
+    )}
+  </button>
+</div>
+
+
+{mode === "login" && (
+  <div className="text-right mt-1">
+    <a
+      href="/glemt-passord"
+      className="text-[11px] text-phorium-accent hover:underline"
+    >
+      Glemt passord?
+    </a>
+  </div>
+)}
+
 
           {mode === "signup" && (
             <div>

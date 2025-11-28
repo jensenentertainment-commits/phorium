@@ -1,154 +1,88 @@
-// /lib/credits.ts
+// lib/credits.ts
+import { supabase } from "./supabaseClient";
 
-import { supabase } from "@/lib/supabaseClient";
-
-const CREDITS_TABLE = "credits";
-
-export type CreditsRow = {
-  id: string;
-  user_id: string;
+export type UseCreditsResult = {
+  ok: boolean;
   balance: number;
-  updated_at: string;
+  error?: string;
 };
 
-export type CreditsResult =
-  | { ok: true; balance: number }
-  | { ok: false; error: string };
-
 /**
- * Sørger for at brukeren har en rad i credits-tabellen.
- * Returnerer nåværende balance (kan være 0).
- */
-export async function ensureCreditsRow(
-  userId: string
-): Promise<CreditsResult> {
-  if (!userId) {
-    return { ok: false, error: "Missing userId" };
-  }
-
-  // Finn eksisterende rad
-  const { data, error } = await supabase
-    .from<CreditsRow>(CREDITS_TABLE)
-    .select("*")
-    .eq("user_id", userId)
-    .single();
-
-  if (error && error.code !== "PGRST116") {
-    // PGRST116 = row not found
-    console.error("ensureCreditsRow: fetch error", error);
-    return { ok: false, error: "Kunne ikke hente kreditter" };
-  }
-
-  if (data) {
-    return { ok: true, balance: data.balance };
-  }
-
-  // Ingen rad → opprett med 0
-  const { data: inserted, error: insertError } = await supabase
-    .from<CreditsRow>(CREDITS_TABLE)
-    .insert({ user_id: userId, balance: 0 })
-    .select("*")
-    .single();
-
-  if (insertError || !inserted) {
-    console.error("ensureCreditsRow: insert error", insertError);
-    return { ok: false, error: "Kunne ikke opprette kreditt-rad" };
-  }
-
-  return { ok: true, balance: inserted.balance };
-}
-
-/**
- * Hent nåværende kredittsaldo.
- */
-export async function getCredits(userId: string): Promise<CreditsResult> {
-  if (!userId) {
-    return { ok: false, error: "Missing userId" };
-  }
-
-  const { data, error } = await supabase
-    .from<CreditsRow>(CREDITS_TABLE)
-    .select("balance")
-    .eq("user_id", userId)
-    .single();
-
-  if (error) {
-    console.error("getCredits error", error);
-    return { ok: false, error: "Kunne ikke hente kreditter" };
-  }
-
-  return { ok: true, balance: data?.balance ?? 0 };
-}
-
-/**
- * Gi brukeren X antall kreditter (kan være negativt hvis du vil trekke manuelt).
- */
-export async function giveCredits(
-  userId: string,
-  amount: number
-): Promise<CreditsResult> {
-  if (!userId) return { ok: false, error: "Missing userId" };
-  if (!Number.isFinite(amount)) {
-    return { ok: false, error: "Ugyldig kredittbeløp" };
-  }
-
-  // Sørg for at rad finnes
-  const ensured = await ensureCreditsRow(userId);
-  if (!ensured.ok) return ensured;
-
-  const newBalance = ensured.balance + amount;
-
-  const { data, error } = await supabase
-    .from<CreditsRow>(CREDITS_TABLE)
-    .update({ balance: newBalance })
-    .eq("user_id", userId)
-    .select("*")
-    .single();
-
-  if (error || !data) {
-    console.error("giveCredits error", error);
-    return { ok: false, error: "Kunne ikke oppdatere kreditter" };
-  }
-
-  return { ok: true, balance: data.balance };
-}
-
-/**
- * Bruk X antall kreditter.
- * Returnerer error hvis brukeren har for lite.
+ * Trekker "amount" kreditter fra en bruker.
+ * Brukes av:
+ *  - /api/credits/use
+ *  - /api/generate-text
+ *  - /api/phorium-generate
  */
 export async function useCredits(
   userId: string,
   amount: number
-): Promise<CreditsResult> {
-  if (!userId) return { ok: false, error: "Missing userId" };
+): Promise<UseCreditsResult> {
+  if (!userId) {
+    return {
+      ok: false,
+      balance: 0,
+      error: "Mangler userId.",
+    };
+  }
+
   if (!Number.isFinite(amount) || amount <= 0) {
-    return { ok: false, error: "Ugyldig kredittbeløp" };
+    return {
+      ok: false,
+      balance: 0,
+      error: "Beløpet må være et tall > 0.",
+    };
   }
 
-  const current = await ensureCreditsRow(userId);
-  if (!current.ok) return current;
-
-  if (current.balance < amount) {
-    return { ok: false, error: "Ikke nok kreditter" };
-  }
-
-  const newBalance = current.balance - amount;
-
+  // 1) Hent eksisterende saldo
   const { data, error } = await supabase
-    .from<CreditsRow>(CREDITS_TABLE)
-    .update({ balance: newBalance })
+    .from("credits")
+    .select("balance")
     .eq("user_id", userId)
-    .select("*")
-    .single();
+    .maybeSingle();
 
-  if (error || !data) {
-    console.error("useCredits error", error);
-    return { ok: false, error: "Kunne ikke oppdatere kreditter" };
+  if (error) {
+    console.error("[useCredits] Feil ved henting av kreditter:", error);
+    return {
+      ok: false,
+      balance: 0,
+      error: "Kunne ikke hente kreditter.",
+    };
   }
 
-  return { ok: true, balance: data.balance };
-}
+  const currentBalance = data?.balance ?? 0;
 
-// 👇 eksplisitt re-eksport – gjør det krystallklart for Next
-export { ensureCreditsRow, getCredits, giveCredits, useCredits };
+  // 2) Sjekk om det er nok kreditter
+  if (currentBalance < amount) {
+    return {
+      ok: false,
+      balance: currentBalance,
+      error: "Ikke nok kreditter.",
+    };
+  }
+
+  const newBalance = currentBalance - amount;
+
+  // 3) Oppdater saldo
+  const { error: updateError } = await supabase
+    .from("credits")
+    .update({
+      balance: newBalance,
+      last_reason: "usage",
+    })
+    .eq("user_id", userId);
+
+  if (updateError) {
+    console.error("[useCredits] Feil ved oppdatering av kreditter:", updateError);
+    return {
+      ok: false,
+      balance: currentBalance,
+      error: "Kunne ikke oppdatere kreditter.",
+    };
+  }
+
+  return {
+    ok: true,
+    balance: newBalance,
+  };
+}

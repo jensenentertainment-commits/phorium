@@ -1,22 +1,20 @@
 import { NextResponse } from "next/server";
 
+// Midlertidig: hardkodet admin-nøkkel for lokal/beta
+const ADMIN_SECRET = "BRILLEFINT123"; // velg noe du husker
+
 export async function POST(req: Request) {
   const { secret } = await req.json().catch(() => ({ secret: "" }));
 
-  if (!process.env.ADMIN_SECRET) {
+  if (!secret || secret !== ADMIN_SECRET) {
     return NextResponse.json(
-      { error: "ADMIN_SECRET er ikke satt i miljøvariabler." },
-      { status: 500 }
+      { error: "Ugyldig admin-nøkkel." },
+      { status: 401 }
     );
-  }
-
-  if (!secret || secret !== process.env.ADMIN_SECRET) {
-    return NextResponse.json({ error: "Ugyldig admin-nøkkel." }, { status: 401 });
   }
 
   const res = NextResponse.json({ ok: true });
 
-  // Sett HttpOnly-cookie som kun serveren kan lese
   res.cookies.set("phorium_admin", "1", {
     httpOnly: true,
     secure: true,

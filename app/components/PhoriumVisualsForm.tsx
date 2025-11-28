@@ -26,6 +26,8 @@ import PhoriumLoader from "./PhoriumLoader";
 import useBrandProfile from "@/hooks/useBrandProfile";
 import BrandIdentityBar from "./BrandIdentityBar";
 import { supabase } from "@/lib/supabaseClient";
+import { useCreditError } from "@/app/studio/CreditErrorContext";
+
 
 
 type HistoryItem = {
@@ -110,6 +112,7 @@ export default function PhoriumVisualsForm() {
   const [productError, setProductError] = useState<string | null>(null);
   const [shopDomain, setShopDomain] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const { creditError, setCreditError } = useCreditError();
 
 
   // Brandprofil (felles med tekst)
@@ -408,8 +411,7 @@ useEffect(() => {
     }
   }
 
-  // 1) Standard bildegenerering
-  // 1) Standard bildegenerering
+ // 1) Standard bildegenerering
 async function handleGenerate() {
   const trimmed = prompt.trim();
   if (!trimmed || isBusy) return;
@@ -430,6 +432,7 @@ async function handleGenerate() {
       }),
     });
 
+    // Rate limit
     if (res.status === 429) {
       const txt = await res.text().catch(() => "");
       const secs = parseRetrySeconds(txt);
@@ -439,6 +442,16 @@ async function handleGenerate() {
       throw new Error(
         "Du har nådd en grense for bildegenerering. Vent litt og prøv igjen."
       );
+    }
+
+    // 🔴 Tom for kreditter
+    if (res.status === 403) {
+      const data = await res.json().catch(() => ({} as any));
+      setCreditError(
+        data.error ||
+          "Ikke nok kreditter til å generere flere bilder akkurat nå."
+      );
+      return;
     }
 
     if (!res.ok) {
@@ -463,9 +476,6 @@ async function handleGenerate() {
   }
 }
 
-
-
-  // 2A) Banner med trygg tekst – AI-bakgrunn
   // 2A) Banner med trygg tekst – AI-bakgrunn
 async function handleSmartTextGenerate() {
   if (!safeHeadline.trim() || isBusy) return;
@@ -504,6 +514,16 @@ async function handleSmartTextGenerate() {
       );
     }
 
+    // 🔴 Tom for kreditter
+    if (res.status === 403) {
+      const data = await res.json().catch(() => ({} as any));
+      setCreditError(
+        data.error ||
+          "Ikke nok kreditter til å generere flere bannere akkurat nå."
+      );
+      return;
+    }
+
     if (!res.ok) {
       throw new Error("Kunne ikke generere banner.");
     }
@@ -534,7 +554,6 @@ async function handleSmartTextGenerate() {
     setSafeLoading(false);
   }
 }
-
 
   // 2B) Banner med trygg tekst – egen bakgrunn
 async function handleOverlayGenerate() {
@@ -576,6 +595,20 @@ async function handleOverlayGenerate() {
       );
     }
 
+    if (res.status === 403) {
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {}
+      setCreditError(
+        data.error ||
+          "Ikke nok kreditter til å generere flere bannere akkurat nå."
+      );
+      setOverlayLoading(false);
+      return;
+    }
+
+
     if (!res.ok) {
       let msg = "Kunne ikke legge tekst på bildet.";
       try {
@@ -613,8 +646,7 @@ async function handleOverlayGenerate() {
 }
 
 
-  // 2C) Kampanjepakke (hero / IG / story)
-  // 2C) Kampanjepakke (hero / IG / story)
+ // 2C) Kampanjepakke (hero / IG / story)
 async function handleCampaignPack() {
   if (!safeHeadline.trim() || isBusy) return;
 
@@ -661,6 +693,16 @@ async function handleCampaignPack() {
         );
       }
 
+      // 🔴 Tom for kreditter
+      if (res.status === 403) {
+        const data = await res.json().catch(() => ({} as any));
+        setCreditError(
+          data.error ||
+            "Ikke nok kreditter til å generere kampanjepakke akkurat nå."
+        );
+        return;
+      }
+
       if (!res.ok) {
         throw new Error("Kunne ikke generere ett av kampanjebildene.");
       }
@@ -694,57 +736,66 @@ async function handleCampaignPack() {
 
 
   // 2D) Ny variant (samme config, nytt forslag)
-  async function handleVariant() {
-    if (!lastBannerConfig || isBusy) return;
+async function handleVariant() {
+  if (!lastBannerConfig || isBusy) return;
 
-    setSafeLoading(true);
-    setError(null);
-    setImageUrl(null);
-    setCampaignPack([]);
+  setSafeLoading(true);
+  setError(null);
+  setImageUrl(null);
+  setCampaignPack([]);
 
-    try {
-      const bgPrompt =
-        lastBannerConfig.backgroundPrompt ||
-        (contextPrefix() +
-          (safeBgPrompt.trim() ||
-            "Ren, kommersiell stil som matcher nettbutikk og brand."));
+  try {
+    const bgPrompt =
+      lastBannerConfig.backgroundPrompt ||
+      (contextPrefix() +
+        (safeBgPrompt.trim() ||
+          "Ren, kommersiell stil som matcher nettbutikk og brand."));
 
-      const res = await fetch("/api/phorium-generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          backgroundPrompt: bgPrompt,
-          headline: lastBannerConfig.headline,
-          subline: lastBannerConfig.subline,
-          size: "1200x628",
-           userId,
-        }),
-      });
+    const res = await fetch("/api/phorium-generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        backgroundPrompt: bgPrompt,
+        headline: lastBannerConfig.headline,
+        subline: lastBannerConfig.subline,
+        size: "1200x628",
+        userId,
+      }),
+    });
 
-      if (!res.ok) throw new Error("Kunne ikke lage nytt forslag.");
-
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      setImageUrl(url);
-      addToHistory(
-        `[Banner variant] ${lastBannerConfig.headline}${
-          lastBannerConfig.subline ? " – " + lastBannerConfig.subline : ""
-        }`,
-        url,
-        "Banner",
+    // 🔴 Tom for kreditter
+    if (res.status === 403) {
+      const data = await res.json().catch(() => ({} as any));
+      setCreditError(
+        data.error ||
+          "Ikke nok kreditter til å generere flere varianter akkurat nå."
       );
-    } catch (err: any) {
-      setError(
-        err?.message ||
-          "Noe gikk galt ved generering av variant. Prøv igjen om litt.",
-      );
-    } finally {
-      setSafeLoading(false);
+      return;
     }
-  }
 
-  // 3) Produktbilde → scene
- // 3) Produktbilde → scene
+    if (!res.ok) throw new Error("Kunne ikke lage nytt forslag.");
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    setImageUrl(url);
+    addToHistory(
+      `[Banner variant] ${lastBannerConfig.headline}${
+        lastBannerConfig.subline ? " – " + lastBannerConfig.subline : ""
+      }`,
+      url,
+      "Banner"
+    );
+  } catch (err: any) {
+    setError(
+      err?.message ||
+        "Noe gikk galt ved generering av variant. Prøv igjen om litt."
+    );
+  } finally {
+    setSafeLoading(false);
+  }
+}
+
+// 3) Produktbilde → scene
 async function handleEditGenerate() {
   if (!sceneFile || !editPrompt.trim() || isBusy) return;
 
@@ -763,6 +814,16 @@ async function handleEditGenerate() {
       method: "POST",
       body: fd,
     });
+
+    // 🔴 Tom for kreditter
+    if (res.status === 403) {
+      const data = await res.json().catch(() => ({} as any));
+      setCreditError(
+        data.error ||
+          "Ikke nok kreditter til å generere flere scener akkurat nå."
+      );
+      return;
+    }
 
     if (!res.ok) {
       throw new Error("Kunne ikke generere scene rundt produktet.");
@@ -789,6 +850,7 @@ async function handleEditGenerate() {
     setEditing(false);
   }
 }
+
 
 
   function handleReusePrompt(item: HistoryItem) {
@@ -1006,11 +1068,11 @@ async function handleEditGenerate() {
             <button
   type="button"
   onClick={handleGenerate}
-  disabled={
-    !prompt.trim() ||
-    isBusy ||
-    imageCooldown > 0 ||
-    (error && error.toLowerCase().includes("tom for kreditter"))
+ disabled={
+  !prompt.trim() ||
+  isBusy ||
+  imageCooldown > 0 ||
+  !!creditError
   }
 
               className="btn btn-primary btn-lg inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
@@ -1248,7 +1310,7 @@ async function handleEditGenerate() {
   isBusy ||
   bannerCooldown > 0 ||
   (bannerSource === "upload" && !textBgFile) ||
-  (error && error.toLowerCase().includes("tom for kreditter"))
+  !!creditError
 }
 
                 className="btn btn-primary btn-lg inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
@@ -1278,12 +1340,13 @@ async function handleEditGenerate() {
               <button
                 type="button"
                 onClick={handleCampaignPack}
-                disabled={
+        disabled={
   !safeHeadline.trim() ||
   isBusy ||
   packCooldown > 0 ||
-  (error && error.toLowerCase().includes("tom for kreditter"))
+  !!creditError
 }
+
 
                 className="btn btn-secondary btn-lg inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-40"
               >
@@ -1307,11 +1370,8 @@ async function handleEditGenerate() {
               <button
                 type="button"
                 onClick={handleVariant}
-           disabled={
-  !lastBannerConfig ||
-  isBusy ||
-  (error && error.toLowerCase().includes("tom for kreditter"))
-}
+       disabled={!lastBannerConfig || isBusy || !!creditError}
+
 
                 className="btn btn-ghost btn-sm inline-flex items-center gap-1 disabled:cursor-not-allowed disabled:opacity-40"
               >
@@ -1376,7 +1436,8 @@ async function handleEditGenerate() {
           <button
             type="button"
             onClick={handleEditGenerate}
-            disabled={!baseImage || !editPrompt.trim() || isBusy}
+            disabled={!baseImage || !editPrompt.trim() || isBusy || !!creditError}
+
             className="btn btn-primary btn-lg inline-flex items-center gap-2 w-full disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             {editing ? (
@@ -1386,7 +1447,7 @@ async function handleEditGenerate() {
               </>
             ) : (
               <>
-                <Wand2 className="h-4 w-4" />©
+                <Wand2 className="h-4 w-4" />
                 Generer scene rundt produktet
               </>
             )}
