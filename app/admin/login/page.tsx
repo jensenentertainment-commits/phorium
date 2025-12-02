@@ -38,7 +38,7 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-phorium-dark flex items-center justify-center px-4">
+    <main className="flex min-h-screen justify-center items-start pt-20">
       <div className="w-full max-w-sm rounded-2xl border border-phorium-off/30 bg-phorium-dark/90 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.7)]">
         <h1 className="text-lg font-semibold text-phorium-light">
           Admin-tilgang

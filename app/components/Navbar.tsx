@@ -30,12 +30,17 @@ type NavItem = {
   icon?: LucideIcon;
 };
 
-export default function Navbar({ isAdmin }: { isAdmin?: boolean }) {
+export default function Navbar() {
+
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
 
   const { user, loading: authChecking } = useAuth();
 const [plan, setPlan] = useState<PlanName | null>(null);
+
+// Kun du er admin – bytt til din faktiske e-post
+const isAdmin = !!user && user.email === "jensen.entertainment@gmail.com";
+
 
   const router = useRouter();
   const pathname = usePathname();
