@@ -1,5 +1,5 @@
 // components/UserAvatar.tsx
-import { PLAN_COLORS, type PlanName } from "@/components/PlanBadge";
+import { PLAN_COLORS, type PlanName } from "app/components/PlanBadge";
 
 type UserAvatarProps = {
   email: string | null;
