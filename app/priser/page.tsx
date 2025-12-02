@@ -97,16 +97,11 @@ export default function PricingPage() {
           Velg planen som matcher din vekst
         </h1>
 
-        <p className="mx-auto mb-3 max-w-2xl text-[14px] leading-relaxed text-phorium-light/80">
-          Phorium lanserer et enkelt og forutsigbart kredittsystem tilpasset
-          norske nettbutikker, byråer og større miljøer. Alle genereringer
-          koster kreditter – du betaler bare for faktisk bruk.
-        </p>
+        <p className="mx-auto mb-3 max-w-8xl text-[14px] leading-relaxed text-phorium-light/80 text-center">
 
-        <p className="mx-auto mb-14 max-w-xl text-[12px] text-phorium-light/60">
-          Lanseringspriser og kredittnivåer publiseres ved åpen launch. I dag
-          kan du registrere interesse – så gir vi deg tilgang når din kategori
-          åpnes.
+          Phorium lanserer et enkelt og forutsigbart kredittsystem tilpasset
+          norske nettbutikker og byråer. Alle genereringer
+          koster kreditter. Du betaler bare for faktisk bruk.
         </p>
 
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
@@ -116,7 +111,7 @@ export default function PricingPage() {
             return (
               <div
                 key={plan.slug}
-                className={`flex h-full flex-col justify-between rounded-3xl border border-phorium-off/25 bg-phorium-surface/95 p-6 text-left shadow-[0_22px_60px_rgba(0,0,0,0.45)] transition-all hover:-translate-y-0.5 hover:shadow-[0_30px_90px_rgba(0,0,0,0.7)] ${
+                className={`flex h-full flex-col justify-between rounded-3xl border border-phorium-off/25 bg-phorium-surface/95 p-6 text-center shadow-[0_22px_60px_rgba(0,0,0,0.45)] transition-all hover:-translate-y-0.5 hover:shadow-[0_30px_90px_rgba(0,0,0,0.7)] ${
                   plan.highlight ? "ring-1 ring-phorium-accent/55" : ""
                 }`}
               >
