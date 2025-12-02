@@ -411,70 +411,85 @@ useEffect(() => {
     }
   }
 
- // 1) Standard bildegenerering
-async function handleGenerate() {
-  const trimmed = prompt.trim();
-  if (!trimmed || isBusy) return;
+    // 1) Standard bildegenerering
+  async function handleGenerate() {
+    const trimmed = prompt.trim();
+    if (!trimmed || isBusy) return;
 
-  setError(null);
-  setImageUrl(null);
-  setCampaignPack([]);
-  setImageLoading(true);
+    setError(null);
+    setImageUrl(null);
+    setCampaignPack([]);
+    setImageLoading(true);
 
-  try {
-    const res = await fetch("/api/generate-image", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        prompt: contextPrefix() + trimmed,
-        size: imageSize,
-        userId,
-      }),
-    });
+    try {
+      const res = await fetch("/api/generate-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: contextPrefix() + trimmed,
+          size: imageSize,
+          userId,
+        }),
+      });
 
-    // Rate limit
-    if (res.status === 429) {
-      const txt = await res.text().catch(() => "");
-      const secs = parseRetrySeconds(txt);
-      if (typeof secs === "number") {
-        setImageCooldown(secs);
+      // Rate limit (429) – bruk cooldown
+      if (res.status === 429) {
+        const txt = await res.text().catch(() => "");
+        const secs = parseRetrySeconds(txt);
+        if (typeof secs === "number") {
+          setImageCooldown(secs);
+        }
+        throw new Error(
+          "Du har nådd en grense for bildegenerering. Vent litt og prøv igjen."
+        );
       }
-      throw new Error(
-        "Du har nådd en grense for bildegenerering. Vent litt og prøv igjen."
+
+      // Tom for kreditter (403) – vis global kredit-feil
+      if (res.status === 403) {
+        const data = await res.json().catch(() => ({} as any));
+        setCreditError(
+          data.error ||
+            "Ikke nok kreditter til å generere flere bilder akkurat nå."
+        );
+        return; // ikke kast – vi håndterer dette pent
+      }
+
+      // Andre feil
+      if (!res.ok) {
+        let data: any = {};
+        try {
+          data = await res.json();
+        } catch {
+          // ignore
+        }
+        console.error(
+          "[handleGenerate] Feil fra /api/generate-image:",
+          res.status,
+          data
+        );
+        throw new Error(
+          data?.error || "Kunne ikke generere bilde."
+        );
+      }
+
+      const data = await res.json();
+      if (!data?.imageUrl) {
+        throw new Error("Svar fra tjenesten mangler bilde-URL.");
+      }
+
+      setImageUrl(data.imageUrl);
+      addToHistory(trimmed, data.imageUrl, "Standardbilde");
+    } catch (err: any) {
+      handleCreditAwareError(
+        err,
+        (msg) => setError(msg),
+        "Kunne ikke generere bilde akkurat nå. Prøv igjen om litt."
       );
+    } finally {
+      setImageLoading(false);
     }
-
-    // 🔴 Tom for kreditter
-    if (res.status === 403) {
-      const data = await res.json().catch(() => ({} as any));
-      setCreditError(
-        data.error ||
-          "Ikke nok kreditter til å generere flere bilder akkurat nå."
-      );
-      return;
-    }
-
-    if (!res.ok) {
-      throw new Error("Kunne ikke generere bilde.");
-    }
-
-    const data = await res.json();
-    if (!data?.imageUrl) {
-      throw new Error("Svar fra tjenesten mangler bilde-URL.");
-    }
-
-    setImageUrl(data.imageUrl);
-    addToHistory(trimmed, data.imageUrl, "Standardbilde");
-  } catch (err: any) {
-    handleCreditAwareError(
-      err,
-      (msg) => setError(msg),
-      "Kunne ikke generere bilde akkurat nå. Prøv igjen om litt."
-    );
-  } finally {
-    setImageLoading(false);
   }
-}
+
 
   // 2A) Banner med trygg tekst – AI-bakgrunn
 async function handleSmartTextGenerate() {
@@ -652,8 +667,8 @@ async function handleCampaignPack() {
 
   setCampaignLoading(true);
   setError(null);
-  setCampaignPack([]);
   setImageUrl(null);
+  setCampaignPack([]);
 
   const baseBg =
     contextPrefix() +
@@ -682,6 +697,7 @@ async function handleCampaignPack() {
         }),
       });
 
+      // 🔁 Rate-limit / cooldown
       if (res.status === 429) {
         const txt = await res.text().catch(() => "");
         const secs = parseRetrySeconds(txt);
@@ -693,13 +709,14 @@ async function handleCampaignPack() {
         );
       }
 
-      // 🔴 Tom for kreditter
+      // 🔒 Tom for kreditter → global sperre
       if (res.status === 403) {
         const data = await res.json().catch(() => ({} as any));
         setCreditError(
           data.error ||
             "Ikke nok kreditter til å generere kampanjepakke akkurat nå."
         );
+        setCampaignLoading(false);
         return;
       }
 
@@ -707,8 +724,10 @@ async function handleCampaignPack() {
         throw new Error("Kunne ikke generere ett av kampanjebildene.");
       }
 
+      // 🔁 Vi får PNG-bytes fra /api/phorium-generate
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
+
       results.push({
         label: fmt.label,
         size: fmt.size,
@@ -733,6 +752,7 @@ async function handleCampaignPack() {
     setCampaignLoading(false);
   }
 }
+
 
 
   // 2D) Ny variant (samme config, nytt forslag)
@@ -1614,12 +1634,14 @@ async function handleEditGenerate() {
                     </span>
                   </div>
                   <div className="mt-1 flex flex-1 items-center justify-center overflow-hidden rounded-xl bg-phorium-dark">
-                    <img
-                      src={item.url}
-                      alt={item.label}
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
+  <img
+    src={item.url}
+    alt={item.label}
+    onClick={() => setFullscreenImage(item.url)}
+    className="h-full w-full cursor-zoom-in object-cover transition hover:opacity-90"
+  />
+</div>
+
                   <button
                     type="button"
                     onClick={() => handleDownload(item.url)}

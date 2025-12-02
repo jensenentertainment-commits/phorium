@@ -29,16 +29,7 @@ export default function OmPhoriumClient() {
           transition={{ duration: 0.45 }}
           className="rounded-3xl border border-phorium-off/20 bg-phorium-surface/95 px-6 py-10 shadow-[0_28px_110px_rgba(0,0,0,0.68)] backdrop-blur-xl sm:px-12"
         >
-          {/* Top CTA */}
-          <div className="mb-7 flex flex-wrap gap-3 text-[11px]">
-            <Link
-              href="/priser"
-              className="inline-flex items-center gap-2 rounded-full border border-phorium-accent/50 bg-phorium-accent/10 px-3 py-1.5 text-phorium-accent transition hover:bg-phorium-accent/20"
-            >
-              Se priser
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
+        
 
           {/* Header */}
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">

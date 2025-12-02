@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import sharp from "sharp";
 import { useCredits } from "@/lib/credits"; //
+import { logActivity } from "@/lib/activityLog";
+
 export const runtime = "nodejs";
 
 const apiKey = process.env.OPENAI_API_KEY;
@@ -34,28 +36,31 @@ export async function POST(req: Request) {
       );
     }
 
-    const body = (await req.json()) as Body;
-        const userId = body.userId;
+      const body = (await req.json()) as Body;
+    const userId = body.userId;
 
-    // 🔹 Kreditt-trekk før OpenAI + sharp (banner-generering)
-    // Forslag: 6 kreditter per phorium-banner (juster tallet hvis du vil)
-    if (userId) {
-      const creditResult = await useCredits(userId, 6);
+    // 1) Krev innlogging
+    if (!userId) {
+      return NextResponse.json(
+        {
+          error: "Du må være innlogget for å generere bannere.",
+        },
+        { status: 401 }
+      );
+    }
 
-      if (!creditResult.ok) {
-        return NextResponse.json(
-          {
-            error:
-              creditResult.error ||
-              "Ikke nok kreditter til å generere flere bannere.",
-          },
-          { status: 403 }
-        );
-      }
-    } else {
-      // Dev/beta: la det gå igjennom, men logg
-      console.warn(
-        "[/api/phorium-generate] Ingen userId – hoppet over kreditt-trekk (dev/beta)."
+    // 2) Kreditt-trekk før OpenAI + sharp (banner-generering)
+    // Her bruker vi 6 kreditter per banner (juster hvis du vil)
+    const creditResult = await useCredits(userId, 6);
+
+    if (!creditResult.ok) {
+      return NextResponse.json(
+        {
+          error:
+            creditResult.error ||
+            "Ikke nok kreditter til å generere flere bannere.",
+        },
+        { status: 403 }
       );
     }
 
@@ -165,6 +170,18 @@ La komposisjonen ha tydelig plass til tittel og undertekst som skal legges på e
       .composite([{ input: Buffer.from(svg), left: 0, top: 0 }])
       .png()
       .toBuffer();
+
+          // etter at kampanjepakken er generert ferdig:
+    await logActivity({
+      userId,
+      eventType: "CAMPAIGN_GENERATED",
+      meta: {
+        kind: "campaign_pack",
+        formats: ["1200x628", "1080x1080", "1080x1920"],
+        credits_charged: 8,
+        headline: body.headline ?? null,
+      },
+    });
 
    // 7) Returner PNG som Uint8Array (BodyInit-friendly)
 const pngBytes = new Uint8Array(finalBuffer);

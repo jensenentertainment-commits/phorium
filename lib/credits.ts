@@ -10,50 +10,65 @@ export type UseCreditsResult = {
 /**
  * Trekker "amount" kreditter fra en bruker.
  * Brukes av:
- *  - /api/credits/use
  *  - /api/generate-text
  *  - /api/phorium-generate
+ *  - /api/whatever-du-lager-senere
  */
 export async function useCredits(
   userId: string,
-  amount: number
+  amount: number,
 ): Promise<UseCreditsResult> {
   if (!userId) {
     return {
       ok: false,
       balance: 0,
-      error: "Mangler userId.",
+      error: "UserId mangler.",
     };
   }
 
-  if (!Number.isFinite(amount) || amount <= 0) {
+  if (amount <= 0) {
+    // Ingen endring, bare returner nåværende saldo
+    const { data, error } = await supabase
+      .from("credits") // 👈 tabellnavn: "credits"
+      .select("balance")
+      .eq("user_id", userId)
+      .single();
+
+    if (error || !data) {
+      return {
+        ok: false,
+        balance: 0,
+        error: "Kunne ikke hente kreditter.",
+      };
+    }
+
     return {
-      ok: false,
-      balance: 0,
-      error: "Beløpet må være et tall > 0.",
+      ok: true,
+      balance: data.balance ?? 0,
     };
   }
 
-  // 1) Hent eksisterende saldo
+  // 1) Hent nåværende saldo
   const { data, error } = await supabase
     .from("credits")
-    .select("balance")
+    .select("id, balance")
     .eq("user_id", userId)
-    .maybeSingle();
+    .single();
 
-  if (error) {
-    console.error("[useCredits] Feil ved henting av kreditter:", error);
+  if (error || !data) {
+    console.error("[useCredits] Klarte ikke å hente kreditter:", error);
     return {
       ok: false,
       balance: 0,
-      error: "Kunne ikke hente kreditter.",
+      error: "Fant ingen kredittkonto for brukeren.",
     };
   }
 
-  const currentBalance = data?.balance ?? 0;
+  const currentBalance = data.balance ?? 0;
+  const newBalance = currentBalance - amount;
 
-  // 2) Sjekk om det er nok kreditter
-  if (currentBalance < amount) {
+  // 2) Ikke nok kreditter → AVBRYT, ikke trekk
+  if (newBalance < 0) {
     return {
       ok: false,
       balance: currentBalance,
@@ -61,16 +76,14 @@ export async function useCredits(
     };
   }
 
-  const newBalance = currentBalance - amount;
-
   // 3) Oppdater saldo
   const { error: updateError } = await supabase
     .from("credits")
     .update({
       balance: newBalance,
-      last_reason: "usage",
+      updated_at: new Date().toISOString(),
     })
-    .eq("user_id", userId);
+    .eq("id", data.id);
 
   if (updateError) {
     console.error("[useCredits] Feil ved oppdatering av kreditter:", updateError);

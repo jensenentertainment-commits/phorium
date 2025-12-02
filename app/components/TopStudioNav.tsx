@@ -9,9 +9,12 @@ import {
   Store,
   LayoutDashboard,
 } from "lucide-react";
+import { useEffect, useState } from "react";
+
 import CreditsBadge from "@/app/components/CreditsBadge";
 import CreditErrorBox from "@/app/components/CreditErrorBox";
-import { useEffect } from "react";
+import { PlanBadge, type PlanName } from "@/app/components/PlanBadge"; // ev. "@/components/PlanBadge"
+import { supabase } from "@/lib/supabaseClient";
 
 type StudioNavItem = {
   href: string;
@@ -20,35 +23,61 @@ type StudioNavItem = {
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
 };
 
-// 👇 LEGG TIL: props med creditError + setCreditError
-// ...
-
-// 👇 LEGG TIL: props med creditError + setCreditError + credits
 export default function TopStudioNav({
   creditError,
   setCreditError,
-  credits,
 }: {
   creditError: string | null;
   setCreditError: (msg: string | null) => void;
-  credits: number | null;
 }) {
   const pathname = usePathname();
+
+  const [plan, setPlan] = useState<PlanName | null>(null);
 
   function isActive(href: string) {
     if (href === "/studio") return pathname === "/studio";
     return pathname.startsWith(href);
   }
 
-  // ...
-
-
-  // 👇 Hvis feilmelding dukker opp, scroll til toppen
+  // Scroll til toppen hvis vi har en global kreditt-feil
   useEffect(() => {
     if (creditError) {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [creditError]);
+
+  // Hent innlogget bruker + plan fra Supabase
+  useEffect(() => {
+    const run = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setPlan(null);
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("plan")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (profile?.plan) {
+        const p = profile.plan.toLowerCase();
+        if (["source", "flow", "pulse", "nexus"].includes(p)) {
+          setPlan(p as PlanName);
+        } else {
+          setPlan(null);
+        }
+      } else {
+        setPlan(null);
+      }
+    };
+
+    run();
+  }, []);
 
   const items: StudioNavItem[] = [
     {
@@ -85,7 +114,7 @@ export default function TopStudioNav({
 
   return (
     <>
-      {/* 👇 GLOBAL "Tom for kreditter"-varsel */}
+      {/* Global "tom for kreditter"-varsel */}
       {creditError && (
         <div className="mb-4">
           <CreditErrorBox
@@ -105,7 +134,13 @@ export default function TopStudioNav({
               Velg hva du vil jobbe med i butikken din.
             </p>
           </div>
-          <CreditsBadge balance={credits ?? 0} quota={300} />
+
+          {/* Høyre: Plan + Kreditter */}
+          <div className="flex flex-col items-end gap-2 rounded-2xl border border-phorium-off/30 bg-phorium-dark/80 px-4 py-3 min-w-[220px]">
+            {plan && <PlanBadge plan={plan} />}
+
+            <CreditsBadge quota={300} />
+          </div>
         </div>
 
         <div className="-mx-1 flex gap-2 overflow-x-auto pb-1 pt-1">

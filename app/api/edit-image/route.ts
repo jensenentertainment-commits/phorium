@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { useCredits } from "@/lib/credits"; // 👈 NY!
+import { logActivity } from "@/lib/activityLog";
+
 
 export async function POST(req: Request) {
   try {
@@ -87,7 +89,18 @@ export async function POST(req: Request) {
       );
     }
 
-    return NextResponse.json({ success: true, image: imageUrl });
+    await logActivity({
+      userId,
+      eventType: "IMAGE_GENERATED", // eller "IMAGE_EDITED" hvis du vil skille de
+      meta: {
+        kind: "edit",
+        credits_charged: 5,
+        note: "Existing image edited with new background/overlay",
+      },
+    });
+
+    return NextResponse.json({ success: true, imageUrl });
+
   } catch (error: any) {
     console.error("edit-image error:", error);
 

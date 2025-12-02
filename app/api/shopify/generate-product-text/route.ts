@@ -2,6 +2,8 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { supabase } from "@/lib/supabaseClient";
+import { useCredits } from "@/lib/credits";
+
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
@@ -37,6 +39,36 @@ export async function POST(req: Request) {
     }
 
        const body = await req.json();
+
+           // Hent userId fra body (kommer fra frontend / PhoriumTextForm)
+    const userId = (body as any).userId as string | undefined;
+
+    if (!userId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Mangler userId – logg inn på nytt.",
+        },
+        { status: 401 },
+      );
+    }
+
+    // 🔹 Hvor mange kreditter skal Shopify-tekst koste?
+    // Her bruker vi 2, så det matcher vanlig tekstdeling.
+    const creditResult = await useCredits(userId, 2);
+
+    if (!creditResult.ok) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            creditResult.error ||
+            "Ikke nok kreditter til å generere mer tekst akkurat nå.",
+        },
+        { status: 403 },
+      );
+    }
+
 
     // Prøv flere mulige felt for tittel, i tilfelle frontend sender noe annet enn `title`
     const rawTitle =

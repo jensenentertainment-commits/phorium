@@ -17,6 +17,11 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { useAuth } from "@/app/providers/AuthProvider";
+import { Settings } from "lucide-react";
+import { PLAN_COLORS, type PlanName } from "app/components/PlanBadge";
+
+
 
 type NavItem = {
   href: string;
@@ -25,22 +30,60 @@ type NavItem = {
   icon?: LucideIcon;
 };
 
-export default function Navbar() {
-  const pathname = usePathname();
-  const router = useRouter();
-
+export default function Navbar({ isAdmin }: { isAdmin?: boolean }) {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
-  const [user, setUser] = useState<any>(null);
-  const [authChecking, setAuthChecking] = useState(true);
 
-  // Hent innlogget bruker ved mount
+  const { user, loading: authChecking } = useAuth();
+const [plan, setPlan] = useState<PlanName | null>(null);
+
+  const router = useRouter();
+  const pathname = usePathname();
+
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user || null);
-      setAuthChecking(false);
-    });
-  }, []);
+  if (!user) {
+    setPlan(null);
+    return;
+  }
+
+  const fetchPlan = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("plan")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Feil ved henting av plan i Navbar:", error);
+        setPlan(null);
+        return;
+      }
+
+      if (data?.plan) {
+        const normalized = data.plan.toLowerCase();
+        if (
+          normalized === "source" ||
+          normalized === "flow" ||
+          normalized === "pulse" ||
+          normalized === "nexus"
+        ) {
+          setPlan(normalized as PlanName);
+        } else {
+          setPlan(null);
+        }
+      } else {
+        setPlan(null);
+      }
+    } catch (err) {
+      console.error("Uventet feil ved henting av plan i Navbar:", err);
+      setPlan(null);
+    }
+  };
+
+  fetchPlan();
+}, [user?.id]);
+
 
   // Scroll-shadow
   useEffect(() => {
@@ -69,7 +112,6 @@ export default function Navbar() {
   async function handleLogout() {
     try {
       await supabase.auth.signOut();
-      setUser(null);
       router.push("/login");
     } catch (err) {
       console.error("Feil ved utlogging:", err);
@@ -81,8 +123,17 @@ export default function Navbar() {
   }
 
   // Avatar-initial basert på e-post
-  const email = user?.email as string | undefined;
-  const initial = email ? email.charAt(0).toUpperCase() : "?";
+const email = (user?.email as string | undefined) ?? null;
+const initial = email ? email.charAt(0).toUpperCase() : "?";
+
+const palette = plan ? PLAN_COLORS[plan] : null;
+const avatarStyle = palette
+  ? {
+      backgroundColor: palette.bg,
+      borderColor: palette.ring,
+      color: palette.text,
+    }
+  : undefined;
 
   return (
     <header
@@ -104,9 +155,7 @@ export default function Navbar() {
             <span className="text-sm font-semibold uppercase tracking-[0.14em] text-phorium-dark">
               Phorium
             </span>
-            <span className="text-[10px] text-phorium-dark/60">
-            
-            </span>
+            <span className="text-[10px] text-phorium-dark/60"></span>
           </div>
         </Link>
 
@@ -138,39 +187,51 @@ export default function Navbar() {
             );
           })}
 
-          {/* Høyreside: login / avatar + studio + logg ut */}
-          {!authChecking && (
-           user ? (
-  <div className="flex items-center gap-3">
-    {/* Avatar – klikker til Studio */}
-    <Link
-      href="/konto"
-      className="flex h-7 w-7 items-center justify-center rounded-full border border-phorium-off/40 bg-phorium-dark text-[11px] font-semibold text-phorium-light/85 hover:border-phorium-accent/70 hover:text-phorium-accent transition"
-      aria-label="Gå til Konto"
-    >
-      {initial}
-    </Link>
-
-    {/* Logg ut */}
-    <button
-      onClick={handleLogout}
-      className="inline-flex items-center gap-1.5 rounded-full border border-phorium-off/60 bg-[#F5E9D8] px-3 py-1.5 text-[11px] text-phorium-dark/80 hover:border-phorium-accent/80 hover:text-phorium-accent transition"
-    >
-      <LogOut className="h-3.5 w-3.5" />
-      <span>Logg ut</span>
-    </button>
-  </div>
-) : (
-  <button
-    onClick={handleLogin}
-    className="inline-flex items-center gap-1.5 rounded-full border border-phorium-off/60 bg-[#F5E9D8] px-4 py-1.5 text-[13px] text-phorium-dark hover:border-phorium-accent/80 hover:text-phorium-accent transition"
+          {/* ADMIN – alltid synlig for admin, uansett login-state */}
+          {isAdmin && (
+  <Link
+    href="/admin"
+    aria-label="Admin"
+    className="flex items-center justify-center h-8 w-8 rounded-full border border-phorium-accent/70 text-phorium-accent hover:bg-phorium-accent/10 transition"
   >
-    <LogIn className="h-4 w-4" />
-    <span>Logg inn</span>
-  </button>
-)
+    <Settings className="h-4 w-4" />
+  </Link>
+)}
 
-          )}
+
+          {/* Høyreside: login / avatar + logg ut */}
+          {!authChecking &&
+            (user ? (
+              <div className="flex items-center gap-3">
+                {/* Avatar – klikker til Konto */}
+                <Link
+  href="/konto"
+  className="flex h-7 w-7 items-center justify-center rounded-full border text-[11px] font-semibold transition hover:scale-[1.03]"
+  style={avatarStyle}
+  aria-label="Gå til Konto"
+>
+  {initial}
+</Link>
+
+
+                {/* Logg ut */}
+                <button
+                  onClick={handleLogout}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-phorium-off/60 bg-[#F5E9D8] px-3 py-1.5 text-[11px] text-phorium-dark/80 hover:border-phorium-accent/80 hover:text-phorium-accent transition"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  <span>Logg ut</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleLogin}
+                className="inline-flex items-center gap-1.5 rounded-full border border-phorium-off/60 bg-[#F5E9D8] px-4 py-1.5 text-[13px] text-phorium-dark hover:border-phorium-accent/80 hover:text-phorium-accent transition"
+              >
+                <LogIn className="h-4 w-4" />
+                <span>Logg inn</span>
+              </button>
+            ))}
         </div>
 
         {/* Mobil: burger-knapp */}
@@ -227,9 +288,21 @@ export default function Navbar() {
                 );
               })}
 
+              {/* Mobil: ADMIN-knapp */}
+              {isAdmin && (
+                <div className="flex flex-col gap-2 pt-2">
+                  <Link
+                    href="/admin"
+                    className="rounded-full border border-phorium-accent/70 px-4 py-1.5 text-[13px] text-phorium-accent text-center hover:bg-phorium-accent/10 transition"
+                  >
+                    Adminpanel
+                  </Link>
+                </div>
+              )}
+
               {/* Mobil: login / studio + logg ut */}
-              {!authChecking && (
-                user ? (
+              {!authChecking &&
+                (user ? (
                   <div className="flex flex-col gap-2 pt-2">
                     <Link
                       href="/studio"
@@ -251,8 +324,7 @@ export default function Navbar() {
                   >
                     Logg inn
                   </button>
-                )
-              )}
+                ))}
             </div>
           </div>
         </div>

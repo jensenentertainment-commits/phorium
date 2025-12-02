@@ -299,177 +299,160 @@ export default function PhoriumTextForm() {
     );
   }
 
- async function handleGenerateFromShopify() {
-  if (!linkedProduct) {
-    setError(
-      "Fant ikke produktdata å generere ut fra. Prøv å hente et produkt på nytt."
-    );
-    return;
-  }
-
-  setLoading(true);
-  setError(null);
-  setMatchScore(null);
-  setToneAnalysis(null);
-  setJustGenerated(false);
-
-  try {
-    const res = await fetch("/api/shopify/generate-product-text", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        productId: linkedProduct.id,
-        brandProfile: brand || null,
-        userId,
-      }),
-    });
-
-    const data = await res.json();
-
-    // 🔴 TOM FOR KREDITTER
-    if (res.status === 403) {
-      setCreditError(
-        data.error ||
-          "Ikke nok kreditter til å generere mer tekst akkurat nå."
+  async function handleGenerateFromShopify() {
+    if (!linkedProduct) {
+      setError(
+        "Fant ikke produktdata å generere ut fra. Prøv å hente et produkt på nytt.",
       );
-      setResult(null);
       return;
     }
 
-    if (!res.ok || !data.success || !data.result) {
-      throw new Error(
-        data.error ||
-          "Kunne ikke generere tekst fra Shopify-produktet. Prøv igjen."
-      );
+    setLoading(true);
+    setError(null);
+    setMatchScore(null);
+    setToneAnalysis(null);
+    setJustGenerated(false);
+
+    try {
+      const res = await fetch("/api/shopify/generate-product-text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: linkedProduct.id,
+          brandProfile: brand || null,
+          userId,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success || !data.result) {
+        throw new Error(
+          data.error ||
+            "Kunne ikke generere tekst fra Shopify-produktet. Prøv igjen.",
+        );
+      }
+
+      const r = data.result;
+
+      const mapped: GeneratedResult = {
+        title: r.title || productName || linkedProduct.title || "",
+        description: r.description || "",
+        shortDescription: r.shortDescription || "",
+        meta_title: r.seoTitle || "",
+        meta_description: r.metaDescription || "",
+        bullets: r.bullets || [],
+        tags: r.tags || [],
+        ad_primary: r.adPrimaryText || "",
+        ad_headline: r.adHeadline || "",
+        ad_description: r.adDescription || "",
+        social_caption: r.socialCaption || "",
+        social_hashtags: r.hashtags || [],
+      };
+
+      setResult(mapped);
+      setActiveTab("product");
+      setJustGenerated(true);
+      addToHistory("shopify", mapped);
+    } catch (err: any) {
+      console.error("Feil ved generering (Shopify):", err);
+
+      const msg = err?.message || "";
+
+      if (msg.includes("Ikke nok kreditter")) {
+        setError(
+          "Du er tom for kreditter i denne betaen. Ta kontakt hvis du vil ha flere."
+        );
+      } else {
+        setError(
+          "Kunne ikke generere tekst fra Shopify-produktet. Prøv igjen om litt."
+        );
+      }
+
+      setResult(null);
+    } finally {
+      setLoading(false);
     }
-
-    const r = data.result;
-
-    const mapped: GeneratedResult = {
-      title: r.title || productName || linkedProduct.title || "",
-      description: r.description || "",
-      shortDescription: r.shortDescription || "",
-      meta_title: r.seoTitle || "",
-      meta_description: r.metaDescription || "",
-      bullets: r.bullets || [],
-      tags: r.tags || [],
-      ad_primary: r.adPrimaryText || "",
-      ad_headline: r.adHeadline || "",
-      ad_description: r.adDescription || "",
-      social_caption: r.socialCaption || "",
-      social_hashtags: r.hashtags || [],
-    };
-
-    setResult(mapped);
-    setActiveTab("product");
-    setJustGenerated(true);
-    addToHistory("shopify", mapped);
-  } catch (err: any) {
-    console.error("Feil ved generering (Shopify):", err);
-
-    const msg = err?.message || "";
-
-    if (msg.includes("Ikke nok kreditter")) {
-      setError(
-        "Du er tom for kreditter i denne betaen. Ta kontakt hvis du vil ha flere."
-      );
-    } else {
-      setError(
-        "Kunne ikke generere tekst fra Shopify-produktet. Prøv igjen om litt."
-      );
-    }
-
-    setResult(null);
-  } finally {
-    setLoading(false);
   }
-}
 
-async function handleGenerateFromManual() {
-  if (!productName.trim()) {
-    setError("Skriv inn et produktnavn før du genererer tekst.");
-    return;
-  }
-
-  setLoading(true);
-  setError(null);
-  setMatchScore(null);
-  setToneAnalysis(null);
-  setJustGenerated(false);
-
-  try {
-    const prompt = buildPrompt();
-
-    const res = await fetch("/api/generate-text", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        prompt,
-        productName,
-        category,
-        tone,
-        brandProfile: brand || null,
-        userId, // viktig for kreditt-systemet
-      }),
-    });
-
-    const data = await res.json();
-
-    // Hvis du vil bruke global creditError her også:
-    // if (res.status === 403) {
-    //   setCreditError(
-    //     data.error ||
-    //       "Ikke nok kreditter til å generere mer tekst akkurat nå."
-    //   );
-    //   setResult(null);
-    //   return;
-    // }
-
-    if (!res.ok || !data.success || !data.result) {
-      throw new Error(
-        data.error || "Kunne ikke generere tekst. Prøv igjen om litt."
-      );
+  async function handleGenerateFromManual() {
+    if (!productName.trim()) {
+      setError("Skriv inn et produktnavn før du genererer tekst.");
+      return;
     }
 
-    const r = data.result;
+    setLoading(true);
+    setError(null);
+    setMatchScore(null);
+    setToneAnalysis(null);
+    setJustGenerated(false);
 
-    const mapped: GeneratedResult = {
-      title: r.title || productName,
-      description: r.description || "",
-      shortDescription: r.shortDescription || "",
-      meta_title: r.meta_title || "",
-      meta_description: r.meta_description || "",
-      bullets: r.bullets || [],
-      tags: r.tags || [],
-      ad_primary: r.ad_primary || "",
-      ad_headline: r.ad_headline || "",
-      ad_description: r.ad_description || "",
-      social_caption: r.social_caption || "",
-      social_hashtags: r.social_hashtags || [],
-    };
+    try {
+      const prompt = buildPrompt();
 
-    setResult(mapped);
-    setActiveTab("product");
-    setJustGenerated(true);
-    addToHistory("manual", mapped);
-  } catch (err: any) {
-    console.error("Feil ved generering:", err);
+      const res = await fetch("/api/generate-text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt,
+          productName,
+          category,
+          tone,
+          brandProfile: brand || null,
+          userId, // viktig for kreditt-systemet
+        }),
+      });
 
-    const msg = err?.message || "";
+      const data = await res.json();
 
-    if (msg.includes("Ikke nok kreditter")) {
-      setError(
-        "Du er tom for kreditter i denne betaen. Ta kontakt hvis du vil ha flere."
-      );
-    } else {
-      setError("Kunne ikke generere tekst akkurat nå. Prøv igjen om litt.");
+      if (!res.ok || !data.success || !data.result) {
+        throw new Error(
+          data.error || "Kunne ikke generere tekst. Prøv igjen om litt."
+        );
+      }
+
+      const r = data.result;
+
+      const mapped: GeneratedResult = {
+        title: r.title || productName,
+        description: r.description || "",
+        shortDescription: r.shortDescription || "",
+        meta_title: r.meta_title || "",
+        meta_description: r.meta_description || "",
+        bullets: r.bullets || [],
+        tags: r.tags || [],
+        ad_primary: r.ad_primary || "",
+        ad_headline: r.ad_headline || "",
+        ad_description: r.ad_description || "",
+        social_caption: r.social_caption || "",
+        social_hashtags: r.social_hashtags || [],
+      };
+
+      setResult(mapped);
+      setActiveTab("product");
+      setJustGenerated(true);
+      addToHistory("manual", mapped);
+    } catch (err: any) {
+      console.error("Feil ved generering:", err);
+
+      const msg = err?.message || "";
+
+      if (msg.includes("Ikke nok kreditter")) {
+        setError(
+          "Du er tom for kreditter i denne betaen. Ta kontakt hvis du vil ha flere."
+        );
+      } else {
+        setError(
+          "Kunne ikke generere tekst akkurat nå. Prøv igjen om litt."
+        );
+      }
+
+      setResult(null);
+    } finally {
+      setLoading(false);
     }
-
-    setResult(null);
-  } finally {
-    setLoading(false);
   }
-}
+
 
 
 function handlePrimaryClick() {
