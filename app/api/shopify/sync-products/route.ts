@@ -123,11 +123,17 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ success: true, imported: totalImported });
-  } catch (err) {
-    console.error("Sync-products error:", err);
-    return NextResponse.json(
-      { success: false, error: "Uventet feil under sync." },
-      { status: 500 },
-    );
-  }
+ } catch (err: any) {
+  console.error("Sync-products error:", err);
+  return NextResponse.json(
+    {
+      success: false,
+      error:
+        err?.message ||
+        (typeof err === "string" ? err : "Uventet feil under sync (ukjent)."),
+    },
+    { status: 500 },
+  );
+}
+
 }
