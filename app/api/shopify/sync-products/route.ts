@@ -102,24 +102,40 @@ export async function POST(req: Request) {
       totalImported += rows.length;
 
       // finn neste page_info
-      const linkHeader = res.headers.get("Link") || res.headers.get("link") || "";
-      let nextPageInfo: string | null = null;
+     // Prøv å lese Link-header, men bare hvis .get faktisk finnes
+let nextPageInfo: string | null = null;
 
-      if (linkHeader) {
-        const parts = linkHeader.split(",");
-        const nextPart = parts.find((p) => p.includes('rel="next"'));
-        if (nextPart) {
-          const match = nextPart.match(/<([^>]+)>/);
-          if (match?.[1]) {
-            const nextUrl = new URL(match[1]);
-            const pi = nextUrl.searchParams.get("page_info");
-            if (pi) nextPageInfo = pi;
-          }
+const anyHeaders: any = res.headers as any;
+if (anyHeaders && typeof anyHeaders.get === "function") {
+  const linkHeader =
+    anyHeaders.get("Link") || anyHeaders.get("link") || "";
+
+  if (linkHeader) {
+    const parts = String(linkHeader).split(",");
+    const nextPart = parts.find((p) => p.includes('rel="next"'));
+    if (nextPart) {
+      const match = nextPart.match(/<([^>]+)>/);
+      if (match?.[1]) {
+        try {
+          const nextUrl = new URL(match[1]);
+          const pi = nextUrl.searchParams.get("page_info");
+          if (pi) nextPageInfo = pi;
+        } catch {
+          // hvis URL parsing feiler, dropper vi bare videre paginering
         }
       }
+    }
+  }
+}
 
-      if (!nextPageInfo) break;
-      pageInfo = nextPageInfo;
+// Hvis vi ikke fant noen page_info, stopper vi etter denne runden
+if (!nextPageInfo) {
+  pageInfo = null;
+  break;
+}
+
+pageInfo = nextPageInfo;
+
     }
 
     return NextResponse.json({ success: true, imported: totalImported });
