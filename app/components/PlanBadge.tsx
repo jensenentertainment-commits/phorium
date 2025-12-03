@@ -1,7 +1,8 @@
 // components/PlanBadge.tsx
 import { cn } from "@/lib/utils";
 
-export type PlanName = "source" | "flow" | "pulse" | "nexus";
+export type PlanName = "source" | "flow" | "pulse" | "nexus"  | "admin";
+
 
 export const PLAN_COLORS: Record<
   PlanName,
@@ -27,7 +28,15 @@ export const PLAN_COLORS: Record<
     ring: "rgba(140, 89, 255, 0.85)",
     text: "rgba(198, 184, 255, 1)",
   },
+
+  // Admin – gull/Phorium-accent
+  admin: {
+    bg: "rgba(200, 183, 122, 0.14)",
+    ring: "rgba(200, 183, 122, 0.8)",
+    text: "rgba(200, 183, 122, 0.98)",
+  },
 };
+
 
 // ... resten av PlanBadge-komponenten din
 
@@ -54,7 +63,13 @@ const PLAN_META: Record<
     label: "Nexus",
     description: "Enterprise / tilpasning",
   },
+  admin: {
+    label: "Admin",
+    description: "Intern administratortilgang",
+  },
 };
+
+
 
 type PlanBadgeProps = {
   plan: PlanName | null | undefined;

@@ -25,50 +25,52 @@ export async function POST(req: Request) {
       );
     }
 
-    // Hent gammel plan
-    const { data: oldProfile, error: oldErr } = await supabaseAdmin
-      .from("profiles")
-      .select("plan")
-      .eq("id", userId)
-      .maybeSingle();
+// Hent gammel plan
+const { data: oldProfile, error: oldErr } = await supabaseAdmin
+  .from("profiles")
+  .select("plan")
+  .eq("user_id", userId) // ⬅️ viktig: user_id, ikke id
+  .maybeSingle();
 
-    if (oldErr) {
-      console.error("fetch old plan error", oldErr);
-    }
+if (oldErr) {
+  console.error("fetch old plan error", oldErr);
+}
 
-    const oldPlan = oldProfile?.plan ?? null;
-    const newPlan = plan || null;
+const oldPlan = oldProfile?.plan ?? null;
 
-    // Oppdater plan
-    const { data, error } = await supabaseAdmin
-      .from("profiles")
-      .update({ plan: newPlan })
-      .eq("id", userId)
-      .select("plan")
-      .maybeSingle();
+// 💡 LØSNING A: hvis plan er null/undefined/"" -> lagre "source"
+const newPlan = plan && plan.trim() !== "" ? plan : "source";
 
-    if (error) {
-      console.error("update plan error", error);
-      return NextResponse.json(
-        { ok: false, error: "Kunne ikke oppdatere plan." },
-        { status: 500 },
-      );
-    }
+// Oppdater plan
+const { data, error } = await supabaseAdmin
+  .from("profiles")
+  .update({ plan: newPlan })
+  .eq("user_id", userId)
+  .select("plan")
+  .maybeSingle();
 
-    // Logg admin-action
-    await supabaseAdmin.from("admin_actions").insert({
-      admin_label: "admin", // kan byttes til noe mer spesifikt senere
-      target_user_id: userId,
-      action: "PLAN_CHANGE",
-      old_plan: oldPlan,
-      new_plan: data?.plan ?? newPlan,
-      meta: null,
-    });
+if (error) {
+  console.error("update plan error", error);
+  return NextResponse.json(
+    { ok: false, error: "Kunne ikke oppdatere plan." },
+    { status: 500 },
+  );
+}
 
-    return NextResponse.json({
-      ok: true,
-      plan: data?.plan ?? null,
-    });
+// Logg admin-action
+await supabaseAdmin.from("admin_actions").insert({
+  admin_label: "admin",
+  target_user_id: userId,
+  action: "PLAN_CHANGE",
+  old_plan: oldPlan,
+  new_plan: data?.plan ?? newPlan,
+  meta: null,
+});
+
+return NextResponse.json({
+  ok: true,
+  plan: data?.plan ?? newPlan,
+});
   } catch (err) {
     console.error("update plan fatal", err);
     return NextResponse.json(

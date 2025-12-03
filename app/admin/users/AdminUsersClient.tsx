@@ -3,8 +3,7 @@
 import { useState } from "react";
 
 const PLAN_OPTIONS = [
-  { value: "", label: "Ingen (beta / free)" },
-  { value: "source", label: "Source" },
+  { value: "source", label: "Source (beta / free)" },
   { value: "flow", label: "Flow" },
   { value: "pulse", label: "Pulse" },
   { value: "nexus", label: "Nexus" },
@@ -20,7 +19,8 @@ export default function UserAdminClient({
   initialPlan: string | null;
   initialBalance: number;
 }) {
-  const [plan, setPlan] = useState<string>(initialPlan ?? "");
+  const [plan, setPlan] = useState<string>(initialPlan ?? "source");
+
   const [balance, setBalance] = useState<number>(initialBalance);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -66,10 +66,11 @@ export default function UserAdminClient({
       setMessage(null);
 
       const res = await fetch("/api/admin/users/plan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, plan: plan || null }),
-      });
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ userId, plan }), // ikke "plan || null" lenger
+});
+
 
       const data = await res.json();
 
@@ -78,7 +79,15 @@ export default function UserAdminClient({
         return;
       }
 
-      setMessage(`Plan oppdatert til ${data.plan || "Ingen"}.`);
+     const savedPlan = data.plan as string | null;
+
+// Finn pen label basert på verdien
+const label =
+  PLAN_OPTIONS.find((opt) => opt.value === savedPlan)?.label ??
+  savedPlan ??
+  "Source (beta / free)";
+
+setMessage(`Plan oppdatert til ${label}.`);
     } catch (err) {
       console.error(err);
       setError("Uventet feil ved oppdatering av plan.");

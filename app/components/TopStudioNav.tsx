@@ -13,7 +13,10 @@ import { useEffect, useState } from "react";
 
 import CreditsBadge from "@/app/components/CreditsBadge";
 import CreditErrorBox from "@/app/components/CreditErrorBox";
-import { PlanBadge, type PlanName } from "@/app/components/PlanBadge"; // ev. "@/components/PlanBadge"
+import {
+  PlanBadge,
+  type PlanName,
+} from "@/app/components/PlanBadge";
 import { supabase } from "@/lib/supabaseClient";
 
 type StudioNavItem = {
@@ -49,29 +52,56 @@ export default function TopStudioNav({
   // Hent innlogget bruker + plan fra Supabase
   useEffect(() => {
     const run = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      try {
+        const {
+          data: { user },
+          error: userErr,
+        } = await supabase.auth.getUser();
 
-      if (!user) {
-        setPlan(null);
-        return;
-      }
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("plan")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (profile?.plan) {
-        const p = profile.plan.toLowerCase();
-        if (["source", "flow", "pulse", "nexus"].includes(p)) {
-          setPlan(p as PlanName);
-        } else {
-          setPlan(null);
+        if (userErr) {
+          console.error("Feil ved henting av bruker i TopStudioNav:", userErr);
         }
-      } else {
+
+        if (!user) {
+          // Ikke innlogget → vis "Uten plan"
+          setPlan(null);
+          return;
+        }
+
+        const { data: profile, error: profileErr } = await supabase
+          .from("profiles")
+          .select("plan")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (profileErr) {
+          console.error(
+            "Feil ved henting av profil/plan i TopStudioNav:",
+            profileErr,
+          );
+          setPlan(null);
+          return;
+        }
+
+        if (profile?.plan) {
+          const normalized = String(profile.plan).toLowerCase().trim();
+          const validPlans: PlanName[] = ["source", "flow", "pulse", "nexus"];
+
+          if (validPlans.includes(normalized as PlanName)) {
+            setPlan(normalized as PlanName);
+          } else {
+            console.warn(
+              "Ukjent planverdi i DB, fallback til source:",
+              profile.plan,
+            );
+            setPlan("source");
+          }
+        } else {
+          // Ingen plan satt i DB → default til Source
+          setPlan("source");
+        }
+      } catch (err) {
+        console.error("Uventet feil i plan-load i TopStudioNav:", err);
         setPlan(null);
       }
     };
@@ -137,7 +167,8 @@ export default function TopStudioNav({
 
           {/* Høyre: Plan + Kreditter */}
           <div className="flex flex-col items-end gap-2 rounded-2xl border border-phorium-off/30 bg-phorium-dark/80 px-4 py-3 min-w-[220px]">
-            {plan && <PlanBadge plan={plan} />}
+            {/* PlanBadge viser riktig plan, eller "Uten plan" som fallback */}
+            <PlanBadge plan={plan} />
 
             <CreditsBadge quota={300} />
           </div>
