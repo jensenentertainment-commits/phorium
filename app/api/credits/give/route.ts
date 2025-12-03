@@ -1,83 +1,74 @@
+// app/api/credits/give/route.ts
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { supabaseAdmin } from "@/lib/supabaseAdmin"; // juster import-path hvis annerledes
 
 export async function POST(req: Request) {
   try {
-    const cookieStore = await cookies();
-    const isAdmin = cookieStore.get("phorium_admin")?.value === "1";
-
-    if (!isAdmin) {
-      return NextResponse.json(
-        { ok: false, error: "Ikke autorisert" },
-        { status: 401 },
-      );
-    }
-
     const body = await req.json();
     const userId = body.userId as string | undefined;
-    const amount = body.amount as number | undefined;
+    const amount = Number(body.amount);
 
-    if (!userId || typeof amount !== "number") {
+    if (!userId || Number.isNaN(amount)) {
       return NextResponse.json(
-        { ok: false, error: "Mangler userId eller amount." },
+        { ok: false, error: "Mangler userId eller ugyldig amount." },
         { status: 400 },
       );
     }
 
-    // Hent nåværende saldo
+    // 1) Hent eksisterende credits-rad for brukeren
     const { data: existing, error: fetchErr } = await supabaseAdmin
       .from("credits")
       .select("balance")
-      .eq("user_id", userId)
+      .eq("user_id", userId) // 👈 viktig: user_id
       .maybeSingle();
 
     if (fetchErr) {
-      console.error("credits fetch error", fetchErr);
-    }
-
-    const currentBalance = existing?.balance ?? 0;
-    const newBalance = currentBalance + amount;
-
-    // Oppdater/sett saldo
-    const { data: upserted, error: upsertErr } = await supabaseAdmin
-      .from("credits")
-      .upsert(
-        {
-          user_id: userId,
-          balance: newBalance,
-        },
-        { onConflict: "user_id" },
-      )
-      .select("balance")
-      .maybeSingle();
-
-    if (upsertErr) {
-      console.error("credits upsert error", upsertErr);
+      console.error("Feil ved henting av credits:", fetchErr);
       return NextResponse.json(
-        { ok: false, error: "Kunne ikke oppdatere kreditter." },
+        { ok: false, error: "Kunne ikke hente kreditt-saldo." },
         { status: 500 },
       );
     }
 
-    // Logg admin-action
-    await supabaseAdmin.from("admin_actions").insert({
-      admin_label: "admin",
-      target_user_id: userId,
-      action: "CREDITS_ADJUST",
-      delta_credits: amount,
-      meta: {
-        previous_balance: currentBalance,
-        new_balance: upserted?.balance ?? newBalance,
-      },
-    });
+    const currentBalance = existing?.balance ?? 0;
+    let newBalance = currentBalance + amount;
 
+    // Ikke gå under 0
+    if (newBalance < 0) newBalance = 0;
+
+    // 2) Oppdater eller opprett raden
+    let upsertError = null;
+
+    if (existing) {
+      const { error: updateErr } = await supabaseAdmin
+        .from("credits")
+        .update({ balance: newBalance })
+        .eq("user_id", userId);
+
+      upsertError = updateErr;
+    } else {
+      const { error: insertErr } = await supabaseAdmin
+        .from("credits")
+        .insert({ user_id: userId, balance: newBalance });
+
+      upsertError = insertErr;
+    }
+
+    if (upsertError) {
+      console.error("Feil ved oppdatering/innsetting av credits:", upsertError);
+      return NextResponse.json(
+        { ok: false, error: "Kunne ikke oppdatere kreditt-saldo." },
+        { status: 500 },
+      );
+    }
+
+    // 3) Returner ny saldo slik AdminUsersClient forventer
     return NextResponse.json({
       ok: true,
-      balance: upserted?.balance ?? newBalance,
+      balance: newBalance,
     });
   } catch (err) {
-    console.error("credits give fatal", err);
+    console.error("Uventet feil i /api/credits/give:", err);
     return NextResponse.json(
       { ok: false, error: "Uventet feil ved oppdatering av kreditter." },
       { status: 500 },

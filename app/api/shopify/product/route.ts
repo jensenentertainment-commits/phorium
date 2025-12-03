@@ -1,100 +1,108 @@
+// app/api/shopify/products/route.ts
 import { NextResponse } from "next/server";
-
-const SHOPIFY_API_VERSION = "2024-01";
-
-function getCookieFromHeader(
-  header: string | null,
-  name: string,
-): string | null {
-  if (!header) return null;
-  const cookies = header.split(";").map((c) => c.trim());
-  const match = cookies.find((c) => c.startsWith(name + "="));
-  if (!match) return null;
-  return decodeURIComponent(match.split("=").slice(1).join("="));
-}
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getShopifySession } from "@/lib/shopifySession";
 
 export async function GET(req: Request) {
   try {
-    const cookieHeader = req.headers.get("cookie");
-    const shop = getCookieFromHeader(cookieHeader, "phorium_shop");
-    const accessToken = getCookieFromHeader(cookieHeader, "phorium_token");
-
-    if (!shop || !accessToken) {
+    const session = await getShopifySession();
+    if (!session) {
       return NextResponse.json(
-        {
-          success: false,
-          error:
-            "Ingen aktiv Shopify-tilkobling. Koble til nettbutikk på nytt via Phorium Studio.",
-        },
+        { success: false, error: "Ingen Shopify-session." },
         { status: 401 },
       );
     }
 
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
+    const { shop } = session;
 
-    if (!id) {
-      return NextResponse.json(
-        { success: false, error: "Mangler produkt-id (?id=...)." },
-        { status: 400 },
+    const { searchParams } = new URL(req.url);
+    const limitRaw = Number(searchParams.get("limit") || "50");
+    const pageRaw = Number(searchParams.get("page") || "1");
+    const status = searchParams.get("status") || "any";
+    const q = searchParams.get("q") || "";
+    const missingDescription = searchParams.get("missing_description") === "1";
+
+    const limit = Math.min(Math.max(limitRaw, 1), 250);
+    const page = Math.max(pageRaw, 1);
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    let query = supabaseAdmin
+      .from("shopify_products")
+      .select(
+        `
+        id,
+        shopify_product_id,
+        title,
+        handle,
+        status,
+        price,
+        image,
+        created_at_shopify,
+        updated_at_shopify,
+        plain_description,
+        has_description,
+        optimization_score,
+        optimization_label,
+        optimization_characters
+      `,
+        { count: "exact" },
+      )
+      .eq("shop_domain", shop);
+
+    if (status !== "any") {
+      query = query.eq("status", status);
+    }
+
+    if (missingDescription) {
+      query = query.eq("has_description", false);
+    }
+
+    if (q) {
+      query = query.or(
+        `title.ilike.%${q}%,handle.ilike.%${q}%,shopify_product_id.eq.${Number(
+          q,
+        ) || -1}`,
       );
     }
 
-    const productUrl = `https://${shop}/admin/api/${SHOPIFY_API_VERSION}/products/${id}.json`;
-    const metafieldsUrl = `https://${shop}/admin/api/${SHOPIFY_API_VERSION}/products/${id}/metafields.json`;
+    const { data, error, count } = await query
+      .order("created_at_shopify", { ascending: false })
+      .range(from, to);
 
-    const [productRes, metafieldsRes] = await Promise.all([
-      fetch(productUrl, {
-        headers: {
-          "X-Shopify-Access-Token": accessToken,
-          "Content-Type": "application/json",
-        },
-        cache: "no-store",
-      }),
-      fetch(metafieldsUrl, {
-        headers: {
-          "X-Shopify-Access-Token": accessToken,
-          "Content-Type": "application/json",
-        },
-        cache: "no-store",
-      }),
-    ]);
-
-    if (!productRes.ok) {
-      const text = await productRes.text().catch(() => "");
-      console.error("Shopify product error:", productRes.status, text);
+    if (error) {
+      console.error("Supabase products error:", error);
       return NextResponse.json(
-        {
-          success: false,
-          error: "Kunne ikke hente produkt fra Shopify.",
-          status: productRes.status,
-          details: text.slice(0, 300),
-        },
+        { success: false, error: "Kunne ikke hente produkter." },
         { status: 500 },
       );
     }
 
-    const productData = await productRes.json();
-    const metafieldsData = metafieldsRes.ok
-      ? await metafieldsRes.json()
-      : { metafields: [] };
-
-    const product = productData?.product;
-    const metafields = metafieldsData?.metafields ?? [];
+    const products = (data || []).map((row) => ({
+      id: row.shopify_product_id, // matcher det ProductsPage forventer :contentReference[oaicite:2]{index=2}
+      title: row.title,
+      handle: row.handle,
+      status: row.status,
+      price: row.price,
+      image: row.image,
+      createdAt: row.created_at_shopify,
+      updatedAt: row.updated_at_shopify,
+      plainDescription: row.plain_description,
+      hasDescription: row.has_description,
+      optimizationScore: row.optimization_score,
+      optimizationLabel: row.optimization_label,
+      optimizationCharacters: row.optimization_characters,
+    }));
 
     return NextResponse.json({
       success: true,
-      product,
-      metafields,
+      products,
+      total: count ?? products.length,
     });
-  } catch (err: any) {
-    console.error("product route error:", err);
+  } catch (err) {
+    console.error("Products API error:", err);
     return NextResponse.json(
-      {
-        success: false,
-        error: "Uventet feil ved henting av produkt.",
-        details: err?.message,
-      },
+      { success: false, error: "Uventet feil i produkt-API." },
       { status: 500 },
     );
   }
