@@ -3,21 +3,25 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getShopifySession } from "@/lib/shopifySession";
 
-const SHOPIFY_API_VERSION = "2024-01"; // bruk samme versjon som i de andre Shopify-routene dine
+const SHOPIFY_API_VERSION = "2024-01"; // samme versjon som du bruker ellers
 
 export async function POST(req: Request) {
   try {
     const session = await getShopifySession();
     if (!session) {
       return NextResponse.json(
-        { success: false, error: "Ingen Shopify-session (phorium_shop/phorium_token mangler)." },
+        {
+          success: false,
+          error:
+            "Ingen Shopify-session (phorium_shop/phorium_token-cookies mangler).",
+        },
         { status: 401 },
       );
     }
 
     const { shop, accessToken } = session;
 
-    // ⬇️ ENKEL SYNC: HENTER KUN ÉN SIDE, OPP TIL 250 PRODUKTER
+    // ENKEL SYNC: hent én side fra Shopify (opptil 250 produkter)
     const url = new URL(
       `https://${shop}/admin/api/${SHOPIFY_API_VERSION}/products.json`,
     );
@@ -35,7 +39,10 @@ export async function POST(req: Request) {
       const text = await res.text();
       console.error("Shopify sync error:", res.status, text);
       return NextResponse.json(
-        { success: false, error: `Feil fra Shopify: ${res.status}` },
+        {
+          success: false,
+          error: `Feil fra Shopify (${res.status}). Sjekk token/tilganger.`,
+        },
         { status: 500 },
       );
     }
@@ -100,7 +107,10 @@ export async function POST(req: Request) {
     if (error) {
       console.error("Supabase upsert error:", error);
       return NextResponse.json(
-        { success: false, error: `Kunne ikke lagre produkter: ${error.message}` },
+        {
+          success: false,
+          error: `Kunne ikke lagre produkter: ${error.message}`,
+        },
         { status: 500 },
       );
     }
