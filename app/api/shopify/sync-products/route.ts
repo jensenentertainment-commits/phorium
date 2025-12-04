@@ -43,12 +43,16 @@ export async function POST(req: Request) {
     // ------------------------------------------------
     for (;;) {
       const url = new URL(
-        `https://${shop}/admin/api/${SHOPIFY_API_VERSION}/products.json`,
-      );
-      url.searchParams.set("limit", "250");
-      if (sinceId > 0) {
-        url.searchParams.set("since_id", String(sinceId));
-      }
+  `https://${shop}/admin/api/${SHOPIFY_API_VERSION}/products.json`,
+);
+
+url.searchParams.set("limit", "250");
+url.searchParams.set("status", "any");             // 👈 ta med active + draft + archived
+url.searchParams.set("published_status", "any");   // 👈 ta med published + unpublished
+
+if (sinceId > 0) {
+  url.searchParams.set("since_id", String(sinceId));
+}
 
       const res = await fetch(url.toString(), {
         headers: {
