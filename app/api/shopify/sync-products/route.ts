@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getShopifySession } from "@/lib/shopifySession";
 
-const SHOPIFY_API_VERSION = "2024-01"; // samme som du har brukt ellers
+const SHOPIFY_API_VERSION = "2024-01";
 
 function stripHtml(html: string | null | undefined): string {
   if (!html) return "";
@@ -25,17 +25,24 @@ export async function POST(req: Request) {
 
     const { shop, accessToken } = session;
 
+    let sinceId = 0;
     let totalImported = 0;
 
-    // 🔹 Første side
-    let pageUrl = new URL(
-      `https://${shop}/admin/api/${SHOPIFY_API_VERSION}/products.json`,
-    );
-    pageUrl.searchParams.set("limit", "250");
-    pageUrl.searchParams.set("status", "any"); // active + draft + archived
-
     for (;;) {
-      const res = await fetch(pageUrl.toString(), {
+      const url = new URL(
+        `https://${shop}/admin/api/${SHOPIFY_API_VERSION}/products.json`,
+      );
+
+      // Shopify: maks 250 per kall
+      url.searchParams.set("limit", "250");
+      // Ta med alle statuser (active + draft + archived)
+      url.searchParams.set("status", "any");
+
+      if (sinceId > 0) {
+        url.searchParams.set("since_id", String(sinceId));
+      }
+
+      const res = await fetch(url.toString(), {
         headers: {
           "X-Shopify-Access-Token": accessToken,
           "Content-Type": "application/json",
@@ -59,7 +66,7 @@ export async function POST(req: Request) {
       const products = data.products || [];
 
       if (!products.length) {
-        // Ingen flere produkter på denne siden → ferdig
+        // Ingen flere produkter → ferdig
         break;
       }
 
@@ -85,7 +92,7 @@ export async function POST(req: Request) {
           shopify_product_id: Number(p.id),
           handle: p.handle,
           title: p.title,
-          status: p.status, // active / draft / archived
+          status: p.status,
           price: p.variants?.[0]?.price ?? null,
           image: firstImage,
           created_at_shopify: p.created_at,
@@ -118,31 +125,22 @@ export async function POST(req: Request) {
 
       totalImported += rows.length;
 
-      // 🔹 Sjekk om det finnes en "neste side" via Link-header
-      const linkHeader = res.headers.get("link") || res.headers.get("Link");
+      // Finn høyeste ID i denne batchen
+      const maxIdInBatch = Math.max(
+        ...products.map((p: any) => Number(p.id) || 0),
+      );
 
-      if (!linkHeader) {
-        // ingen paginering → ferdig
+      // Sikkerhetsnett: hvis vi ikke kommer oss videre, ikke loop evig
+      if (maxIdInBatch <= sinceId) {
         break;
       }
 
-      const nextPart = linkHeader
-        .split(",")
-        .map((s) => s.trim())
-        .find((s) => s.includes('rel="next"'));
+      sinceId = maxIdInBatch;
 
-      if (!nextPart) {
-        // ingen rel="next" → ferdig
+      // Hvis vi fikk mindre enn 250 i denne batchen, var dette siste side
+      if (products.length < 250) {
         break;
       }
-
-      const urlMatch = nextPart.match(/<([^>]+)>/);
-      if (!urlMatch || !urlMatch[1]) {
-        break;
-      }
-
-      // Sett pageUrl til neste-side-url’en Shopify gir oss
-      pageUrl = new URL(urlMatch[1]);
     }
 
     return NextResponse.json({
