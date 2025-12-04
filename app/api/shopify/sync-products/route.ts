@@ -1,60 +1,41 @@
 // app/api/shopify/sync-products/route.ts
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getShopifySession } from "@/lib/shopifySession";
 
-const SHOPIFY_API_VERSION = "2024-01";
+const SHOPIFY_API_VERSION = "2024-01"; // samme som du har brukt ellers
 
-function getCookieFromHeader(
-  header: string | null,
-  name: string,
-): string | null {
-  if (!header) return null;
-  const cookies = header.split(";").map((c) => c.trim());
-  const match = cookies.find((c) => c.startsWith(name + "="));
-  if (!match) return null;
-  return decodeURIComponent(match.split("=").slice(1).join("="));
+function stripHtml(html: string | null | undefined): string {
+  if (!html) return "";
+  return html.replace(/<[^>]+>/g, "").trim();
 }
 
 export async function POST(req: Request) {
   try {
-    const cookieHeader = req.headers.get("cookie");
-    const shop = getCookieFromHeader(cookieHeader, "phorium_shop");
-    const accessToken = getCookieFromHeader(cookieHeader, "phorium_token");
-
-    if (!shop || !accessToken) {
+    const session = await getShopifySession();
+    if (!session) {
       return NextResponse.json(
         {
           success: false,
-          error:
-            "Ingen Shopify-session. Mangler phorium_shop/phorium_token-cookie.",
+          error: "Ingen Shopify-session. Logg inn / koble til Shopify på nytt.",
         },
         { status: 401 },
       );
     }
 
-    let sinceId = 0;
+    const { shop, accessToken } = session;
+
     let totalImported = 0;
 
-    // Loop gjennom ALLE produkter ved å bruke since_id
-    // (Shopify returnerer maks 250 per kall)
-    // Vi fortsetter til vi får 0 produkter tilbake.
-    // Dette unngår alt trøbbel med Link-headers og .get()
-    // og skalerer fint opp til 400–500+ produkter.
-    // ------------------------------------------------
+    // 🔹 Første side
+    let pageUrl = new URL(
+      `https://${shop}/admin/api/${SHOPIFY_API_VERSION}/products.json`,
+    );
+    pageUrl.searchParams.set("limit", "250");
+    pageUrl.searchParams.set("status", "any"); // active + draft + archived
+
     for (;;) {
-      const url = new URL(
-  `https://${shop}/admin/api/${SHOPIFY_API_VERSION}/products.json`,
-);
-
-url.searchParams.set("limit", "250");
-url.searchParams.set("status", "any");             // 👈 ta med active + draft + archived
-url.searchParams.set("published_status", "any");   // 👈 ta med published + unpublished
-
-if (sinceId > 0) {
-  url.searchParams.set("since_id", String(sinceId));
-}
-
-      const res = await fetch(url.toString(), {
+      const res = await fetch(pageUrl.toString(), {
         headers: {
           "X-Shopify-Access-Token": accessToken,
           "Content-Type": "application/json",
@@ -78,20 +59,14 @@ if (sinceId > 0) {
       const products = data.products || [];
 
       if (!products.length) {
-        // ferdig – ingen flere sider
+        // Ingen flere produkter på denne siden → ferdig
         break;
       }
 
       const rows = products.map((p: any) => {
-        const firstImage = p.image?.src || p.images?.[0]?.src || null;
-        const hasDescription =
-          typeof p.body_html === "string" && p.body_html.trim().length > 0;
-
-        const plainDescription = hasDescription
-          ? p.body_html.replace(/<[^>]+>/g, "").trim()
-          : null;
-
-        const chars = plainDescription?.length ?? 0;
+        const plain = stripHtml(p.body_html);
+        const hasDescription = plain.length > 0;
+        const chars = plain.length;
 
         let optimizationScore: number | null = null;
         let optimizationLabel: string | null = null;
@@ -103,17 +78,19 @@ if (sinceId > 0) {
           optimizationLabel = `${optimizationScore}% AI-optimalisert`;
         }
 
+        const firstImage = p.image?.src || p.images?.[0]?.src || null;
+
         return {
           shop_domain: shop,
           shopify_product_id: Number(p.id),
           handle: p.handle,
           title: p.title,
-          status: p.status,
+          status: p.status, // active / draft / archived
           price: p.variants?.[0]?.price ?? null,
           image: firstImage,
           created_at_shopify: p.created_at,
           updated_at_shopify: p.updated_at,
-          plain_description: plainDescription,
+          plain_description: plain,
           has_description: hasDescription,
           optimization_score: optimizationScore,
           optimization_label: optimizationLabel,
@@ -141,17 +118,31 @@ if (sinceId > 0) {
 
       totalImported += rows.length;
 
-      // Oppdater sinceId til høyeste produkt-ID vi har sett så langt
-      const maxIdInBatch = Math.max(
-        ...products.map((p: any) => Number(p.id) || 0),
-      );
-      sinceId = maxIdInBatch;
+      // 🔹 Sjekk om det finnes en "neste side" via Link-header
+      const linkHeader = res.headers.get("link") || res.headers.get("Link");
 
-      // Sikkerhetsnett: hvis noe er helt galt så vi ikke looper evig
-      if (rows.length < 250) {
-        // Siste side
+      if (!linkHeader) {
+        // ingen paginering → ferdig
         break;
       }
+
+      const nextPart = linkHeader
+        .split(",")
+        .map((s) => s.trim())
+        .find((s) => s.includes('rel="next"'));
+
+      if (!nextPart) {
+        // ingen rel="next" → ferdig
+        break;
+      }
+
+      const urlMatch = nextPart.match(/<([^>]+)>/);
+      if (!urlMatch || !urlMatch[1]) {
+        break;
+      }
+
+      // Sett pageUrl til neste-side-url’en Shopify gir oss
+      pageUrl = new URL(urlMatch[1]);
     }
 
     return NextResponse.json({
