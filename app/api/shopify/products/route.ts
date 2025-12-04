@@ -43,8 +43,9 @@ function computeOptimizationScore(p: any) {
   return { score, label, characters: len };
 }
 
-export async function GET(req: Request) {
+eexport async function GET(req: Request) {
   try {
+    // ⬇️ behold samme måte å finne shop som du har brukt før
     const cookieHeader = req.headers.get("cookie");
     const shop = getCookieFromHeader(cookieHeader, "phorium_shop");
 
@@ -60,10 +61,11 @@ export async function GET(req: Request) {
     }
 
     const { searchParams } = new URL(req.url);
+
     const limitRaw = Number(searchParams.get("limit") || "50");
     const pageRaw = Number(searchParams.get("page") || "1");
-    const q = (searchParams.get("q") || "").toLowerCase();
     const status = searchParams.get("status") || "any"; // active|draft|archived|any
+    const q = (searchParams.get("q") || "").toLowerCase();
     const onlyMissingDescription =
       (searchParams.get("missing_description") || "0") === "1";
 
@@ -72,7 +74,7 @@ export async function GET(req: Request) {
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
-    // 🔽 Hent FRA SUPABASE i stedet for direkte fra Shopify
+    // 🔽 NY DEL: hent FRA SUPABASE i stedet for direkte fra Shopify
     let query = supabaseAdmin
       .from("shopify_products")
       .select(
@@ -102,11 +104,7 @@ export async function GET(req: Request) {
     }
 
     if (onlyMissingDescription) {
-      // Mangler beskrivelse: ingen tekst / veldig kort
-      // (her antar vi at sync har fylt plain_description + has_description)
-      query = query.or(
-        "has_description.is.false,plain_description.is.null,plain_description.eq.",
-      );
+      query = query.eq("has_description", false);
     }
 
     if (q) {
@@ -129,7 +127,7 @@ export async function GET(req: Request) {
     }
 
     const { data, error, count } = await query
-      // du kan endre til created_at_shopify om du heller vil sortere kronologisk
+      // du kan endre til created_at_shopify om du vil sortere på dato
       .order("title", { ascending: true })
       .range(from, to);
 
@@ -154,7 +152,8 @@ export async function GET(req: Request) {
             : plainDescription.length > 0;
 
         return {
-          id: row.shopify_product_id, // matcher det ProductsPage forventer
+          // 👇 viktig: dette er Shopify-ID’en resten av Phorium forventer
+          id: row.shopify_product_id,
           title: row.title,
           handle: row.handle,
           status: row.status,
@@ -168,7 +167,7 @@ export async function GET(req: Request) {
           optimizationLabel: row.optimization_label ?? null,
           optimizationCharacters: row.optimization_characters ?? null,
         };
-      });
+      }) ?? [];
 
     return NextResponse.json({
       success: true,
@@ -180,8 +179,11 @@ export async function GET(req: Request) {
     return NextResponse.json(
       {
         success: false,
-        error: "Uventet feil ved henting av produkter.",
-        details: String(err?.message || err).slice(0, 300),
+        error:
+          err?.message ||
+          (typeof err === "string"
+            ? err
+            : "Uventet feil ved henting av produkter."),
       },
       { status: 500 },
     );
