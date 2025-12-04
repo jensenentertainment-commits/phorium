@@ -43,7 +43,7 @@ function computeOptimizationScore(p: any) {
   return { score, label, characters: len };
 }
 
-eexport async function GET(req: Request) {
+export async function GET(req: Request) {
   try {
     // ⬇️ behold samme måte å finne shop som du har brukt før
     const cookieHeader = req.headers.get("cookie");
