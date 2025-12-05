@@ -1,12 +1,22 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { getQuotaForPlan } from "@/lib/billing";
 
 export async function POST(req: Request) {
   try {
+    const cookieStore = await cookies();
+    const isAdmin = cookieStore.get("phorium_admin")?.value === "1";
+
+    if (!isAdmin) {
+      return NextResponse.json(
+        { ok: false, error: "Ikke autorisert" },
+        { status: 401 },
+      );
+    }
+
     const body = await req.json();
     const userId = body.userId as string | undefined;
-    const rawPlan = body.plan as string | null | undefined;
+    const plan = body.plan as string | null | undefined;
 
     if (!userId) {
       return NextResponse.json(
@@ -15,33 +25,32 @@ export async function POST(req: Request) {
       );
     }
 
-    // Tom / null → source
-    const newPlan = rawPlan && rawPlan.trim() !== "" ? rawPlan.trim() : "source";
-    const newQuota = getQuotaForPlan(newPlan);
-
-    // (valgfritt) Hente eksisterende profil, i tilfelle du vil logge før/etter
-    const { data: existingProfile, error: existingError } = await supabaseAdmin
+    // Hent gammel plan (fra profiles.id = auth user id)
+    const { data: oldProfile, error: oldErr } = await supabaseAdmin
       .from("profiles")
-      .select("id, plan, plan_quota")
-      .eq("user_id", userId)
+      .select("plan")
+      .eq("id", userId)
       .maybeSingle();
 
-    if (existingError) {
-      console.error("Feil ved henting av profil før plan-oppdatering:", existingError);
+    if (oldErr) {
+      console.error("fetch old plan error", oldErr);
     }
 
-    // Selve oppdateringen
-    const { data: updatedProfile, error: updateError } = await supabaseAdmin
+    const oldPlan = oldProfile?.plan ?? null;
+    const newPlan = plan || null;
+
+    // Oppdater plan – NB: bruker `id`, ikke `user_id`
+    const {
+      data: updatedProfile,
+      error: updateError,
+    } = await supabaseAdmin
       .from("profiles")
-      .update({
-        plan: newPlan,
-        plan_quota: newQuota,
-      })
-      .eq("user_id", userId)
-      .select("plan, plan_quota")
+      .update({ plan: newPlan })
+      .eq("id", userId)
+      .select("plan")
       .maybeSingle();
 
-    if (updateError || !updatedProfile) {
+    if (updateError) {
       console.error("update plan error", updateError);
       return NextResponse.json(
         { ok: false, error: "Kunne ikke oppdatere plan." },
@@ -49,13 +58,28 @@ export async function POST(req: Request) {
       );
     }
 
+    const finalPlan = updatedProfile?.plan ?? newPlan ?? null;
+
+    // Logg admin-action (greit å ha, men feiler ikke hele requesten om dette ryker)
+    try {
+      await supabaseAdmin.from("admin_actions").insert({
+        admin_label: "admin",
+        target_user_id: userId,
+        action: "PLAN_CHANGE",
+        old_plan: oldPlan,
+        new_plan: finalPlan,
+        meta: null,
+      });
+    } catch (logErr) {
+      console.error("Kunne ikke logge admin-action PLAN_CHANGE:", logErr);
+    }
+
     return NextResponse.json({
       ok: true,
-      plan: updatedProfile.plan,
-      planQuota: updatedProfile.plan_quota,
+      plan: finalPlan,
     });
   } catch (err) {
-    console.error("Uventet feil i /api/admin/users/plan:", err);
+    console.error("update plan fatal", err);
     return NextResponse.json(
       { ok: false, error: "Uventet feil ved oppdatering av plan." },
       { status: 500 },
