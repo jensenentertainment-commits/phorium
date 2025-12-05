@@ -5,9 +5,6 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import PhoriumTextForm from "@/app/components/PhoriumTextForm";
 
-
-
-
 export default function TextPage() {
   return (
     <motion.div
@@ -16,20 +13,25 @@ export default function TextPage() {
       transition={{ duration: 0.35 }}
       className="text-phorium-light"
     >
-      {/* Header – matchet mot Visuals */}
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="mb-1.5 text-3xl font-semibold tracking-tight sm:text-4xl">
+      {/* Header – nå litt tightere og mer kompakt */}
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="space-y-1.5">
+          <p className="text-[11px] uppercase tracking-[0.16em] text-phorium-light/55">
+            Studio · Tekst
+          </p>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
             Phorium Tekst
           </h1>
-          <p className="text-[13px] text-phorium-light/80 sm:text-[12px]">
+          <p className="max-w-xl text-[12px] text-phorium-light/80">
             Generer produkt- og kategoritekster – eller bruk et ekte
             Shopify-produkt for å få en ferdig tekstpakke med produkttekst,
             SEO, annonser og SoMe.
           </p>
+        </div>
 
-          {/* Hint om brandprofil */}
-          <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-phorium-off/35 bg-phorium-dark/70 px-3 py-1.5 text-[11px] text-phorium-light/75">
+        {/* Kompakt brandprofil-hint – flyttet til høyre på store skjermer */}
+        <div className="sm:self-end">
+          <div className="inline-flex items-center gap-2 rounded-full border border-phorium-off/35 bg-phorium-dark/70 px-3 py-1 text-[10px] text-phorium-light/75">
             <span>
               Tekstene prøver å følge brandprofilen din på tvers av produkter.
             </span>
@@ -41,8 +43,6 @@ export default function TextPage() {
             </Link>
           </div>
         </div>
-
-
       </div>
 
       {/* Selve generatoren – håndterer Shopify-modus, brandprofil, historikk osv. */}

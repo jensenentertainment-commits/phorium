@@ -183,7 +183,7 @@ const avatarStyle = palette
                 {Icon && (
                   <Icon
                     className={`h-3.5 w-3.5 ${
-                      active ? "text-phorium-dark" : "text-phorium-dark/60"
+                      active ? "text-phorium-white" : "text-phorium-white/60"
                     }`}
                   />
                 )}
@@ -199,7 +199,7 @@ const avatarStyle = palette
     aria-label="Admin"
     className="flex items-center justify-center h-8 w-8 rounded-full border border-phorium-accent/70 text-phorium-accent hover:bg-phorium-accent/10 transition"
   >
-    <Settings className="h-4 w-4" />
+    <Settings className="h-6 w-6" />
   </Link>
 )}
 

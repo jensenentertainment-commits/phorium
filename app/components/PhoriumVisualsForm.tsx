@@ -887,137 +887,144 @@ async function handleEditGenerate() {
 
   // ============== RENDER ==============
 
-  return (
+   return (
     <>
-      {/* Global brandlinje – samme som Tekststudio */}
-      <BrandIdentityBar
-        brand={brand}
-        source={brandSource}
-        loading={brandLoading}
-      />
+      {/* Toppseksjon: brand + Shopify-status + modusvalg i ett kort */}
+      <div className="mb-5 space-y-3">
+        {/* Global brandlinje – samme som Tekststudio */}
+        <BrandIdentityBar
+          brand={brand}
+          source={brandSource}
+          loading={brandLoading}
+        />
 
-      {/* Shopify-produkt header (valgfri) */}
-      {isShopifyMode && (
-        <div className="mb-4 rounded-2xl border border-phorium-off/35 bg-phorium-dark px-4 py-3 text-[12px]">
-          {productLoading && (
-            <p className="flex items-center gap-1.5 text-phorium-light/85">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Henter produktdata fra Shopify …
-            </p>
-          )}
+        <div className="rounded-2xl border border-phorium-off/30 bg-phorium-dark/80 px-4 py-3 text-[11px]">
+          {/* Shopify-status / produktinfo */}
+          {isShopifyMode ? (
+            <>
+              {productLoading && (
+                <p className="flex items-center gap-1.5 text-phorium-light/85">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Henter produktdata fra Shopify …
+                </p>
+              )}
 
-          {productError && (
-            <p className="mt-1 flex items-center gap-1.5 text-red-300">
-              <AlertCircle className="h-3.5 w-3.5" />
-              Klarte ikke å hente produkt: {productError}
-            </p>
-          )}
+              {productError && (
+                <p className="mt-1 flex items-center gap-1.5 text-red-300">
+                  <AlertCircle className="h-3.5 w-3.5" />
+                  Klarte ikke å hente produkt: {productError}
+                </p>
+              )}
 
-          {linkedProduct && !productLoading && !productError && (
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="flex items-center gap-1.5 text-[11px] text-phorium-light/60">
-                  <Store className="h-3.5 w-3.5" />
-                  Jobber mot produkt:
-                </div>
-                <div className="text-[13px] font-semibold text-phorium-accent">
-                  {linkedProduct.title}
-                </div>
-                <div className="text-[11px] text-phorium-light/60">
-                  Handle: {linkedProduct.handle} · ID: {linkedProduct.id}
-                </div>
-              </div>
+              {linkedProduct && !productLoading && !productError && (
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="flex items-center gap-1.5 text-[10px] text-phorium-light/60">
+                      <Store className="h-3.5 w-3.5" />
+                      Jobber mot produkt:
+                    </div>
+                    <div className="text-[13px] font-semibold text-phorium-accent">
+                      {linkedProduct.title}
+                    </div>
+                    <div className="text-[10px] text-phorium-light/60">
+                      Handle: {linkedProduct.handle} · ID: {linkedProduct.id}
+                    </div>
+                  </div>
 
-              <div className="flex items-center gap-3">
-                {linkedProduct.image?.src && (
-                  <img
-                    src={linkedProduct.image.src}
-                    alt={linkedProduct.title}
-                    className="h-12 w-12 rounded-lg border border-phorium-off/40 object-cover"
-                  />
-                )}
-
-                <div className="flex gap-2">
-                  <Link
-                    href="/studio/produkter"
-                    className="btn btn-sm btn-ghost"
-                  >
-                    Bytt produkt
-                  </Link>
-
-                  {(shopDomain || process.env.NEXT_PUBLIC_SHOPIFY_DOMAIN) &&
-                    productIdFromUrl && (
-                      <a
-                        href={`https://${
-                          shopDomain || process.env.NEXT_PUBLIC_SHOPIFY_DOMAIN
-                        }/admin/products/${productIdFromUrl}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="btn btn-sm btn-secondary inline-flex items-center gap-1.5"
-                      >
-                        <Store className="h-3.5 w-3.5" />
-                        Åpne i Shopify
-                      </a>
+                  <div className="flex items-center gap-3">
+                    {linkedProduct.image?.src && (
+                      <img
+                        src={linkedProduct.image.src}
+                        alt={linkedProduct.title}
+                        className="h-12 w-12 rounded-lg border border-phorium-off/40 object-cover"
+                      />
                     )}
+
+                    <div className="flex gap-2">
+                      <Link
+                        href="/studio/produkter"
+                        className="btn btn-sm btn-ghost"
+                      >
+                        Bytt produkt
+                      </Link>
+
+                      {(shopDomain || process.env.NEXT_PUBLIC_SHOPIFY_DOMAIN) &&
+                        productIdFromUrl && (
+                          <a
+                            href={`https://${
+                              shopDomain ||
+                              process.env.NEXT_PUBLIC_SHOPIFY_DOMAIN
+                            }/admin/products/${productIdFromUrl}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="btn btn-sm btn-secondary inline-flex items-center gap-1.5"
+                          >
+                            <Store className="h-3.5 w-3.5" />
+                            Åpne i Shopify
+                          </a>
+                        )}
+                    </div>
+                  </div>
                 </div>
+              )}
+            </>
+          ) : (
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="flex items-center gap-1.5 text-[10px] text-phorium-light/70">
+                  <AlertCircle className="h-3.5 w-3.5" />
+                  Ingen nettbutikk koblet til Visuals enda.
+                </div>
+                <div className="text-[10px] text-phorium-light/60">
+                  Du kan fortsatt generere bilder, men lagring direkte i Shopify
+                  krever integrasjon.
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Link href="/studio" className="btn btn-sm btn-ghost">
+                  Tilbake til Studio
+                </Link>
+                <Link
+                  href="/studio/koble-nettbutikk"
+                  className="btn btn-sm btn-ghost inline-flex items-center gap-1"
+                >
+                  <Link2 className="h-3.5 w-3.5" />
+                  Koble nettbutikk
+                </Link>
               </div>
             </div>
           )}
-        </div>
-      )}
 
-      {!isShopifyMode && (
-        <div className="mb-4 rounded-2xl border border-phorium-off/25 bg-phorium-dark/70 px-4 py-3 text-[12px]">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <div className="flex items-center gap-1.5 text-[11px] text-phorium-light/70">
-                <AlertCircle className="h-3.5 w-3.5" />
-                Ingen nettbutikk koblet til Visuals enda.
-              </div>
-              <div className="text-[11px] text-phorium-light/60">
-                Du kan fortsatt generere bilder, men lagring direkte i Shopify
-                krever integrasjon.
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Link href="/studio" className="btn btn-sm btn-ghost">
-                Tilbake til Studio
-              </Link>
-              <Link
-                href="/studio/koble-nettbutikk"
-                className="btn btn-sm btn-ghost inline-flex items-center gap-1"
+          {/* Modusvalg – samlet nederst i samme kort */}
+          <div className="mt-3 border-t border-phorium-off/25 pt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-[10px] text-phorium-light/70">
+              Hva vil du lage nå?
+            </span>
+            <div className="inline-flex rounded-full border border-phorium-off/40 bg-phorium-dark/90 p-1 text-[11px]">
+              <ModeButton
+                active={mode === "image"}
+                onClick={() => setMode("image")}
+                icon={<ImageIcon className="h-3.5 w-3.5" />}
               >
-                <Link2 className="h-3.5 w-3.5" />
-                Koble nettbutikk
-              </Link>
+                Standardbilde
+              </ModeButton>
+              <ModeButton
+                active={mode === "banner"}
+                onClick={() => setMode("banner")}
+                icon={<LayoutTemplate className="h-3.5 w-3.5" />}
+              >
+                Banner med tekst
+              </ModeButton>
+              <ModeButton
+                active={mode === "product"}
+                onClick={() => setMode("product")}
+                icon={<Sparkles className="h-3.5 w-3.5" />}
+              >
+                Produktbilde til scene
+              </ModeButton>
             </div>
           </div>
         </div>
-      )}
-
-      {/* Mode switch – hvilken type visual du vil lage */}
-      <div className="mb-8 inline-flex rounded-full border border-phorium-off/40 bg-phorium-dark p-1 text-[11px]">
-        <ModeButton
-          active={mode === "image"}
-          onClick={() => setMode("image")}
-          icon={<ImageIcon className="h-3.5 w-3.5" />}
-        >
-          Standardbilde
-        </ModeButton>
-        <ModeButton
-          active={mode === "banner"}
-          onClick={() => setMode("banner")}
-          icon={<LayoutTemplate className="h-3.5 w-3.5" />}
-        >
-          Banner med tekst
-        </ModeButton>
-        <ModeButton
-          active={mode === "product"}
-          onClick={() => setMode("product")}
-          icon={<Sparkles className="h-3.5 w-3.5" />}
-        >
-          Produktbilde til scene
-        </ModeButton>
       </div>
 
       {/* MODE: Standardbilde */}

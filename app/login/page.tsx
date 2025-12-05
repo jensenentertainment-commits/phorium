@@ -12,6 +12,7 @@ const INITIAL_CREDITS = 300; // juster om du vil
 
 export default function LoginPage() {
   const router = useRouter();
+
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -20,7 +21,6 @@ export default function LoginPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-
 
   // Hvis bruker allerede er logget inn → rett til /studio
   useEffect(() => {
@@ -33,112 +33,115 @@ export default function LoginPage() {
     void checkUser();
   }, [router]);
 
- async function handleSubmit(e: React.FormEvent) {
-  e.preventDefault();
-  setLoading(true);
-  setMessage(null);
-  setError(null);
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setMessage(null);
+    setError(null);
 
-  try {
-    if (!email.trim() || !password.trim()) {
-      setError("Skriv inn både e-post og passord.");
-      return;
-    }
-
-    if (mode === "signup") {
-      // 🔐 Sjekk invite-kode først
-      if (!inviteCode.trim()) {
-        setError("Du må skrive inn invite-koden.");
+    try {
+      if (!email.trim() || !password.trim()) {
+        setError("Skriv inn både e-post og passord.");
         return;
       }
 
-      if (BETA_CODE && inviteCode.trim() !== BETA_CODE) {
-        setError("Feil invite-kode. Dobbeltsjekk eller kontakt Lars.");
-        return;
-      }
-
-      // 🧾 Opprett bruker i Supabase
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-
-      if (error) {
-        console.error("Signup error:", error);
-        setError(error.message || "Kunne ikke opprette konto.");
-        return; // ⛔️ VIKTIG: stopp her hvis det feilet
-      }
-
-      // (Valgfritt) Gi startkreditter – hvis dette feiler, skal ikke signup ryke
-      try {
-        await fetch("/api/credits/give", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email,
-            amount: INITIAL_CREDITS,
-            reason: "beta_signup",
-          }),
-        });
-      } catch (creditError) {
-        console.error("Feil ved tildeling av kreditter:", creditError);
-        // Ikke sett error til bruker – kreditter kan du fikse manuelt om det knoter
-      }
-
-      setMessage("Konto opprettet! Du kan nå logge inn.");
-      setMode("login");
-      setPassword("");
-      setInviteCode("");
-      return; // ⛔️ Ferdig med signup
-    }
-
-    if (mode === "login") {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        console.error("Login error:", error);
-
-        if (error.message === "Invalid login credentials") {
-          setError("Feil e-post eller passord.");
-        } else {
-          setError(error.message || "Kunne ikke logge inn.");
+      if (mode === "signup") {
+        // 🔐 Sjekk invite-kode først
+        if (!inviteCode.trim()) {
+          setError("Du må skrive inn invite-koden.");
+          return;
         }
 
-        return; // stopp her
+        if (BETA_CODE && inviteCode.trim() !== BETA_CODE) {
+          setError("Feil invite-kode. Dobbeltsjekk eller kontakt Lars.");
+          return;
+        }
+
+        // 🧾 Opprett bruker i Supabase
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+
+        if (error) {
+          console.error("Signup error:", error);
+          setError(error.message || "Kunne ikke opprette konto.");
+          return;
+        }
+
+        // (Valgfritt) Gi startkreditter – hvis dette feiler, skal ikke signup ryke
+        try {
+          await fetch("/api/credits/give", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email,
+              amount: INITIAL_CREDITS,
+              reason: "beta_signup",
+            }),
+          });
+        } catch (creditError) {
+          console.error("Feil ved tildeling av kreditter:", creditError);
+          // Ikke vis feil til bruker – kan fikses manuelt
+        }
+
+        setMessage("Konto opprettet! Du kan nå logge inn.");
+        setMode("login");
+        setPassword("");
+        setInviteCode("");
+        return;
       }
 
-      // Alt ok → inn i appen
-      router.push("/studio");
+      if (mode === "login") {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (error) {
+          console.error("Login error:", error);
+
+          if (error.message === "Invalid login credentials") {
+            setError("Feil e-post eller passord.");
+          } else {
+            setError(error.message || "Kunne ikke logge inn.");
+          }
+
+          return;
+        }
+
+        // Alt ok → inn i appen
+        router.push("/studio");
+      }
+    } catch (err) {
+      console.error("Uventet feil i handleSubmit:", err);
+      setError("Noe gikk galt. Prøv igjen om litt.");
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    console.error("Uventet feil i handleSubmit:", err);
-    setError("Noe gikk galt. Prøv igjen om litt.");
-  } finally {
-    setLoading(false);
   }
-}
+
+  const isLogin = mode === "login";
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-b from-[#1A4242] via-[#06231E] to-[#071F1B]">
-      <div className="w-full max-w-md rounded-2xl border border-phorium-off/40 bg-[#1A4242]/95 p-6 shadow-[0_24px_70px_rgba(0,0,0,0.85)]">
-        <div className="mb-5">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-phorium-accent/80">
-            Phorium Beta
+    <main className="flex min-h-screen items-start justify-center pt-20 px-4">
+      <div className="w-full max-w-md rounded-2xl border border-phorium-off/30 bg-phorium-dark/90 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.7)]">
+        {/* Topptekst – matcher admin-layout */}
+        <div className="mb-4">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-phorium-light/55">
+            Phorium · Beta-tilgang
           </p>
-          <h1 className="mt-1 text-xl font-semibold text-phorium-light">
-            {mode === "login" ? "Logg inn" : "Opprett beta-konto"}
+          <h1 className="mt-1 text-lg font-semibold text-phorium-light">
+            {isLogin ? "Logg inn i Phorium Studio" : "Opprett konto i Phorium Studio"}
           </h1>
           <p className="mt-1 text-[12px] text-phorium-light/70">
-            {mode === "login"
-              ? "Bruk e-post og passordet du har fått tilsendt."
-              : "Kun for inviterte testere. Du trenger beta-koden fra Lars."}
+            Tilgang til tekststudio, visuals og kredittsystemet – kun for
+            inviterte testere.
           </p>
         </div>
 
-        <div className="mb-4 inline-flex rounded-full bg-[#0D1713] p-1 text-[11px] text-phorium-light/70">
+        {/* Mode-toggle (Logg inn / Opprett konto) */}
+        <div className="mb-4 inline-flex w-full rounded-full border border-phorium-off/30 bg-phorium-dark/80 p-1 text-[12px]">
           <button
             type="button"
             onClick={() => {
@@ -146,10 +149,10 @@ export default function LoginPage() {
               setError(null);
               setMessage(null);
             }}
-            className={`flex-1 rounded-full px-3 py-1 transition ${
-              mode === "login"
-                ? "bg-phorium-accent text-phorium-dark font-semibold"
-                : "bg-transparent"
+            className={`flex-1 rounded-full px-3 py-1.5 font-medium transition ${
+              isLogin
+                ? "bg-phorium-accent text-phorium-dark shadow-[0_8px_18px_rgba(0,0,0,0.35)]"
+                : "text-phorium-light/70 hover:text-phorium-light"
             }`}
           >
             Logg inn
@@ -161,133 +164,124 @@ export default function LoginPage() {
               setError(null);
               setMessage(null);
             }}
-            className={`flex-1 rounded-full px-3 py-1 transition ${
-              mode === "signup"
-                ? "bg-phorium-accent text-phorium-dark font-semibold"
-                : "bg-transparent"
+            className={`flex-1 rounded-full px-3 py-1.5 font-medium transition ${
+              !isLogin
+                ? "bg-phorium-accent text-phorium-dark shadow-[0_8px_18px_rgba(0,0,0,0.35)]"
+                : "text-phorium-light/70 hover:text-phorium-light"
             }`}
           >
             Opprett konto
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-[11px] text-phorium-light/80">
-              E-post
-            </label>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          {/* E-post */}
+          <div className="space-y-1">
+            <label className="text-[12px] text-phorium-light/80">E-post</label>
             <div className="relative">
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-phorium-light/40">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-phorium-light/45">
                 <Mail className="h-4 w-4" />
               </span>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-xl border border-phorium-off/40 bg-white px-9 py-2 text-[13px] text-[#0f1512] placeholder:text-[#6c7a75] focus:border-phorium-accent/80 focus:outline-none focus:ring-2 focus:ring-phorium-accent/20"
+                className="w-full rounded-xl border border-phorium-off/40 bg-phorium-dark px-9 py-2 text-[13px] text-phorium-light placeholder:text-phorium-light/40 outline-none focus:border-phorium-accent/80 focus:ring-2 focus:ring-phorium-accent/20"
                 placeholder="deg@butikk.no"
+                autoComplete="email"
               />
             </div>
           </div>
 
-          <div className="relative">
-  {/* Venstre ikon (lås) */}
-  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-phorium-light/40">
-    <Lock className="h-4 w-4" />
-  </span>
+          {/* Passord + vis/skjul */}
+          <div className="space-y-1">
+            <label className="text-[12px] text-phorium-light/80">Passord</label>
+            <div className="relative">
+              {/* Venstre ikon */}
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-phorium-light/45">
+                <Lock className="h-4 w-4" />
+              </span>
 
-  {/* Selve input-feltet */}
-  <input
-    type={showPassword ? "text" : "password"}
-    value={password}
-    onChange={(e) => setPassword(e.target.value)}
-    className="w-full rounded-xl border border-phorium-off/40 bg-phorium-dark/80 px-9 pr-9 py-2 text-[13px] outline-none transition focus:border-phorium-accent/80"
-    placeholder="••••••••"
-    autoComplete={mode === "login" ? "current-password" : "new-password"}
-  />
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-xl border border-phorium-off/40 bg-phorium-dark px-9 pr-9 py-2 text-[13px] text-phorium-light placeholder:text-phorium-light/40 outline-none focus:border-phorium-accent/80 focus:ring-2 focus:ring-phorium-accent/20"
+                placeholder="••••••••"
+                autoComplete={isLogin ? "current-password" : "new-password"}
+              />
 
-  {/* Høyre ikon (vis/skjul) */}
-  <button
-    type="button"
-    onClick={() => setShowPassword((prev) => !prev)}
-    className="absolute right-3 top-1/2 -translate-y-1/2 text-phorium-light/50 hover:text-phorium-accent transition"
-    aria-label={showPassword ? "Skjul passord" : "Vis passord"}
-  >
-    {showPassword ? (
-      <EyeOff className="h-4 w-4" />
-    ) : (
-      <Eye className="h-4 w-4" />
-    )}
-  </button>
-</div>
+              {/* Høyre ikon (vis/skjul) */}
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-phorium-light/50 transition hover:text-phorium-accent"
+                aria-label={showPassword ? "Skjul passord" : "Vis passord"}
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </button>
+            </div>
 
+            {isLogin && (
+              <div className="mt-1 text-right">
+                <a
+                  href="/glemt-passord"
+                  className="text-[11px] text-phorium-accent hover:underline"
+                >
+                  Glemt passord?
+                </a>
+              </div>
+            )}
+          </div>
 
-{mode === "login" && (
-  <div className="text-right mt-1">
-    <a
-      href="/glemt-passord"
-      className="text-[11px] text-phorium-accent hover:underline"
-    >
-      Glemt passord?
-    </a>
-  </div>
-)}
-
-
-          {mode === "signup" && (
-            <div>
-              <label className="mb-1 block text-[11px] text-phorium-light/80">
+          {/* Invite-kode – kun signup */}
+          {!isLogin && (
+            <div className="space-y-1">
+              <label className="text-[12px] text-phorium-light/80">
                 Beta-kode
               </label>
               <div className="relative">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-phorium-light/40">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-phorium-light/45">
                   <KeyRound className="h-4 w-4" />
                 </span>
                 <input
                   type="text"
                   value={inviteCode}
                   onChange={(e) => setInviteCode(e.target.value)}
-                  className="w-full rounded-xl border border-phorium-off/40 bg-white px-9 py-2 text-[13px] text-[#0f1512] placeholder:text-[#6c7a75] focus:border-phorium-accent/80 focus:outline-none focus:ring-2 focus:ring-phorium-accent/20"
-                  placeholder="Koden du har fått fra Lars"
+                  className="w-full rounded-xl border border-phorium-off/40 bg-phorium-dark px-9 py-2 text-[13px] text-phorium-light placeholder:text-phorium-light/40 outline-none focus:border-phorium-accent/80 focus:ring-2 focus:ring-phorium-accent/20"
+                  placeholder="Invite-kode du fikk fra Lars"
                 />
               </div>
             </div>
           )}
 
+          {/* Meldinger */}
           {error && (
-            <p className="text-[12px] text-red-300">{error}</p>
+            <p className="text-[12px] text-red-400">{error}</p>
           )}
           {message && (
             <p className="text-[12px] text-emerald-300">{message}</p>
           )}
 
+          {/* CTA-knapp */}
           <button
             type="submit"
-            disabled={
-              loading ||
-              !email.trim() ||
-              !password.trim() ||
-              (mode === "signup" && !inviteCode.trim())
-            }
-            className="mt-2 flex w-full items-center justify-center rounded-xl bg-phorium-accent py-2.5 text-[14px] font-semibold text-phorium-dark disabled:cursor-not-allowed disabled:bg-phorium-accent/40"
+            disabled={loading}
+            className="mt-1 inline-flex w-full items-center justify-center gap-2 rounded-full bg-phorium-accent py-2.5 text-[13px] font-semibold text-phorium-dark shadow-[0_10px_30px_rgba(0,0,0,0.45)] transition hover:bg-phorium-accent/95 disabled:opacity-60 disabled:hover:bg-phorium-accent"
           >
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {mode === "login" ? "Logger inn…" : "Oppretter konto…"}
-              </>
-            ) : mode === "login" ? (
-              "Logg inn"
-            ) : (
-              "Opprett konto"
-            )}
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+            {isLogin ? "Logg inn" : "Opprett konto"}
           </button>
-        </form>
 
-        <p className="mt-4 text-[11px] text-phorium-light/50">
-          Dette er en tidlig beta. Del ikke kontoen din med andre – hver bruker
-          får egne kreditter og historikk.
-        </p>
+          <p className="mt-2 text-center text-[11px] text-phorium-light/55">
+            Dette er en tidlig beta. Ikke del kontoen din – hver bruker får egne
+            kreditter, brandprofiler og historikk.
+          </p>
+        </form>
       </div>
     </main>
   );

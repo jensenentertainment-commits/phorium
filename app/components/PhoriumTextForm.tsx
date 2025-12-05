@@ -689,22 +689,24 @@ function handlePrimaryClick() {
       }
     }
 
-    const primaryButtonLabel = isShopifyMode
-      ? "Generer tekst basert på Shopify-produktet"
-      : "Generer tekst basert på input";
+   const primaryButtonLabel = isShopifyMode
+    ? "Generer tekst basert på Shopify-produktet"
+    : "Generer tekst basert på input";
 
-    return (
-      <div className="space-y-4">
-        {/* Brand-linje */}
-        <BrandIdentityBar
-          brand={brand}
-          source={brandSource}
-          loading={brandLoading}
-        />
+  return (
+    <div className="space-y-3">
+      {/* Brand-linje – beholdt som før */}
+      <BrandIdentityBar
+        brand={brand}
+        source={brandSource}
+        loading={brandLoading}
+      />
 
-        {/* Shopify-produktstatus / info */}
+      {/* Kompakt “verktøykort” for Shopify + match-score */}
+      <div className="rounded-2xl border border-phorium-off/40 bg-phorium-dark px-4 py-3 text-[11px] space-y-3">
+        {/* Shopify-produktstatus / tone-analyse – vises bare i Shopify-modus */}
         {isShopifyMode && (
-          <div className="mt-2 rounded-2xl border border-phorium-off/40 bg-phorium-dark px-4 py-3 text-[11px]">
+          <>
             {productLoading && (
               <p className="text-phorium-light/80">
                 Henter produktdata fra Shopify …
@@ -751,7 +753,7 @@ function handlePrimaryClick() {
                   </div>
                 </div>
 
-                <div className="mt-3 border-t border-phorium-off/20 pt-3">
+                <div className="border-t border-phorium-off/20 pt-3 mt-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="text-[11px] text-phorium-light/70">
                       Analyser tonen i eksisterende produkttekst
@@ -805,9 +807,7 @@ function handlePrimaryClick() {
                         </p>
                       )}
 
-                      <p className="text-[11px]">
-                        {toneAnalysis.summary}
-                      </p>
+                      <p className="text-[11px]">{toneAnalysis.summary}</p>
                       <p className="text-[11px] text-phorium-light/80">
                         {toneAnalysis.suggestions}
                       </p>
@@ -816,82 +816,81 @@ function handlePrimaryClick() {
                 </div>
               </>
             )}
-          </div>
+          </>
         )}
 
-        {/* Match-score */}
-        <div className="mt-4 border-t border-phorium-off/20 pt-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="text-[11px] text-phorium-light/70">
-              Matcher teksten brandprofilen din?
-            </div>
-            <button
-              type="button"
-              onClick={handleMatchScore}
-              disabled={matchLoading}
-              className="btn btn-xs btn-secondary"
-            >
-              {matchLoading ? (
-                <span className="inline-flex items-center gap-1.5">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Analyserer…
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5">
-                  <Target className="h-3.5 w-3.5" />
-                  Beregn match-score
-                </span>
-              )}
-            </button>
+        {/* Match-score – alltid tilgjengelig, men nå i samme kort */}
+        <div
+          className={`flex flex-wrap items-center justify-between gap-2 ${
+            isShopifyMode ? "border-t border-phorium-off/20 pt-3" : ""
+          }`}
+        >
+          <div className="text-[11px] text-phorium-light/70">
+            Matcher teksten brandprofilen din?
           </div>
-
-          {matchError && (
-            <p className="mt-1 flex items-center gap-1.5 text-[11px] text-red-300">
-              <AlertCircle className="h-3.5 w-3.5" />
-              {matchError}
-            </p>
-          )}
-
-          {matchScore && (
-            <div className="mt-2 rounded-xl border border-phorium-off/25 bg-phorium-dark/70 p-3 text-[11px] text-phorium-light/90 space-y-2">
-              <div className="text-[13px] font-semibold text-phorium-accent">
-                Match-score: {matchScore.score}%
-              </div>
-
-              {matchScore.strengths.length > 0 && (
-                <>
-                  <p className="text-[10px] text-phorium-light/60">
-                    Styrker:
-                  </p>
-                  <ul className="list-disc pl-4">
-                    {matchScore.strengths.map((s, i) => (
-                      <li key={i}>{s}</li>
-                    ))}
-                  </ul>
-                </>
-              )}
-
-              {matchScore.weaknesses.length > 0 && (
-                <>
-                  <p className="text-[10px] text-phorium-light/60">
-                    Svakheter:
-                  </p>
-                  <ul className="list-disc pl-4">
-                    {matchScore.weaknesses.map((s, i) => (
-                      <li key={i}>{s}</li>
-                    ))}
-                  </ul>
-                </>
-              )}
-
-              {matchScore.recommendations && (
-                <p className="text-[11px] text-phorium-light/85">
-                  {matchScore.recommendations}
-                </p>
-              )}
-            </div>
-          )}
+          <button
+            type="button"
+            onClick={handleMatchScore}
+            disabled={matchLoading}
+            className="btn btn-xs btn-secondary"
+          >
+            {matchLoading ? (
+              <span className="inline-flex items-center gap-1.5">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Analyserer…
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5">
+                <Target className="h-3.5 w-3.5" />
+                Beregn match-score
+              </span>
+            )}
+          </button>
         </div>
+
+        {matchError && (
+          <p className="mt-1 flex items-center gap-1.5 text-[11px] text-red-300">
+            <AlertCircle className="h-3.5 w-3.5" />
+            {matchError}
+          </p>
+        )}
+
+        {matchScore && (
+          <div className="mt-2 rounded-xl border border-phorium-off/25 bg-phorium-dark/70 p-3 text-[11px] text-phorium-light/90 space-y-2">
+            <div className="text-[13px] font-semibold text-phorium-accent">
+              Match-score: {matchScore.score}%
+            </div>
+
+            {matchScore.strengths.length > 0 && (
+              <>
+                <p className="text-[10px] text-phorium-light/60">Styrker:</p>
+                <ul className="list-disc pl-4">
+                  {matchScore.strengths.map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ul>
+              </>
+            )}
+
+            {matchScore.weaknesses.length > 0 && (
+              <>
+                <p className="text-[10px] text-phorium-light/60">Svakheter:</p>
+                <ul className="list-disc pl-4">
+                  {matchScore.weaknesses.map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ul>
+              </>
+            )}
+
+            {matchScore.recommendations && (
+              <p className="text-[11px] text-phorium-light/85">
+                {matchScore.recommendations}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
 
         {/* Hovedkort: input + resultat */}
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1.4fr)]">
