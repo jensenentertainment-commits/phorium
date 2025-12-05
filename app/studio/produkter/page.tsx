@@ -14,6 +14,7 @@ import {
   Store,
   ExternalLink,
   Gauge,
+  ShoppingBag,
 } from "lucide-react";
 
 type Product = {
@@ -55,11 +56,18 @@ export default function ProductsPage() {
 
   const [shopDomain, setShopDomain] = useState<string | null>(null);
 
-  // 🔢 paginering
+  // Sync-status (integrert)
+  const [syncInfo, setSyncInfo] = useState<{
+    synced_at: string;
+    imported_count: number;
+  } | null>(null);
+  const [syncLoading, setSyncLoading] = useState(false);
+
+  // paginering
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
 
-  // les shop-domain fra cookie (som før)
+  // Les shop-domain fra cookie
   useEffect(() => {
     if (typeof document === "undefined") return;
     try {
@@ -74,7 +82,25 @@ export default function ProductsPage() {
     }
   }, []);
 
-  // Felles fetch-funksjon – brukes både av useEffect, søk og paginering
+  // Hent sync-status
+  async function fetchSyncStatus() {
+    try {
+      const res = await fetch("/api/shopify/sync-status");
+      const data = await res.json();
+      if (data.success) {
+        setSyncInfo(data.log);
+      }
+    } catch (err) {
+      // ikke kritisk – kan ignoreres stille
+      console.error("Kunne ikke hente sync-status:", err);
+    }
+  }
+
+  useEffect(() => {
+    void fetchSyncStatus();
+  }, []);
+
+  // Felles fetch-funksjon – brukes av useEffect, søk, paginering og sync
   async function fetchProducts(nextPage: number) {
     try {
       setLoading(true);
@@ -116,7 +142,36 @@ export default function ProductsPage() {
     }
   }
 
-  // 🔁 hent side 1 når filtere endres
+  // Sync fra Shopify + refresh
+  async function handleSyncFromShopify() {
+    try {
+      setSyncLoading(true);
+      setError(null);
+
+      const res = await fetch("/api/shopify/sync-products", {
+        method: "POST",
+      });
+      const data = await res.json();
+
+      setSyncLoading(false);
+
+      if (!data.success) {
+        console.error("Sync-feil:", data.error);
+        setError(data.error || "Kunne ikke synkronisere produkter fra Shopify.");
+        return;
+      }
+
+      // Oppdater sync-info og last inn produkter på nytt (side 1)
+      await fetchSyncStatus();
+      await fetchProducts(1);
+    } catch (err) {
+      console.error("Sync-products error:", err);
+      setSyncLoading(false);
+      setError("Uventet feil under synkronisering fra Shopify.");
+    }
+  }
+
+  // hent side 1 når filtere endres
   useEffect(() => {
     void fetchProducts(1);
   }, [statusFilter, onlyMissingText, onlyLowScore]);
@@ -252,13 +307,48 @@ export default function ProductsPage() {
             </div>
           </div>
 
-          <div className="mt-3 flex items-start gap-2 text-[11px] text-phorium-light/70">
-            <AlertTriangle className="mt-[2px] h-3.5 w-3.5 text-amber-300" />
-            <p>
-              Phorium måler kun{" "}
-              <span className="font-semibold">tekstlengde og fylde</span> – ikke
-              “hvor bra” teksten er.
-            </p>
+          {/* Info + diskret sync-rad */}
+          <div className="mt-3 flex flex-col gap-2 text-[11px] text-phorium-light/70 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="mt-[2px] h-3.5 w-3.5 text-amber-300" />
+              <p>
+                Phorium måler kun{" "}
+                <span className="font-semibold">tekstlengde og fylde</span> – ikke
+                «hvor bra» teksten er.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 md:justify-end">
+  {syncInfo ? (
+    <span className="text-[10px] text-phorium-light/65">
+      Sist synk:{" "}
+      <span className="font-medium text-phorium-light">
+        {new Date(syncInfo.synced_at).toLocaleString("no-NO")}
+      </span>{" "}
+      · {syncInfo.imported_count} produkter
+    </span>
+  ) : (
+    <span className="text-[10px] text-phorium-light/55">
+      Ingen synkronisering gjennomført ennå.
+    </span>
+  )}
+
+  <button
+    type="button"
+    onClick={() => void handleSyncFromShopify()}
+    disabled={syncLoading}
+    className="inline-flex items-center gap-1.5 rounded-full border border-phorium-off/50 bg-phorium-dark px-3 py-1.5 text-[11px] font-medium text-phorium-light/90 hover:border-phorium-accent hover:bg-phorium-accent/10 hover:text-phorium-accent transition disabled:opacity-40 disabled:cursor-not-allowed"
+  >
+    <ShoppingBag className="h-3.5 w-3.5 text-emerald-300" />
+    <span className="hidden sm:inline">
+      {syncLoading ? "Shopify · Synker…" : "Shopify · Sync"}
+    </span>
+    <span className="sm:hidden">
+      {syncLoading ? "Synker…" : "Sync"}
+    </span>
+  </button>
+</div>
+
           </div>
         </motion.div>
 
@@ -326,7 +416,7 @@ export default function ProductsPage() {
                     className="rounded-2xl border border-phorium-off/35 bg-phorium-dark/80 p-3 sm:p-4"
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:justify-between">
-                      {/* Venstre side – samme som før */}
+                      {/* Venstre side */}
                       <div className="flex flex-1 gap-3">
                         <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl border border-phorium-off/40 bg-phorium-dark">
                           {p.image ? (
@@ -390,9 +480,8 @@ export default function ProductsPage() {
                         </div>
                       </div>
 
-                      {/* Høyre side – samme knapper som før */}
+                      {/* Høyre side */}
                       <div className="flex w-full flex-col justify-between gap-2 sm:w-64 sm:items-end">
-                        {/* AI-score-boksen din kan være som før */}
                         <div className="flex items-center justify-between gap-3 rounded-2xl border px-3 py-2 text-[11px]">
                           <div className="flex flex-1 flex-col">
                             <span className="text-[10px] uppercase tracking-[0.14em] text-phorium-light/70">

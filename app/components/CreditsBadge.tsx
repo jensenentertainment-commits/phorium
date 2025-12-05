@@ -1,8 +1,10 @@
+// app/components/CreditsBadge.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { Info } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { PLAN_COLORS, type PlanName } from "@/app/components/PlanBadge";
 
 type CreditsBadgeProps = {
   /** Hvis du vil tvinge inn en bestemt saldo (f.eks. fra server), kan du sende den inn her. */
@@ -11,12 +13,17 @@ type CreditsBadgeProps = {
   quota?: number;
   /** Valgfritt: mer kompakt variant hvis du vil style annerledes senere */
   compact?: boolean;
+  /** Planen brukes kun til styling (farger) */
+  plan?: PlanName | null;
+  variant?: "standalone" | "inline";
 };
 
 export default function CreditsBadge({
   balance,
   quota = 300,
   compact = false,
+  plan,
+  variant = "standalone",
 }: CreditsBadgeProps) {
   const [internalBalance, setInternalBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -32,7 +39,6 @@ export default function CreditsBadge({
       try {
         setLoading(true);
 
-        // Hent innlogget bruker
         const { data: userData, error: userError } =
           await supabase.auth.getUser();
 
@@ -43,7 +49,6 @@ export default function CreditsBadge({
 
         const userId = userData.user.id;
 
-        // 1) Første fetch
         const { data, error } = await supabase
           .from("credits")
           .select("balance")
@@ -58,7 +63,6 @@ export default function CreditsBadge({
           }
         }
 
-        // 2) Realtime subscription
         channel = supabase
           .channel(`credits-realtime-${userId}`)
           .on(
@@ -75,7 +79,7 @@ export default function CreditsBadge({
               if (!cancelled && typeof newBalance === "number") {
                 setInternalBalance(newBalance);
               }
-            }
+            },
           )
           .subscribe();
       } catch (err) {
@@ -108,26 +112,49 @@ export default function CreditsBadge({
     Math.max(0, (effectiveBalance / safeQuota) * 100),
   );
 
-  // Dynamisk farge på baren
-  let barColor = "bg-phorium-off/40";
-  if (percentage === 0) {
-    barColor = "bg-phorium-off/30";
-  } else if (percentage < 20) {
-    barColor = "bg-red-500";
-  } else if (percentage < 50) {
-    barColor = "bg-yellow-500";
-  } else if (percentage < 80) {
-    barColor = "bg-emerald-500";
+  const palette = plan ? PLAN_COLORS[plan] : null;
+
+  // Wrapper-stil: ramme + bakgrunn følger plan
+  const isInline = variant === "inline";
+
+const wrapperBaseClass = isInline
+  ? "flex flex-col gap-1 w-full"
+  : compact
+    ? "inline-flex items-center gap-2 rounded-full px-3 py-1.5 border bg-phorium-dark/70"
+    : "inline-flex flex-col gap-2 rounded-xl px-3 py-2 border bg-phorium-dark/70";
+
+const wrapperClass = isInline
+  ? wrapperBaseClass
+  : `${wrapperBaseClass} border-phorium-off/40`;
+
+const wrapperStyle =
+  !isInline && palette
+    ? {
+        borderColor: palette.ring,
+        backgroundColor: "rgba(0,0,0,0.3)",
+        boxShadow: `0 0 14px rgba(0,0,0,0.6), 0 0 10px ${palette.ring}`,
+      }
+    : undefined;
+
+
+  // Progress-bar – bruker planfarge, men blir rød hvis det er nesten tomt
+  let barStyle: React.CSSProperties = {
+    width: `${percentage}%`,
+  };
+
+  if (palette) {
+    barStyle.backgroundColor = palette.ring;
   } else {
-    barColor = "bg-phorium-accent";
+    barStyle.backgroundColor = "rgba(220,216,202,0.7)";
   }
 
-  const wrapperClass = compact
-    ? "inline-flex items-center gap-2 rounded-full bg-phorium-dark/70 px-3 py-1.5 border border-phorium-off/40"
-    : "inline-flex flex-col gap-2 rounded-xl bg-phorium-dark/70 px-3 py-2 border border-phorium-off/40";
+  if (percentage <= 5) {
+    barStyle.backgroundColor = "#ef4444"; // rød ved nesten tom
+    barStyle.boxShadow = "0 0 10px rgba(239,68,68,0.8)";
+  }
 
   return (
-    <div className={wrapperClass}>
+    <div className={wrapperClass} style={wrapperStyle}>
       <div className="flex items-center gap-2">
         <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-phorium-light/70">
           Kreditter
@@ -137,7 +164,6 @@ export default function CreditsBadge({
           {loading ? "…" : `${effectiveBalance}/${quota}`}
         </span>
 
-        {/* Tooltip-ikon */}
         {!compact && (
           <span className="group relative inline-flex">
             <Info className="h-3.5 w-3.5 text-phorium-light/50" />
@@ -147,27 +173,18 @@ export default function CreditsBadge({
               <br />
               Eksempel:
               <br />– Tekstpakke: 2 kreditter
-              <br />– Banner / scene: 4–5 kreditter
+              <br />– Banner / scene: 4/5 kreditter
             </span>
           </span>
         )}
       </div>
 
-      {/* Progress-bar */}
       <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-phorium-off/20">
         <div
-          className={`h-full rounded-full ${barColor} transition-[width] duration-500 ease-out`}
-          style={{ width: `${percentage}%` }}
+          className="h-full rounded-full transition-[width] duration-500 ease-out"
+          style={barStyle}
         />
       </div>
-
-      {!compact && (
-        <p className="mt-1 text-[10px] text-phorium-light/65">
-          Du har{" "}
-          <span className="font-semibold">{effectiveBalance}</span> igjen av{" "}
-          <span className="font-semibold">{quota}</span>.
-        </p>
-      )}
     </div>
   );
 }

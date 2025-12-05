@@ -165,14 +165,24 @@ export default function TopStudioNav({
             </p>
           </div>
 
-          {/* Høyre: Plan + Kreditter */}
-          <div className="flex flex-col items-end gap-2 rounded-2xl border border-phorium-off/30 bg-phorium-dark/80 px-4 py-3 min-w-[220px]">
-            {/* PlanBadge viser riktig plan, eller "Uten plan" som fallback */}
-            <PlanBadge plan={plan} />
+  {/* Høyre: Plan-tag + kredittkort */}
+<div className="relative flex items-start justify-end min-w-[220px]">
+  {/* Selve kortet */}
+  <div className="w-[200px] rounded-2xl border border-phorium-off/30 bg-phorium-dark/80 px-4 py-3 shadow-[0_16px_40px_rgba(0,0,0,0.55)]">
+    {/* Vi bruker inline-varianten av CreditsBadge */}
+    <CreditsBadge
+      quota={300}              // kan byttes til plan_quota senere
+      plan={plan ?? "source"}
+      variant="inline"
+    />
+  </div>
 
-            <CreditsBadge quota={300} />
-          </div>
-        </div>
+  {/* Plan-tag som "floating" badge */}
+  <div className="absolute -top-3 right-6">
+    <PlanBadge plan={plan} size="sm" />
+  </div>
+</div>
+</div>
 
         <div className="-mx-1 flex gap-2 overflow-x-auto pb-1 pt-1">
           {items.map((item) => {

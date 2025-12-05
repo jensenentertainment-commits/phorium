@@ -147,6 +147,24 @@ export async function POST(req: Request) {
       success: true,
       imported: totalImported,
     });
+
+// Logg sync til Supabase
+await supabaseAdmin
+  .from("shopify_sync_log")
+  .insert({
+    shop_domain: shop,
+    imported_count: totalImported,
+    total_products: totalImported, // du kan endre hvis du vil lagre 'expected total'
+    note: "Full sync via since_id"
+  });
+
+// Returner synk-resultat til frontend
+return NextResponse.json({
+  success: true,
+  imported: totalImported
+});
+
+
   } catch (err: any) {
     console.error("Sync-products error:", err);
     return NextResponse.json(
