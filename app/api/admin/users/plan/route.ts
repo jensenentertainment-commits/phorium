@@ -4,7 +4,6 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function POST(req: Request) {
   try {
-    // 1) Sjekk admin-cookie
     const cookieStore = await cookies();
     const isAdmin = cookieStore.get("phorium_admin")?.value === "1";
 
@@ -15,7 +14,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // 2) Les body
     const body = await req.json();
     const userId = body.userId as string | undefined;
     const plan = body.plan as string | null | undefined;
@@ -27,10 +25,9 @@ export async function POST(req: Request) {
       );
     }
 
-    // Normaliser ny plan (tom streng -> null)
     const newPlan = plan || null;
 
-    // 3) Hent gammel plan (bruker samme nøkkel som ellers i appen: user_id)
+    // 1) Hent gammel plan (via user_id – samme som ellers i appen)
     const { data: oldProfile, error: oldErr } = await supabaseAdmin
       .from("profiles")
       .select("plan")
@@ -43,32 +40,34 @@ export async function POST(req: Request) {
 
     const oldPlan = oldProfile?.plan ?? null;
 
-    // 4) Oppdater plan
-    const { data: updated, error: updateError } = await supabaseAdmin
+    // 2) Oppdater / opprett profil med ny plan (upsert på user_id)
+    const { data: upserted, error: upsertErr } = await supabaseAdmin
       .from("profiles")
-      .update({ plan: newPlan })
-      .eq("user_id", userId)
+      .upsert(
+        {
+          user_id: userId,
+          plan: newPlan,
+        },
+        { onConflict: "user_id" },
+      )
       .select("plan")
       .maybeSingle();
 
-    if (updateError) {
-      console.error("[admin/users/plan] update plan error:", updateError);
+    if (upsertErr) {
+      console.error("[admin/users/plan] upsert error:", upsertErr);
       return NextResponse.json(
         {
           ok: false,
-          // Sender med faktisk Supabase-feil tilbake så vi ser *hva* som skjer
           error:
-            updateError.message ||
-            "Kunne ikke oppdatere plan (Supabase-feil).",
+            upsertErr.message || "Kunne ikke oppdatere/lagre plan (Supabase-feil).",
         },
         { status: 500 },
       );
     }
 
-    // (Valgfritt: hvis ingen rad ble oppdatert)
-    if (!updated) {
+    if (!upserted) {
       console.error(
-        "[admin/users/plan] Ingen profilrad funnet for user_id=",
+        "[admin/users/plan] Ingen profilrad returnert etter upsert for user_id=",
         userId,
       );
       return NextResponse.json(
@@ -80,25 +79,26 @@ export async function POST(req: Request) {
       );
     }
 
-    // 5) Logg admin-action
+    const finalPlan = upserted.plan ?? newPlan ?? null;
+
+    // 3) Logg admin-action (best effort)
     try {
       await supabaseAdmin.from("admin_actions").insert({
         admin_label: "admin",
         target_user_id: userId,
         action: "PLAN_CHANGE",
         old_plan: oldPlan,
-        new_plan: updated.plan ?? newPlan,
+        new_plan: finalPlan,
         meta: null,
       });
     } catch (logErr) {
       console.error("[admin/users/plan] klarte ikke å logge admin_actions:", logErr);
-      // Ikke fatal for selve oppdateringen
     }
 
-    // 6) Suksess
+    // 4) Suksess
     return NextResponse.json({
       ok: true,
-      plan: updated.plan ?? null,
+      plan: finalPlan,
     });
   } catch (err: any) {
     console.error("[admin/users/plan] fatal error:", err);
