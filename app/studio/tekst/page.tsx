@@ -3,34 +3,23 @@
 import { Suspense } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
+
 import PhoriumTextForm from "@/app/components/PhoriumTextForm";
+import { SectionHeader } from "@/app/components/ui/SectionHeader";
 
 export default function TextPage() {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35 }}
+      transition={{ duration: 0.3 }}
       className="text-phorium-light"
     >
-      {/* Header – nå litt tightere og mer kompakt */}
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="space-y-1.5">
-          <p className="text-[11px] uppercase tracking-[0.16em] text-phorium-light/55">
-            Studio · Tekst
-          </p>
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            Phorium Tekst
-          </h1>
-          <p className="max-w-xl text-[12px] text-phorium-light/80">
-            Generer produkt- og kategoritekster – eller bruk et ekte
-            Shopify-produkt for å få en ferdig tekstpakke med produkttekst,
-            SEO, annonser og SoMe.
-          </p>
-        </div>
-
-        {/* Kompakt brandprofil-hint – flyttet til høyre på store skjermer */}
-        <div className="sm:self-end">
+      <SectionHeader
+        label="Studio · Tekst"
+        title="Phorium Tekst"
+        description="Generer produkt- og kategoritekster – eller bruk et Shopify-produkt for å få en ferdig tekstpakke med produkttekst, SEO, annonser og SoMe."
+        rightSlot={
           <div className="inline-flex items-center gap-2 rounded-full border border-phorium-off/35 bg-phorium-dark/70 px-3 py-1 text-[10px] text-phorium-light/75">
             <span>
               Tekstene prøver å følge brandprofilen din på tvers av produkter.
@@ -42,10 +31,10 @@ export default function TextPage() {
               Juster brandprofil
             </Link>
           </div>
-        </div>
-      </div>
+        }
+      />
 
-      {/* Selve generatoren – håndterer Shopify-modus, brandprofil, historikk osv. */}
+      {/* Selve tekststudioet – nå kommer mye nærmere toppen */}
       <Suspense fallback={null}>
         <PhoriumTextForm />
       </Suspense>

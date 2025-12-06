@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Sparkles, Target, Users, Building2 } from "lucide-react";
 import { PlanBadge, type PlanName } from "app/components/PlanBadge";
+import { SectionHeader } from "@/app/components/ui/SectionHeader";
+import { Card } from "@/app/components/ui/Card";
 
 type PlanConfig = {
   slug: PlanName;
@@ -86,44 +88,58 @@ export default function PricingPage() {
   ];
 
   return (
-    <main className="min-h-screen bg-phorium-dark px-4 pb-24 pt-20">
-      <section className="mx-auto max-w-6xl text-center">
-        <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-phorium-accent/40 bg-phorium-accent/15 px-4 py-1 text-[11px] font-medium tracking-[0.18em] text-phorium-accent/95 uppercase">
-          <span className="h-1.5 w-1.5 rounded-full bg-phorium-accent" />
-          Kredittbasert · Forutsigbart · Bygd for nettbutikker
+    <main className="min-h-screen bg-phorium-dark pt-20 pb-24">
+      <section className="mx-auto max-w-6xl px-4">
+        {/* Toppseksjon – bruker SectionHeader for å matche Studio */}
+        <SectionHeader
+          label="Priser"
+          title="Velg planen som matcher din vekst"
+          description="Phorium lanserer et enkelt og forutsigbart kredittsystem tilpasset norske nettbutikker og byråer. Alle genereringer koster kreditter – du betaler bare for faktisk bruk."
+        />
+
+        {/* Kreditt-pill */}
+        <div className="mb-8 flex justify-center">
+          <div className="inline-flex items-center gap-2 rounded-full border border-phorium-accent/40 bg-phorium-accent/15 px-4 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-phorium-accent/95">
+            <span className="h-1.5 w-1.5 rounded-full bg-phorium-accent" />
+            Kredittbasert · Forutsigbart · Bygd for nettbutikker
+          </div>
         </div>
 
-        <h1 className="mb-3 text-3xl font-bold tracking-tight text-phorium-light sm:text-4xl md:text-5xl">
-          Velg planen som matcher din vekst
-        </h1>
-
-        <p className="mx-auto mb-3 max-w-8xl text-[14px] leading-relaxed text-phorium-light/80 text-center">
-
-          Phorium lanserer et enkelt og forutsigbart kredittsystem tilpasset
-          norske nettbutikker og byråer. Alle genereringer
-          koster kreditter. Du betaler bare for faktisk bruk.
-        </p>
-
-        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Plan-grid */}
+         <div className="mb-12 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {plans.map((plan) => {
             const Icon = plan.icon;
+            const isPrimary = plan.ctaType === "primary";
+
+            // Forenklet routing:
+            // - primary => rett til login (for å starte)
+            // - contact => kontakt-siden
+            const href = isPrimary ? "/login" : "/kontakt";
 
             return (
-              <div
+              <Card
                 key={plan.slug}
-                className={`flex h-full flex-col justify-between rounded-3xl border border-phorium-off/25 bg-phorium-surface/95 p-6 text-center shadow-[0_22px_60px_rgba(0,0,0,0.45)] transition-all hover:-translate-y-0.5 hover:shadow-[0_30px_90px_rgba(0,0,0,0.7)] ${
-                  plan.highlight ? "ring-1 ring-phorium-accent/55" : ""
+                className={`flex h-full flex-col justify-between p-6 text-left shadow-[0_22px_60px_rgba(0,0,0,0.45)] transition-all hover:-translate-y-0.5 hover:shadow-[0_30px_90px_rgba(0,0,0,0.7)] ${
+                  plan.highlight
+                    ? "border-phorium-accent/70 ring-1 ring-phorium-accent/60 bg-phorium-surface/95"
+                    : "border-phorium-off/25 bg-phorium-surface/90"
                 }`}
               >
                 <div>
+                  {/* Topp: ikon + navn + badge */}
                   <div className="mb-4 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <div className="flex h-9 w-9 items-center justify-center rounded-2xl border border-phorium-off/30 bg-phorium-dark text-phorium-accent shadow-[0_10px_30px_rgba(0,0,0,0.55)]">
                         <Icon className="h-4 w-4" />
                       </div>
-                      <h2 className="text-xl font-semibold text-phorium-light">
-                        {plan.name}
-                      </h2>
+                      <div>
+                        <h2 className="text-lg font-semibold text-phorium-light">
+                          {plan.name}
+                        </h2>
+                        <p className="text-[11px] text-phorium-light/60">
+                          {plan.tag}
+                        </p>
+                      </div>
                     </div>
 
                     <PlanBadge
@@ -134,15 +150,17 @@ export default function PricingPage() {
                     />
                   </div>
 
+                  {/* Pris + beskrivelse */}
                   <p className="mb-1 text-[15px] font-medium text-phorium-accent/95">
                     {plan.price}
                   </p>
 
-                  <p className="mb-6 text-[13px] leading-relaxed text-phorium-light/85">
+                  <p className="mb-5 text-[13px] leading-relaxed text-phorium-light/85">
                     {plan.desc}
                   </p>
 
-                  <ul className="mb-6 space-y-2 text-[13px] text-phorium-light/80">
+                  {/* Features */}
+                  <ul className="mb-5 space-y-2 text-[13px] text-phorium-light/80">
                     {plan.features.map((feature) => (
                       <li key={feature} className="flex items-start gap-2">
                         <span className="mt-[5px] h-1.5 w-1.5 rounded-full bg-phorium-accent" />
@@ -152,24 +170,29 @@ export default function PricingPage() {
                   </ul>
                 </div>
 
+                {/* CTA */}
                 <Link
-                  href="/kontakt"
-                  className={`mt-auto w-full rounded-full px-5 py-2.5 text-center text-[13px] font-semibold transition-colors ${
+                  href={href}
+                  className={`mt-auto inline-flex w-full items-center justify-center rounded-full px-5 py-2.5 text-center text-[13px] font-semibold transition-colors ${
                     plan.highlight
                       ? "bg-phorium-accent text-phorium-dark shadow-[0_14px_40px_rgba(0,0,0,0.7)] hover:bg-phorium-accent/90"
-                      : "border border-phorium-accent/55 text-phorium-accent/90 hover:bg-phorium-accent/10"
+                      : isPrimary
+                      ? "border border-phorium-accent/80 bg-phorium-accent/10 text-phorium-accent/95 hover:bg-phorium-accent/20"
+                      : "border border-phorium-off/50 text-phorium-light/85 hover:border-phorium-accent/60 hover:text-phorium-accent/95"
                   }`}
                 >
                   {plan.button}
                 </Link>
-              </div>
+              </Card>
             );
           })}
         </div>
 
-        <p className="mt-10 text-[11px] text-phorium-light/60">
+        {/* Fotnote om kredittsystem */}
+        <p className="mt-14 sm:mt-16 text-center text-[11px] text-phorium-light/60">
           Alle planer følger samme prinsipp: kredittbasert bruk, full oversikt –
-          ingen binding og ingen støy.
+          ingen binding og ingen støy. Eksakte kredittnivåer og priser publiseres
+          ved åpen launch.
         </p>
       </section>
     </main>

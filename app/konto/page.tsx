@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect, useState, FormEvent } from "react";
+import Link from "next/link";
+
 import { supabase } from "@/lib/supabaseClient";
 import StudioAuthGate from "../studio/StudioAuthGate";
 import CreditsBadge from "../components/CreditsBadge";
-import Link from "next/link";
 import { ChangePasswordSection } from "@/app/components/ChangePasswordSection";
 import { PlanBadge, type PlanName } from "@/app/components/PlanBadge";
 import CreditHistory from "@/app/components/CreditHistory";
+
+import { SectionHeader } from "@/app/components/ui/SectionHeader";
+import { Card } from "@/app/components/ui/Card";
 
 type AccountInfo = {
   email: string | null;
@@ -151,20 +155,16 @@ export default function AccountPage() {
   return (
     <StudioAuthGate>
       <main className="min-h-screen bg-phorium-dark pt-24 pb-24 text-phorium-light">
-        <div className="mx-auto max-w-3xl px-4">
-          {/* Header */}
-          <div className="mb-6">
-            <p className="text-[11px] uppercase tracking-[0.16em] text-phorium-light/50">
-              Konto
-            </p>
-            <h1 className="mt-1 text-2xl font-semibold">Min Phorium-konto</h1>
-            <p className="mt-2 text-[13px] text-phorium-light/70">
-              Oversikt over innlogging, plan og kredittbruk i betaversjonen.
-            </p>
-          </div>
+        <div className="mx-auto max-w-4xl px-4">
+          {/* Header – samme stil som Studio/Priser */}
+          <SectionHeader
+            label="Konto"
+            title="Min Phorium-konto"
+            description="Oversikt over innlogging, plan og kredittbruk i betaversjonen."
+          />
 
           {/* Hovedkort */}
-          <div className="rounded-2xl border border-phorium-off/30 bg-phorium-dark/80 p-6 shadow-[0_18px_60px_rgba(0,0,0,0.55)]">
+          <Card className="mb-8 p-6">
             {loading ? (
               <p className="text-sm text-phorium-light/70">
                 Laster kontoinformasjon …
@@ -219,7 +219,7 @@ export default function AccountPage() {
                       />
                       <button
                         type="submit"
-                        className="rounded-lg border border-blue-400/70 px-3 py-1.5 text-[13px] font-medium text-blue-200 hover:bg-blue-500/10 transition"
+                        className="rounded-full border border-blue-400/70 px-4 py-1.5 text-[13px] font-medium text-blue-200 hover:bg-blue-500/10 transition"
                       >
                         Oppdater e-post
                       </button>
@@ -256,7 +256,7 @@ export default function AccountPage() {
                     />
                     <button
                       type="submit"
-                      className="rounded-lg border border-phorium-accent/70 px-3 py-1.5 text-[13px] font-medium text-phorium-accent hover:bg-phorium-accent/10 transition"
+                      className="rounded-full border border-phorium-accent/70 px-4 py-1.5 text-[13px] font-medium text-phorium-accent hover:bg-phorium-accent/10 transition"
                     >
                       Lagre brukernavn
                     </button>
@@ -287,7 +287,7 @@ export default function AccountPage() {
                   </p>
 
                   {/* Plan-badge */}
-                  <div className="mt-3 flex items-center gap-2">
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
                     <span className="text-[12px] text-phorium-light/55">
                       Plan:
                     </span>
@@ -335,10 +335,12 @@ export default function AccountPage() {
                 </section>
               </div>
             )}
-          </div>
+          </Card>
 
-          {/* Endre passord-seksjon (som du allerede hadde) */}
-          <ChangePasswordSection />
+          {/* Endre passord – egen seksjon, men samme “kort-følelse” via komponenten */}
+          <div className="mt-6">
+            <ChangePasswordSection />
+          </div>
         </div>
       </main>
     </StudioAuthGate>

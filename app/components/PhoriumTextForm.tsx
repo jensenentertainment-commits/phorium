@@ -753,7 +753,7 @@ function handlePrimaryClick() {
                   </div>
                 </div>
 
-                <div className="border-t border-phorium-off/20 pt-3 mt-3">
+                <div className="border-t border-phorium-off/20 pt-2 mt-2">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="text-[11px] text-phorium-light/70">
                       Analyser tonen i eksisterende produkttekst
@@ -822,7 +822,7 @@ function handlePrimaryClick() {
         {/* Match-score – alltid tilgjengelig, men nå i samme kort */}
         <div
           className={`flex flex-wrap items-center justify-between gap-2 ${
-            isShopifyMode ? "border-t border-phorium-off/20 pt-3" : ""
+            isShopifyMode ? "border-t border-phorium-off/20 pt-2" : ""
           }`}
         >
           <div className="text-[11px] text-phorium-light/70">
