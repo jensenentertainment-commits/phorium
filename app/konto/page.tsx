@@ -79,7 +79,7 @@ export default function AccountPage() {
     void loadUser();
   }, []);
 
-  // Håndter oppdatering av brukernavn
+  // Oppdater brukernavn
   const handleUsernameSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setUsernameMessage(null);
@@ -124,7 +124,7 @@ export default function AccountPage() {
     setUsernameMessage("Brukernavnet ble oppdatert.");
   };
 
-  // Håndter oppdatering av e-post
+  // Oppdater e-post
   const handleEmailSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setEmailMessage(null);
@@ -152,53 +152,63 @@ export default function AccountPage() {
     );
   };
 
+  const friendlyName = info.username || info.email || "kontoen din";
+
   return (
     <StudioAuthGate>
-      <main className="min-h-screen bg-phorium-dark pt-24 pb-24 text-phorium-light">
-        <div className="mx-auto max-w-4xl px-4">
-          {/* Header – samme stil som Studio/Priser */}
+      <main className="relative min-h-screen bg-phorium-dark pt-24 pb-24 text-phorium-light">
+        {/* Subtil bakgrunnsglow */}
+        <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_0%_0%,rgba(0,0,0,0.4),transparent_60%),radial-gradient(circle_at_100%_0%,rgba(0,0,0,0.35),transparent_55%)]" />
+
+        <div className="mx-auto max-w-5xl px-4">
+          {/* Header */}
           <SectionHeader
             label="Konto"
             title="Min Phorium-konto"
-            description="Oversikt over innlogging, plan og kredittbruk i betaversjonen."
+            description={`Her administrerer du ${friendlyName} – innlogging, plan og kredittbruk i betaversjonen.`}
           />
 
-          {/* Hovedkort */}
-          <Card className="mb-8 p-6">
-            {loading ? (
-              <p className="text-sm text-phorium-light/70">
-                Laster kontoinformasjon …
-              </p>
-            ) : (
-              <div className="space-y-6">
-                {/* Innlogging */}
-                <section>
-                  <h2 className="text-sm font-semibold text-phorium-light">
-                    Innlogging
-                  </h2>
-                  <div className="mt-2 space-y-1 text-[13px] text-phorium-light/80">
-                    <p>
-                      <span className="text-phorium-light/60">
-                        E-post:&nbsp;
-                      </span>
-                      <span className="font-medium">
-                        {info.email ?? "—"}
-                      </span>
-                    </p>
-                    {info.createdAt && (
-                      <p className="text-phorium-light/60">
-                        Bruker opprettet:{" "}
-                        {new Date(info.createdAt).toLocaleDateString("nb-NO", {
-                          year: "numeric",
-                          month: "short",
-                          day: "2-digit",
-                        })}
+          {loading ? (
+            <Card className="mt-4 p-6 text-sm text-phorium-light/70">
+              Laster kontoinformasjon …
+            </Card>
+          ) : (
+            <>
+              {/* To hovedkort i grid */}
+              <div className="mt-4 grid gap-6 md:grid-cols-2">
+                {/* Venstre: Konto & innlogging */}
+                <Card className="p-6 space-y-6">
+                  <section>
+                    <h2 className="text-sm font-semibold text-phorium-light">
+                      Innlogging & konto
+                    </h2>
+                    <div className="mt-2 space-y-1 text-[13px] text-phorium-light/80">
+                      <p>
+                        <span className="text-phorium-light/60">
+                          E-post:&nbsp;
+                        </span>
+                        <span className="font-medium">
+                          {info.email ?? "—"}
+                        </span>
                       </p>
-                    )}
-                  </div>
+                      {info.createdAt && (
+                        <p className="text-phorium-light/60">
+                          Konto opprettet:{" "}
+                          {new Date(info.createdAt).toLocaleDateString(
+                            "nb-NO",
+                            {
+                              year: "numeric",
+                              month: "short",
+                              day: "2-digit",
+                            },
+                          )}
+                        </p>
+                      )}
+                    </div>
+                  </section>
 
                   {/* Endre e-post */}
-                  <div className="mt-4 border-t border-phorium-off/20 pt-3">
+                  <section className="border-t border-phorium-off/20 pt-4">
                     <h3 className="text-[13px] font-semibold text-phorium-light">
                       Endre innloggings-e-post
                     </h3>
@@ -230,77 +240,93 @@ export default function AccountPage() {
                         {emailMessage}
                       </p>
                     )}
-                  </div>
-                </section>
+                  </section>
 
-                {/* Brukernavn */}
-                <section className="border-t border-phorium-off/20 pt-4">
-                  <h2 className="text-sm font-semibold text-phorium-light">
-                    Brukernavn
-                  </h2>
-                  <p className="mt-1 text-[12px] text-phorium-light/70">
-                    Et eget brukernavn gjør det enklere å kjenne igjen kontoen
-                    din i Phorium. Må være unikt.
-                  </p>
-
-                  <form
-                    onSubmit={handleUsernameSubmit}
-                    className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center"
-                  >
-                    <input
-                      type="text"
-                      name="username"
-                      defaultValue={info.username ?? ""}
-                      placeholder="f.eks. jensenstudio"
-                      className="flex-1 rounded-lg border border-phorium-off/40 bg-phorium-dark/60 px-3 py-1.5 text-[13px] text-phorium-light outline-none focus:border-phorium-accent/80"
-                    />
-                    <button
-                      type="submit"
-                      className="rounded-full border border-phorium-accent/70 px-4 py-1.5 text-[13px] font-medium text-phorium-accent hover:bg-phorium-accent/10 transition"
-                    >
-                      Lagre brukernavn
-                    </button>
-                  </form>
-
-                  {usernameMessage && (
+                  {/* Brukernavn */}
+                  <section className="border-t border-phorium-off/20 pt-4">
+                    <h3 className="text-[13px] font-semibold text-phorium-light">
+                      Brukernavn
+                    </h3>
                     <p className="mt-1 text-[12px] text-phorium-light/70">
-                      {usernameMessage}
+                      Et eget brukernavn gjør det enklere å kjenne igjen konto
+                      og historikk i Phorium. Må være unikt.
                     </p>
-                  )}
 
-                  {info.username && (
-                    <p className="mt-1 text-[12px] text-phorium-light/55">
-                      Ditt nåværende brukernavn:{" "}
-                      <span className="font-medium">@{info.username}</span>
+                    <form
+                      onSubmit={handleUsernameSubmit}
+                      className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center"
+                    >
+                      <input
+                        type="text"
+                        name="username"
+                        defaultValue={info.username ?? ""}
+                        placeholder="f.eks. jensenstudio"
+                        className="flex-1 rounded-lg border border-phorium-off/40 bg-phorium-dark/60 px-3 py-1.5 text-[13px] text-phorium-light outline-none focus:border-phorium-accent/80"
+                      />
+                      <button
+                        type="submit"
+                        className="rounded-full border border-phorium-accent/70 px-4 py-1.5 text-[13px] font-medium text-phorium-accent hover:bg-phorium-accent/10 transition"
+                      >
+                        Lagre brukernavn
+                      </button>
+                    </form>
+
+                    {usernameMessage && (
+                      <p className="mt-1 text-[12px] text-phorium-light/70">
+                        {usernameMessage}
+                      </p>
+                    )}
+
+                    {info.username && (
+                      <p className="mt-1 text-[12px] text-phorium-light/55">
+                        Ditt nåværende brukernavn:{" "}
+                        <span className="font-medium">@{info.username}</span>
+                      </p>
+                    )}
+                  </section>
+
+                  {/* Endre passord inne i samme kort */}
+                  <section className="border-t border-phorium-off/20 pt-4">
+                    <ChangePasswordSection />
+                  </section>
+                </Card>
+
+                {/* Høyre: Plan & kreditter */}
+                <Card className="p-6 space-y-5">
+                  <section>
+                    <h2 className="text-sm font-semibold text-phorium-light">
+                      Plan & kredittnivå
+                    </h2>
+                    <p className="mt-1 text-[12px] text-phorium-light/70">
+                      Betaen bruker kreditter per generering. Etter lansering
+                      vil planene styre hvor mange kreditter du får hver måned.
                     </p>
-                  )}
-                </section>
 
-                {/* Kreditter & plan */}
-                <section className="border-t border-phorium-off/20 pt-4">
-                  <h2 className="text-sm font-semibold text-phorium-light">
-                    Kreditter & plan
-                  </h2>
-                  <p className="mt-1 text-[12px] text-phorium-light/75">
-                    Under ser du plan-badge, nåværende kreditter og historikk
-                    for bruk og tildelinger.
-                  </p>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span className="text-[12px] text-phorium-light/55">
+                        Nåværende plan:
+                      </span>
+                      <PlanBadge plan={info.plan} />
+                    </div>
+                  </section>
 
-                  {/* Plan-badge */}
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <span className="text-[12px] text-phorium-light/55">
-                      Plan:
-                    </span>
-                    <PlanBadge plan={info.plan} />
-                  </div>
+                  {/* Kredittstatus */}
+                  <section className="border-t border-phorium-off/20 pt-4">
+                    <h3 className="text-[13px] font-semibold text-phorium-light">
+                      Kredittstatus
+                    </h3>
+                    <p className="mt-1 text-[12px] text-phorium-light/70">
+                      Dette er din nåværende saldo. I beta kan saldoen justeres
+                      manuelt av deg som admin.
+                    </p>
 
-                  {/* Kreditt-status */}
-                  <div className="mt-3">
-                    <CreditsBadge />
-                  </div>
+                    <div className="mt-3">
+                      <CreditsBadge />
+                    </div>
+                  </section>
 
                   {/* Kreditt-historikk */}
-                  <div className="mt-4 rounded-xl border border-phorium-off/25 bg-phorium-dark/70 p-4">
+                  <section className="border-t border-phorium-off/20 pt-4">
                     <h3 className="text-[13px] font-semibold text-phorium-light">
                       Kreditt-historikk
                     </h3>
@@ -308,39 +334,75 @@ export default function AccountPage() {
                       Viser siste bevegelser på kredittsaldoen din (tildelinger
                       og bruk).
                     </p>
+                    <div className="mt-3 rounded-xl border border-phorium-off/25 bg-phorium-dark/70 p-3">
+                      <CreditHistory />
+                    </div>
+                  </section>
+                </Card>
+              </div>
 
-                    <CreditHistory />
-                  </div>
-                </section>
-
-                {/* Navigasjon / kontakt */}
-                <section className="border-t border-phorium-off/20 pt-4 flex flex-wrap items-center gap-3 text-[13px]">
-                  <Link
-                    href="/studio"
-                    className="inline-flex items-center rounded-full bg-phorium-accent px-4 py-1.5 font-medium text-phorium-dark shadow-[0_8px_28px_rgba(0,0,0,0.55)] hover:bg-phorium-accent/90 transition"
-                  >
-                    Tilbake til Studio
-                  </Link>
-
-                  <span className="text-phorium-light/50">
-                    Trenger du hjelp?{" "}
+              {/* Admin / navigasjon / “meta” */}
+              <div className="mt-6 grid gap-4 md:grid-cols-[2fr,1fr]">
+                <Card className="p-5 space-y-2 text-[12px] text-phorium-light/80">
+                  <h3 className="text-[13px] font-semibold text-phorium-light">
+                    Oppgradering & fakturering
+                  </h3>
+                  <p>
+                    Når Phorium lanseres offentlig, kan du oppgradere plan og
+                    administrere fakturering via Stripe. I beta holder vi ting
+                    enkle.
+                  </p>
+                  <p className="text-phorium-light/65">
+                    Har du lyst til å teste en annen plan allerede nå, kan du ta
+                    kontakt – så justerer vi det manuelt.
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Link
+                      href="/priser"
+                      className="inline-flex items-center rounded-full bg-phorium-accent px-4 py-1.5 text-[12px] font-semibold text-phorium-dark shadow-[0_10px_30px_rgba(0,0,0,0.6)] hover:bg-phorium-accent/90"
+                    >
+                      Se planene
+                    </Link>
                     <Link
                       href="/kontakt"
+                      className="inline-flex items-center rounded-full border border-phorium-off/50 bg-phorium-dark px-4 py-1.5 text-[12px] text-phorium-light hover:border-phorium-accent hover:text-phorium-accent"
+                    >
+                      Ta kontakt om plan
+                    </Link>
+                  </div>
+                </Card>
+
+                <Card className="p-5 space-y-2 text-[12px] text-phorium-light/80">
+                  <h3 className="text-[13px] font-semibold text-phorium-light">
+                    Hjelp & sikkerhet
+                  </h3>
+                  <p>
+                    Opplever du noe rart med kontoen, kredittbruk eller
+                    innlogging, vil vi gjerne høre om det.
+                  </p>
+                  <p className="text-[11px] text-phorium-light/65">
+                    For sletting av konto (GDPR) eller andre forespørsler, send
+                    en e-post til{" "}
+                    <a
+                      href="mailto:support@phorium.no"
                       className="underline underline-offset-2 hover:text-phorium-accent"
                     >
-                      Kontakt oss
-                    </Link>
+                      support@phorium.no
+                    </a>
                     .
-                  </span>
-                </section>
+                  </p>
+                  <div className="mt-2">
+                    <Link
+                      href="/studio"
+                      className="inline-flex items-center rounded-full border border-phorium-off/50 bg-phorium-dark px-4 py-1.5 text-[12px] text-phorium-light hover:border-phorium-accent hover:text-phorium-accent"
+                    >
+                      Tilbake til Studio
+                    </Link>
+                  </div>
+                </Card>
               </div>
-            )}
-          </Card>
-
-          {/* Endre passord – egen seksjon, men samme “kort-følelse” via komponenten */}
-          <div className="mt-6">
-            <ChangePasswordSection />
-          </div>
+            </>
+          )}
         </div>
       </main>
     </StudioAuthGate>

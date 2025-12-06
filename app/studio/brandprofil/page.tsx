@@ -12,10 +12,12 @@ import {
   NotebookPen,
 } from "lucide-react";
 
-// NB: relative paths fra app/studio/brandprofil/page.tsx
 import useBrandProfile from "@/hooks/useBrandProfile";
 import PhoriumLoader from "../../components/PhoriumLoader";
 import BrandIdentityBar from "../../components/BrandIdentityBar";
+
+import { SectionHeader } from "@/app/components/ui/SectionHeader";
+import { Card } from "@/app/components/ui/Card";
 
 type LocalBrand = {
   storeName: string;
@@ -89,36 +91,30 @@ export default function BrandProfilePage() {
   const busy = brandLoading && !brand && !localBrand.storeName;
 
   return (
-    <main className="min-h-screen pt-8 pb-20 text-phorium-light">
-      <section className="mx-auto max-w-4xl px-4 space-y-4">
-        {/* Studio-header */}
-        <div className="flex flex-col gap-3 rounded-2xl border border-phorium-off/30 bg-phorium-dark/80 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-1 flex-col gap-1">
-            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.12em] text-phorium-light/50">
-              <Settings2 className="h-3 w-3" />
-              <span>Phorium brandprofil</span>
-            </div>
-            <h1 className="text-sm font-semibold text-phorium-light sm:text-[15px]">
-              Sett “stemmen” og stilen til nettbutikken din én gang – bruk den
-              overalt.
-            </h1>
-            <p className="text-[11px] text-phorium-light/65">
-              Phorium bruker dette på tvers av tekst og bilder, så alt føles
-              som én og samme nettbutikk – uansett om du genererer 5 eller 500
-              produkter.
-            </p>
-          </div>
+    <main className="relative min-h-screen bg-phorium-dark pt-8 pb-20 text-phorium-light">
+      {/* Subtil glow i bakgrunnen */}
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_0%_0%,rgba(0,0,0,0.4),transparent_60%),radial-gradient(circle_at_100%_0%,rgba(0,0,0,0.35),transparent_55%)]" />
 
-          <BrandIdentityBar
-            brand={brand}
-            loading={brandLoading}
-            source={source}
-            onUpdateBrand={updateBrand}
-          />
-        </div>
+      <section className="mx-auto max-w-4xl px-4">
+        {/* Studio-header – nå med SectionHeader + BrandIdentityBar i høyre hjørne */}
+        <SectionHeader
+          label="Studio · Brandprofil"
+          title="Brandprofil"
+          description="Fortell Phorium hvordan nettbutikken din skal høres ut og se ut. Brandprofilen brukes i både tekst- og bildegenerering, slik at alt føles som én og samme nettbutikk."
+          rightSlot={
+            <div className="mt-3 sm:mt-0">
+              <BrandIdentityBar
+                brand={brand}
+                loading={brandLoading}
+                source={source}
+                onUpdateBrand={updateBrand}
+              />
+            </div>
+          }
+        />
 
         {/* Forklaringskort */}
-        <div className="mb-2 rounded-2xl border border-phorium-off/35 bg-phorium-dark/70 px-5 py-4 text-[12px] text-phorium-light/75">
+        <Card className="mb-4 px-5 py-4 text-[12px] text-phorium-light/75">
           <h2 className="mb-2 flex items-center gap-2 text-[13px] font-semibold text-phorium-light">
             <Sparkles className="h-4 w-4 text-phorium-accent" />
             Hvordan fungerer Brandprofil?
@@ -157,18 +153,18 @@ export default function BrandProfilePage() {
             Du kan oppdatere brandprofilen når som helst uten å endre produkter
             som allerede ligger i Shopify.
           </p>
-        </div>
+        </Card>
 
         {busy && (
-          <div className="rounded-2xl border border-phorium-off/35 bg-phorium-dark/80 px-4 py-6">
+          <Card className="px-4 py-6">
             <PhoriumLoader label="Laster brandprofil …" />
-          </div>
+          </Card>
         )}
 
         {!busy && (
           <div className="space-y-4">
             {/* MAGIC BRAND SCAN */}
-            <div className="relative overflow-hidden rounded-3xl border border-phorium-accent/45 bg-gradient-to-br from-phorium-dark/95 via-phorium-dark to-black/80 px-5 py-6 shadow-[0_18px_60px_rgba(0,0,0,0.70)]">
+            <Card className="relative overflow-hidden rounded-3xl border border-phorium-accent/45 bg-gradient-to-br from-phorium-dark/95 via-phorium-dark to-black/80 px-5 py-6 text-[12px] shadow-[0_18px_60px_rgba(0,0,0,0.70)]">
               <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-phorium-accent/15 blur-3xl" />
               <div className="pointer-events-none absolute bottom-0 left-0 h-24 w-24 rounded-full bg-phorium-accent/10 blur-2xl" />
 
@@ -190,7 +186,7 @@ export default function BrandProfilePage() {
                   <ul className="mt-1 space-y-1 text-[11px] text-phorium-light/70">
                     <li>• Oppdaget tone of voice direkte fra butikken</li>
                     <li>• Bransje / kategori settes automatisk</li>
-                    <li>• Brukes i både tekststudio og visuals</li>
+                    <li>• Brukes i både Tekststudio og Visuals</li>
                   </ul>
                 </div>
 
@@ -225,7 +221,7 @@ export default function BrandProfilePage() {
                     type="button"
                     onClick={handleAutoGenerate}
                     disabled={autoLoading}
-                    className="btn btn-primary btn-sm flex items-center gap-1 disabled:opacity-60"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-phorium-accent px-4 py-2 text-[12px] font-semibold text-phorium-dark shadow-[0_10px_30px_rgba(0,0,0,0.6)] transition hover:bg-phorium-accent/90 disabled:opacity-60 disabled:shadow-none"
                   >
                     {autoLoading ? (
                       <>
@@ -252,10 +248,10 @@ export default function BrandProfilePage() {
                   {message}
                 </p>
               )}
-            </div>
+            </Card>
 
             {/* Manuell grunnprofil */}
-            <div className="rounded-2xl border border-phorium-off/35 bg-phorium-dark/80 px-5 py-5">
+            <Card className="px-5 py-5">
               <div className="mb-3 flex items-center justify-between gap-2">
                 <div>
                   <p className="flex items-center gap-2 text-sm font-semibold text-phorium-light">
@@ -295,7 +291,7 @@ export default function BrandProfilePage() {
                   <input
                     value={localBrand.industry}
                     onChange={(e) => updateField("industry", e.target.value)}
-                    placeholder="F.eks. Outlet, interiør, hund, friluft …"
+                    placeholder="F.eks. outlet, interiør, hund, friluft …"
                     className="w-full rounded-xl border border-phorium-off/40 bg-[#F3EEE2] px-3 py-2 text-[13px] text-phorium-dark outline-none placeholder:text-phorium-dark/40 focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/25"
                   />
                 </div>
@@ -311,6 +307,28 @@ export default function BrandProfilePage() {
                     placeholder="F.eks. moderne, jordnær, humoristisk, eksklusiv …"
                     className="w-full rounded-xl border border-phorium-off/40 bg-[#F3EEE2] px-3 py-2 text-[13px] text-phorium-dark outline-none placeholder:text-phorium-dark/40 focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/25"
                   />
+
+                  {/* Enkle tone-presets (kun UI, ingen ny backend) */}
+                  <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] text-phorium-light/70">
+                    <span className="text-phorium-light/55">
+                      Forslag til tone:
+                    </span>
+                    {[
+                      "Moderne og direkte",
+                      "Varm og jordnær",
+                      "Eksklusiv og rolig",
+                      "Leken og uformell",
+                    ].map((tonePreset) => (
+                      <button
+                        key={tonePreset}
+                        type="button"
+                        onClick={() => updateField("tone", tonePreset)}
+                        className="rounded-full border border-phorium-off/40 bg-phorium-dark px-2.5 py-1 text-[10px] text-phorium-light/80 hover:border-phorium-accent hover:text-phorium-accent"
+                      >
+                        {tonePreset}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -319,7 +337,7 @@ export default function BrandProfilePage() {
                   type="button"
                   onClick={handleSave}
                   disabled={saving}
-                  className="btn btn-primary btn-sm inline-flex items-center gap-1 disabled:opacity-60"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-phorium-accent px-4 py-2 text-[12px] font-semibold text-phorium-dark shadow-[0_10px_30px_rgba(0,0,0,0.6)] transition hover:bg-phorium-accent/90 disabled:opacity-60 disabled:shadow-none"
                 >
                   {saving ? (
                     <>
@@ -333,8 +351,14 @@ export default function BrandProfilePage() {
                     </>
                   )}
                 </button>
+
+                {message && (
+                  <span className="text-[11px] text-phorium-light/80">
+                    {message}
+                  </span>
+                )}
               </div>
-            </div>
+            </Card>
           </div>
         )}
       </section>
