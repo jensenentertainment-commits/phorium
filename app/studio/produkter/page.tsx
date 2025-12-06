@@ -395,22 +395,29 @@ export default function ProductsPage() {
           <>
             <div className="space-y-3">
               {products.map((p) => {
-                const score = p.optimizationScore ?? null;
-                const label =
-                  p.optimizationLabel ||
-                  (score !== null
-                    ? `${score}% AI-optimalisert`
-                    : "Ingen score");
-                const chars = p.optimizationCharacters ?? null;
+  const score = p.optimizationScore ?? null;
+  const isLowScore = score !== null && score < 66;
 
-                return (
-                  <motion.div
-                    key={p.id}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="rounded-2xl border border-phorium-off/35 bg-phorium-dark/85 p-3 shadow-[0_18px_40px_rgba(0,0,0,0.55)] transition hover:-translate-y-0.5 hover:border-phorium-accent/60 hover:bg-phorium-dark sm:p-4"
-                  >
+  const label =
+    p.optimizationLabel ||
+    (score !== null
+      ? `${score}% AI-optimalisert`
+      : "Ingen score");
+  const chars = p.optimizationCharacters ?? null;
+
+  return (
+    <motion.div
+      key={p.id}
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+      className={`rounded-2xl p-3 sm:p-4 shadow-[0_18px_40px_rgba(0,0,0,0.55)] transition hover:-translate-y-0.5 ${
+        isLowScore
+          ? "border border-amber-400/70 bg-amber-500/5 hover:border-amber-300"
+          : "border border-phorium-off/35 bg-phorium-dark/85 hover:border-phorium-accent/60 hover:bg-phorium-dark"
+      }`}
+    >
+
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:justify-between">
                       {/* Venstre side */}
                       <div className="flex flex-1 gap-3">
@@ -478,24 +485,40 @@ export default function ProductsPage() {
 
                       {/* Høyre side */}
                       <div className="flex w-full flex-col justify-between gap-2 sm:w-64 sm:items-end">
-                        <div className="flex items-center justify-between gap-3 rounded-2xl border border-phorium-off/35 bg-phorium-surface/80 px-3 py-2 text-[11px]">
-                          <div className="flex flex-1 flex-col">
-                            <span className="text-[10px] uppercase tracking-[0.14em] text-phorium-light/70">
-                              AI-score
-                            </span>
-                            <span className="text-[11px] font-medium text-phorium-light">
-                              {label}
-                            </span>
-                            <span className="text-[10px] text-phorium-light/60">
-                              Basert på lengde og fylde, ikke kvalitet.
-                            </span>
-                          </div>
-                          <div className="flex flex-col items-center gap-1">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-phorium-dark text-[11px] font-semibold text-phorium-light">
-                              {score !== null ? `${score}%` : "–"}
-                            </div>
-                          </div>
-                        </div>
+                        <div
+  className={`flex items-center justify-between gap-3 rounded-2xl px-3 py-2 text-[11px] ${
+    isLowScore
+      ? "border border-amber-400/70 bg-amber-500/10"
+      : "border border-phorium-off/35 bg-phorium-surface/80"
+  }`}
+>
+  <div className="flex flex-1 flex-col">
+    <span className="text-[10px] uppercase tracking-[0.14em] text-phorium-light/70">
+      AI-score {isLowScore && "· bør forbedres"}
+    </span>
+    <span
+      className={`text-[11px] font-medium ${
+        isLowScore ? "text-amber-200" : "text-phorium-light"
+      }`}
+    >
+      {label}
+    </span>
+    <span className="text-[10px] text-phorium-light/60">
+      Basert på lengde og fylde – ikke hvor bra teksten er.
+    </span>
+  </div>
+  <div className="flex flex-col items-center gap-1">
+    <div
+      className={`flex h-10 w-10 items-center justify-center rounded-full text-[11px] font-semibold ${
+        isLowScore
+          ? "bg-amber-500/20 text-amber-100 border border-amber-300/70"
+          : "bg-phorium-dark text-phorium-light"
+      }`}
+    >
+      {score !== null ? `${score}%` : "–"}
+    </div>
+  </div>
+</div>
 
                         <div className="flex flex-wrap items-center justify-end gap-2 text-[11px]">
                           <Link
