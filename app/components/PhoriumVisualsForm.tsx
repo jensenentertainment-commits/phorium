@@ -12,8 +12,8 @@ import {
   Store,
   AlertCircle,
   History,
-  ZoomIn,
   ZoomOut,
+   ZoomIn,
   Loader2,
   Wand2,
   Link2,
@@ -22,13 +22,16 @@ import {
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import PhoriumLoader from "./PhoriumLoader";
+
 import useBrandProfile from "@/hooks/useBrandProfile";
 import BrandIdentityBar from "./BrandIdentityBar";
 import { supabase } from "@/lib/supabaseClient";
 import { useCreditError } from "@/app/studio/CreditErrorContext";
+import { Type } from "lucide-react";
+import PhoriumVisualsResult from "./PhoriumVisualsResult";
 
 
+type BannerFont = "auto" | "sans" | "serif" | "handwritten";
 
 type HistoryItem = {
   prompt: string;
@@ -61,7 +64,7 @@ function ModeButton({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full px-3 py-1.5 transition inline-flex items-center gap-1 ${
+      className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[11px] transition ${
         active
           ? "bg-phorium-accent text-phorium-dark shadow-sm"
           : "text-phorium-light/70 hover:bg-phorium-off/10"
@@ -83,7 +86,7 @@ function parseRetrySeconds(text: string | null | undefined): number | null {
 function handleCreditAwareError(
   rawError: any,
   setError: (msg: string) => void,
-  fallback: string
+  fallback: string,
 ) {
   console.error("Visuals error:", rawError);
 
@@ -94,7 +97,7 @@ function handleCreditAwareError(
 
   if (msg.includes("Ikke nok kreditter")) {
     setError(
-      "Du er tom for kreditter i denne betaen. Ta kontakt hvis du vil ha flere."
+      "Du er tom for kreditter i denne betaen. Ta kontakt hvis du vil ha flere.",
     );
   } else {
     setError(fallback);
@@ -107,13 +110,13 @@ export default function PhoriumVisualsForm() {
   const productIdFromUrl = searchParams.get("productId");
   const isShopifyMode = !!productIdFromUrl;
 
+  const [bannerFont, setBannerFont] = useState<BannerFont>("auto");
   const [linkedProduct, setLinkedProduct] = useState<any | null>(null);
   const [productLoading, setProductLoading] = useState(false);
   const [productError, setProductError] = useState<string | null>(null);
   const [shopDomain, setShopDomain] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const { creditError, setCreditError } = useCreditError();
-
 
   // Brandprofil (felles med tekst)
   const {
@@ -162,6 +165,7 @@ export default function PhoriumVisualsForm() {
     backgroundPrompt?: string;
     headline: string;
     subline?: string;
+    font?: BannerFont;
   } | null>(null);
 
   const [showSafeZone, setShowSafeZone] = useState(false);
@@ -177,14 +181,18 @@ export default function PhoriumVisualsForm() {
     try {
       const stored = localStorage.getItem("phorium_visuals_history");
       if (stored) setHistory(JSON.parse(stored));
-    } catch {}
+    } catch {
+      // stille
+    }
   }, []);
 
   // Lagre historikk
   useEffect(() => {
     try {
       localStorage.setItem("phorium_visuals_history", JSON.stringify(history));
-    } catch {}
+    } catch {
+      // stille
+    }
   }, [history]);
 
   // Cooldown-timer
@@ -227,27 +235,27 @@ export default function PhoriumVisualsForm() {
     }
   }, []);
 
-useEffect(() => {
-  async function loadUser() {
-    try {
-      const { data, error } = await supabase.auth.getUser();
+  // Hent innlogget bruker
+  useEffect(() => {
+    async function loadUser() {
+      try {
+        const { data, error } = await supabase.auth.getUser();
 
-      if (error) {
-        console.error("Kunne ikke hente bruker (Visuals):", error);
+        if (error) {
+          console.error("Kunne ikke hente bruker (Visuals):", error);
+          setUserId(null);
+          return;
+        }
+
+        setUserId(data.user?.id ?? null);
+      } catch (err) {
+        console.error("Uventet feil ved henting av bruker (Visuals):", err);
         setUserId(null);
-        return;
       }
-
-      setUserId(data.user?.id ?? null);
-    } catch (err) {
-      console.error("Uventet feil ved henting av bruker (Visuals):", err);
-      setUserId(null);
     }
-  }
 
-  void loadUser();
-}, []);
-
+    void loadUser();
+  }, []);
 
   // Hent produkt fra Shopify når productId finnes i URL
   useEffect(() => {
@@ -275,10 +283,11 @@ useEffect(() => {
       }
     }
 
-    fetchProduct();
+    void fetchProduct();
   }, [productIdFromUrl]);
 
-  // Bygg kontekstprompt fra brand + produkt
+  // ------- helpers for prompt-kontekst -------
+
   function brandPrefix() {
     if (!brand) return "";
     const parts: string[] = [];
@@ -334,7 +343,6 @@ useEffect(() => {
   }
 
   function contextPrefix() {
-    // Dette sendes inn foran alle prompts, slik at AI-bildene og bannerne matcher brand og produkt
     return `${storePrefix()}${brandPrefix()}${productPrefix()}`;
   }
 
@@ -349,6 +357,8 @@ useEffect(() => {
       return [entry, ...prev].slice(0, 3);
     });
   }
+
+  // ------- download / lagre -------
 
   async function handleDownload(url: string) {
     try {
@@ -411,7 +421,8 @@ useEffect(() => {
     }
   }
 
-    // 1) Standard bildegenerering
+  // ------- 1) Standardbilde -------
+
   async function handleGenerate() {
     const trimmed = prompt.trim();
     if (!trimmed || isBusy) return;
@@ -432,7 +443,6 @@ useEffect(() => {
         }),
       });
 
-      // Rate limit (429) – bruk cooldown
       if (res.status === 429) {
         const txt = await res.text().catch(() => "");
         const secs = parseRetrySeconds(txt);
@@ -440,21 +450,19 @@ useEffect(() => {
           setImageCooldown(secs);
         }
         throw new Error(
-          "Du har nådd en grense for bildegenerering. Vent litt og prøv igjen."
+          "Du har nådd en grense for bildegenerering. Vent litt og prøv igjen.",
         );
       }
 
-      // Tom for kreditter (403) – vis global kredit-feil
       if (res.status === 403) {
         const data = await res.json().catch(() => ({} as any));
         setCreditError(
           data.error ||
-            "Ikke nok kreditter til å generere flere bilder akkurat nå."
+            "Ikke nok kreditter til å generere flere bilder akkurat nå.",
         );
-        return; // ikke kast – vi håndterer dette pent
+        return;
       }
 
-      // Andre feil
       if (!res.ok) {
         let data: any = {};
         try {
@@ -465,11 +473,9 @@ useEffect(() => {
         console.error(
           "[handleGenerate] Feil fra /api/generate-image:",
           res.status,
-          data
+          data,
         );
-        throw new Error(
-          data?.error || "Kunne ikke generere bilde."
-        );
+        throw new Error(data?.error || "Kunne ikke generere bilde.");
       }
 
       const data = await res.json();
@@ -483,395 +489,397 @@ useEffect(() => {
       handleCreditAwareError(
         err,
         (msg) => setError(msg),
-        "Kunne ikke generere bilde akkurat nå. Prøv igjen om litt."
+        "Kunne ikke generere bilde akkurat nå. Prøv igjen om litt.",
       );
     } finally {
       setImageLoading(false);
     }
   }
 
+  // ------- 2A) Banner med trygg tekst – AI-bakgrunn -------
 
-  // 2A) Banner med trygg tekst – AI-bakgrunn
-async function handleSmartTextGenerate() {
-  if (!safeHeadline.trim() || isBusy) return;
+  async function handleSmartTextGenerate() {
+    if (!safeHeadline.trim() || isBusy) return;
 
-  setSafeLoading(true);
-  setError(null);
-  setImageUrl(null);
-  setCampaignPack([]);
+    setSafeLoading(true);
+    setError(null);
+    setImageUrl(null);
+    setCampaignPack([]);
 
-  const backgroundPrompt =
-    contextPrefix() +
-    (safeBgPrompt.trim() ||
-      "Ren, kommersiell stil som matcher nettbutikk og brand.");
+    const backgroundPrompt =
+      contextPrefix() +
+      (safeBgPrompt.trim() ||
+        "Ren, kommersiell stil som matcher nettbutikk og brand.");
 
-  try {
-    const res = await fetch("/api/phorium-generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        backgroundPrompt,
-        headline: safeHeadline.trim(),
-        subline: safeSubline.trim() || undefined,
-        size: "1200x628",
-        userId,
-      }),
-    });
-
-    if (res.status === 429) {
-      const txt = await res.text().catch(() => "");
-      const secs = parseRetrySeconds(txt);
-      if (typeof secs === "number") {
-        setBannerCooldown(secs);
-      }
-      throw new Error(
-        "Du har nådd en grense for bannergenerering. Vent litt og prøv igjen."
-      );
-    }
-
-    // 🔴 Tom for kreditter
-    if (res.status === 403) {
-      const data = await res.json().catch(() => ({} as any));
-      setCreditError(
-        data.error ||
-          "Ikke nok kreditter til å generere flere bannere akkurat nå."
-      );
-      return;
-    }
-
-    if (!res.ok) {
-      throw new Error("Kunne ikke generere banner.");
-    }
-
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    setImageUrl(url);
-    setLastBannerConfig({
-      source: "ai",
-      backgroundPrompt,
-      headline: safeHeadline.trim(),
-      subline: safeSubline.trim() || undefined,
-    });
-    addToHistory(
-      `[Banner AI] ${safeHeadline.trim()}${
-        safeSubline ? " – " + safeSubline.trim() : ""
-      }`,
-      url,
-      "Banner"
-    );
-  } catch (err: any) {
-    handleCreditAwareError(
-      err,
-      (msg) => setError(msg),
-      "Kunne ikke generere banner akkurat nå. Prøv igjen om litt."
-    );
-  } finally {
-    setSafeLoading(false);
-  }
-}
-
-  // 2B) Banner med trygg tekst – egen bakgrunn
-async function handleOverlayGenerate() {
-  if (!safeHeadline.trim() || !textBgFile || isBusy) return;
-
-  setOverlayLoading(true);
-  setError(null);
-  setImageUrl(null);
-  setCampaignPack([]);
-
-  const backgroundPrompt =
-    contextPrefix() +
-    (safeBgPrompt.trim() ||
-      "Ren, kommersiell stil som matcher nettbutikk og brand.");
-
-  try {
-    const formData = new FormData();
-    formData.append("image", textBgFile);
-    formData.append("headline", safeHeadline.trim());
-    if (safeSubline.trim()) formData.append("subline", safeSubline.trim());
-    formData.append("backgroundPrompt", backgroundPrompt);
-    if (userId) {
-      formData.append("userId", userId);
-    }
-
-    const res = await fetch("/api/phorium-overlay", {
-      method: "POST",
-      body: formData,
-    });
-
-    if (res.status === 429) {
-      const txt = await res.text().catch(() => "");
-      const secs = parseRetrySeconds(txt);
-      if (typeof secs === "number") {
-        setBannerCooldown(secs);
-      }
-      throw new Error(
-        "Du har nådd en grense for bannergenerering. Vent litt og prøv igjen."
-      );
-    }
-
-    if (res.status === 403) {
-      let data: any = {};
-      try {
-        data = await res.json();
-      } catch {}
-      setCreditError(
-        data.error ||
-          "Ikke nok kreditter til å generere flere bannere akkurat nå."
-      );
-      setOverlayLoading(false);
-      return;
-    }
-
-
-    if (!res.ok) {
-      let msg = "Kunne ikke legge tekst på bildet.";
-      try {
-        const data = await res.json();
-        if (data?.error) msg = data.error;
-      } catch {}
-      throw new Error(msg);
-    }
-
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    setImageUrl(url);
-    addToHistory(
-      `[Banner eget bilde] ${safeHeadline.trim()}${
-        safeSubline ? " – " + safeSubline.trim() : ""
-      }`,
-      url,
-      "Banner"
-    );
-    setLastBannerConfig({
-      source: "upload",
-      backgroundPrompt,
-      headline: safeHeadline.trim(),
-      subline: safeSubline.trim() || undefined,
-    });
-  } catch (err: any) {
-    handleCreditAwareError(
-      err,
-      (msg) => setError(msg),
-      "Kunne ikke generere banner akkurat nå. Prøv igjen om litt."
-    );
-  } finally {
-    setOverlayLoading(false);
-  }
-}
-
-
- // 2C) Kampanjepakke (hero / IG / story)
-async function handleCampaignPack() {
-  if (!safeHeadline.trim() || isBusy) return;
-
-  setCampaignLoading(true);
-  setError(null);
-  setImageUrl(null);
-  setCampaignPack([]);
-
-  const baseBg =
-    contextPrefix() +
-    (safeBgPrompt.trim() ||
-      "Ren, kommersiell stil som matcher nettbutikk og brand.");
-
-  const formats = [
-    { label: "Web hero", size: "1200x628" },
-    { label: "Instagram", size: "1080x1080" },
-    { label: "Story / Reel", size: "1080x1920" },
-  ];
-
-  try {
-    const results: CampaignImage[] = [];
-
-    for (const fmt of formats) {
+    try {
       const res = await fetch("/api/phorium-generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          backgroundPrompt: baseBg,
+          backgroundPrompt,
           headline: safeHeadline.trim(),
           subline: safeSubline.trim() || undefined,
-          size: fmt.size,
+          size: "1200x628",
           userId,
+          fontStyle: bannerFont,
         }),
       });
 
-      // 🔁 Rate-limit / cooldown
       if (res.status === 429) {
         const txt = await res.text().catch(() => "");
         const secs = parseRetrySeconds(txt);
         if (typeof secs === "number") {
-          setPackCooldown(secs);
+          setBannerCooldown(secs);
         }
         throw new Error(
-          "Du har nådd en grense for kampanjepakke. Vent litt og prøv igjen."
+          "Du har nådd en grense for bannergenerering. Vent litt og prøv igjen.",
         );
       }
 
-      // 🔒 Tom for kreditter → global sperre
       if (res.status === 403) {
         const data = await res.json().catch(() => ({} as any));
         setCreditError(
           data.error ||
-            "Ikke nok kreditter til å generere kampanjepakke akkurat nå."
+            "Ikke nok kreditter til å generere flere bannere akkurat nå.",
         );
-        setCampaignLoading(false);
         return;
       }
 
       if (!res.ok) {
-        throw new Error("Kunne ikke generere ett av kampanjebildene.");
+        throw new Error("Kunne ikke generere banner.");
       }
 
-      // 🔁 Vi får PNG-bytes fra /api/phorium-generate
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
-
-      results.push({
-        label: fmt.label,
-        size: fmt.size,
-        url,
+      setImageUrl(url);
+      setLastBannerConfig({
+        source: "ai",
+        backgroundPrompt,
+        headline: safeHeadline.trim(),
+        subline: safeSubline.trim() || undefined,
+        font: bannerFont,
       });
-    }
-
-    setCampaignPack(results);
-    setLastBannerConfig({
-      source: "ai",
-      backgroundPrompt: baseBg,
-      headline: safeHeadline.trim(),
-      subline: safeSubline.trim() || undefined,
-    });
-  } catch (err: any) {
-    handleCreditAwareError(
-      err,
-      (msg) => setError(msg),
-      "Noe gikk galt ved generering av kampanjepakke. Prøv igjen om litt."
-    );
-  } finally {
-    setCampaignLoading(false);
-  }
-}
-
-
-
-  // 2D) Ny variant (samme config, nytt forslag)
-async function handleVariant() {
-  if (!lastBannerConfig || isBusy) return;
-
-  setSafeLoading(true);
-  setError(null);
-  setImageUrl(null);
-  setCampaignPack([]);
-
-  try {
-    const bgPrompt =
-      lastBannerConfig.backgroundPrompt ||
-      (contextPrefix() +
-        (safeBgPrompt.trim() ||
-          "Ren, kommersiell stil som matcher nettbutikk og brand."));
-
-    const res = await fetch("/api/phorium-generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        backgroundPrompt: bgPrompt,
-        headline: lastBannerConfig.headline,
-        subline: lastBannerConfig.subline,
-        size: "1200x628",
-        userId,
-      }),
-    });
-
-    // 🔴 Tom for kreditter
-    if (res.status === 403) {
-      const data = await res.json().catch(() => ({} as any));
-      setCreditError(
-        data.error ||
-          "Ikke nok kreditter til å generere flere varianter akkurat nå."
+      addToHistory(
+        `[Banner AI] ${safeHeadline.trim()}${
+          safeSubline ? " – " + safeSubline.trim() : ""
+        }`,
+        url,
+        "Banner",
       );
-      return;
-    }
-
-    if (!res.ok) throw new Error("Kunne ikke lage nytt forslag.");
-
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    setImageUrl(url);
-    addToHistory(
-      `[Banner variant] ${lastBannerConfig.headline}${
-        lastBannerConfig.subline ? " – " + lastBannerConfig.subline : ""
-      }`,
-      url,
-      "Banner"
-    );
-  } catch (err: any) {
-    setError(
-      err?.message ||
-        "Noe gikk galt ved generering av variant. Prøv igjen om litt."
-    );
-  } finally {
-    setSafeLoading(false);
-  }
-}
-
-// 3) Produktbilde → scene
-async function handleEditGenerate() {
-  if (!sceneFile || !editPrompt.trim() || isBusy) return;
-
-  setEditing(true);
-  setError(null);
-  setImageUrl(null);
-  setCampaignPack([]);
-
-  try {
-    const fd = new FormData();
-    fd.append("image", sceneFile);
-    fd.append("prompt", contextPrefix() + editPrompt.trim());
-    if (userId) fd.append("userId", userId);
-
-    const res = await fetch("/api/edit-image", {
-      method: "POST",
-      body: fd,
-    });
-
-    // 🔴 Tom for kreditter
-    if (res.status === 403) {
-      const data = await res.json().catch(() => ({} as any));
-      setCreditError(
-        data.error ||
-          "Ikke nok kreditter til å generere flere scener akkurat nå."
+    } catch (err: any) {
+      handleCreditAwareError(
+        err,
+        (msg) => setError(msg),
+        "Kunne ikke generere banner akkurat nå. Prøv igjen om litt.",
       );
-      return;
+    } finally {
+      setSafeLoading(false);
     }
-
-    if (!res.ok) {
-      throw new Error("Kunne ikke generere scene rundt produktet.");
-    }
-
-    const data = await res.json();
-    if (!data?.imageUrl) {
-      throw new Error("Svar fra tjenesten mangler bilde-URL.");
-    }
-
-    setImageUrl(data.imageUrl);
-    addToHistory(
-      `[Scene] ${editPrompt.trim()}`,
-      data.imageUrl,
-      "Produktscene"
-    );
-  } catch (err: any) {
-    handleCreditAwareError(
-      err,
-      (msg) => setError(msg),
-      "Noe gikk galt ved generering av scene. Prøv igjen om litt."
-    );
-  } finally {
-    setEditing(false);
   }
-}
 
+  // ------- 2B) Banner med trygg tekst – egen bakgrunn -------
 
+  async function handleOverlayGenerate() {
+    if (!safeHeadline.trim() || !textBgFile || isBusy) return;
+
+    setOverlayLoading(true);
+    setError(null);
+    setImageUrl(null);
+    setCampaignPack([]);
+
+    const backgroundPrompt =
+      contextPrefix() +
+      (safeBgPrompt.trim() ||
+        "Ren, kommersiell stil som matcher nettbutikk og brand.");
+
+    try {
+      const formData = new FormData();
+      formData.append("image", textBgFile);
+      formData.append("headline", safeHeadline.trim());
+      if (safeSubline.trim()) formData.append("subline", safeSubline.trim());
+      formData.append("backgroundPrompt", backgroundPrompt);
+      if (userId) {
+        formData.append("userId", userId);
+      }
+
+      const res = await fetch("/api/phorium-overlay", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (res.status === 429) {
+        const txt = await res.text().catch(() => "");
+        const secs = parseRetrySeconds(txt);
+        if (typeof secs === "number") {
+          setBannerCooldown(secs);
+        }
+        throw new Error(
+          "Du har nådd en grense for bannergenerering. Vent litt og prøv igjen.",
+        );
+      }
+
+      if (res.status === 403) {
+        let data: any = {};
+        try {
+          data = await res.json();
+        } catch {
+          // ignore
+        }
+        setCreditError(
+          data.error ||
+            "Ikke nok kreditter til å generere flere bannere akkurat nå.",
+        );
+        setOverlayLoading(false);
+        return;
+      }
+
+      if (!res.ok) {
+        let msg = "Kunne ikke legge tekst på bildet.";
+        try {
+          const data = await res.json();
+          if (data?.error) msg = data.error;
+        } catch {
+          // ignore
+        }
+        throw new Error(msg);
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      setImageUrl(url);
+      addToHistory(
+        `[Banner eget bilde] ${safeHeadline.trim()}${
+          safeSubline ? " – " + safeSubline.trim() : ""
+        }`,
+        url,
+        "Banner",
+      );
+      setLastBannerConfig({
+        source: "upload",
+        backgroundPrompt,
+        headline: safeHeadline.trim(),
+        subline: safeSubline.trim() || undefined,
+      });
+    } catch (err: any) {
+      handleCreditAwareError(
+        err,
+        (msg) => setError(msg),
+        "Kunne ikke generere banner akkurat nå. Prøv igjen om litt.",
+      );
+    } finally {
+      setOverlayLoading(false);
+    }
+  }
+
+  // ------- 2C) Kampanjepakke -------
+
+  async function handleCampaignPack() {
+    if (!safeHeadline.trim() || isBusy) return;
+
+    setCampaignLoading(true);
+    setError(null);
+    setImageUrl(null);
+    setCampaignPack([]);
+
+    const baseBg =
+      contextPrefix() +
+      (safeBgPrompt.trim() ||
+        "Ren, kommersiell stil som matcher nettbutikk og brand.");
+
+    const formats = [
+      { label: "Web hero", size: "1200x628" },
+      { label: "Instagram", size: "1080x1080" },
+      { label: "Story / Reel", size: "1080x1920" },
+    ];
+
+    try {
+      const results: CampaignImage[] = [];
+
+      for (const fmt of formats) {
+        const res = await fetch("/api/phorium-generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            backgroundPrompt: baseBg,
+            headline: safeHeadline.trim(),
+            subline: safeSubline.trim() || undefined,
+            size: fmt.size,
+            userId,
+            fontStyle: bannerFont,
+          }),
+        });
+
+        if (res.status === 429) {
+          const txt = await res.text().catch(() => "");
+          const secs = parseRetrySeconds(txt);
+          if (typeof secs === "number") {
+            setPackCooldown(secs);
+          }
+          throw new Error(
+            "Du har nådd en grense for kampanjepakke. Vent litt og prøv igjen.",
+          );
+        }
+
+        if (res.status === 403) {
+          const data = await res.json().catch(() => ({} as any));
+          setCreditError(
+            data.error ||
+              "Ikke nok kreditter til å generere kampanjepakke akkurat nå.",
+          );
+          setCampaignLoading(false);
+          return;
+        }
+
+        if (!res.ok) {
+          throw new Error("Kunne ikke generere ett av kampanjebildene.");
+        }
+
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+
+        results.push({
+          label: fmt.label,
+          size: fmt.size,
+          url,
+        });
+      }
+
+      setCampaignPack(results);
+      setLastBannerConfig({
+        source: "ai",
+        backgroundPrompt: baseBg,
+        headline: safeHeadline.trim(),
+        subline: safeSubline.trim() || undefined,
+        font: bannerFont,
+      });
+    } catch (err: any) {
+      handleCreditAwareError(
+        err,
+        (msg) => setError(msg),
+        "Noe gikk galt ved generering av kampanjepakke. Prøv igjen om litt.",
+      );
+    } finally {
+      setCampaignLoading(false);
+    }
+  }
+
+  // ------- 2D) Variant -------
+
+  async function handleVariant() {
+    if (!lastBannerConfig || isBusy) return;
+
+    setSafeLoading(true);
+    setError(null);
+    setImageUrl(null);
+    setCampaignPack([]);
+
+    try {
+      const bgPrompt =
+        lastBannerConfig.backgroundPrompt ||
+        (contextPrefix() +
+          (safeBgPrompt.trim() ||
+            "Ren, kommersiell stil som matcher nettbutikk og brand."));
+
+      const res = await fetch("/api/phorium-generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          backgroundPrompt: bgPrompt,
+          headline: lastBannerConfig.headline,
+          subline: lastBannerConfig.subline,
+          size: "1200x628",
+          userId,
+          fontStyle: lastBannerConfig.font || "auto",
+        }),
+      });
+
+      if (res.status === 403) {
+        const data = await res.json().catch(() => ({} as any));
+        setCreditError(
+          data.error ||
+            "Ikke nok kreditter til å generere flere varianter akkurat nå.",
+        );
+        return;
+      }
+
+      if (!res.ok) throw new Error("Kunne ikke lage nytt forslag.");
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      setImageUrl(url);
+      addToHistory(
+        `[Banner variant] ${lastBannerConfig.headline}${
+          lastBannerConfig.subline ? " – " + lastBannerConfig.subline : ""
+        }`,
+        url,
+        "Banner",
+      );
+    } catch (err: any) {
+      setError(
+        err?.message ||
+          "Noe gikk galt ved generering av variant. Prøv igjen om litt.",
+      );
+    } finally {
+      setSafeLoading(false);
+    }
+  }
+
+  // ------- 3) Produktbilde → scene -------
+
+  async function handleEditGenerate() {
+    if (!sceneFile || !editPrompt.trim() || isBusy) return;
+
+    setEditing(true);
+    setError(null);
+    setImageUrl(null);
+    setCampaignPack([]);
+
+    try {
+      const fd = new FormData();
+      fd.append("image", sceneFile);
+      fd.append("prompt", contextPrefix() + editPrompt.trim());
+      if (userId) fd.append("userId", userId);
+      fd.append("fontStyle", bannerFont);
+
+      const res = await fetch("/api/edit-image", {
+        method: "POST",
+        body: fd,
+      });
+
+      if (res.status === 403) {
+        const data = await res.json().catch(() => ({} as any));
+        setCreditError(
+          data.error ||
+            "Ikke nok kreditter til å generere flere scener akkurat nå.",
+        );
+        return;
+      }
+
+      if (!res.ok) {
+        throw new Error("Kunne ikke generere scene rundt produktet.");
+      }
+
+      const data = await res.json();
+      if (!data?.imageUrl) {
+        throw new Error("Svar fra tjenesten mangler bilde-URL.");
+      }
+
+      setImageUrl(data.imageUrl);
+      addToHistory(
+        `[Scene] ${editPrompt.trim()}`,
+        data.imageUrl,
+        "Produktscene",
+      );
+    } catch (err: any) {
+      handleCreditAwareError(
+        err,
+        (msg) => setError(msg),
+        "Noe gikk galt ved generering av scene. Prøv igjen om litt.",
+      );
+    } finally {
+      setEditing(false);
+    }
+  }
 
   function handleReusePrompt(item: HistoryItem) {
     setPrompt(item.prompt);
@@ -887,11 +895,10 @@ async function handleEditGenerate() {
 
   // ============== RENDER ==============
 
-   return (
+  return (
     <>
       {/* Toppseksjon: brand + Shopify-status + modusvalg i ett kort */}
       <div className="mb-5 space-y-3">
-        {/* Global brandlinje – samme som Tekststudio */}
         <BrandIdentityBar
           brand={brand}
           source={brandSource}
@@ -995,12 +1002,12 @@ async function handleEditGenerate() {
             </div>
           )}
 
-          {/* Modusvalg – samlet nederst i samme kort */}
-          <div className="mt-3 border-t border-phorium-off/25 pt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          {/* Modusvalg */}
+          <div className="mt-3 flex flex-col gap-2 border-t border-phorium-off/25 pt-3 sm:flex-row sm:items-center sm:justify-between">
             <span className="text-[10px] text-phorium-light/70">
               Hva vil du lage nå?
             </span>
-            <div className="inline-flex rounded-full border border-phorium-off/40 bg-phorium-dark/90 p-1 text-[11px]">
+            <div className="inline-flex rounded-full border border-phorium-off/40 bg-phorium-dark/90 p-1">
               <ModeButton
                 active={mode === "image"}
                 onClick={() => setMode("image")}
@@ -1057,22 +1064,26 @@ async function handleEditGenerate() {
           {/* Presets + størrelse */}
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-[11px]">
             <div className="flex flex-wrap gap-2">
-              {["Produktfoto", "Livsstil", "Kampanjebanner", "Bakgrunn", "Mockup"].map(
-                (label) => (
-                  <button
-                    key={label}
-                    type="button"
-                    className="btn btn-sm btn-ghost"
-                    onClick={() =>
-                      setPrompt(
-                        `Lag et ${label.toLowerCase()} i fotorealistisk stil. Profesjonelt lys, høy oppløsning.`,
-                      )
-                    }
-                  >
-                    {label}
-                  </button>
-                ),
-              )}
+              {[
+                "Produktfoto",
+                "Livsstil",
+                "Kampanjebanner",
+                "Bakgrunn",
+                "Mockup",
+              ].map((label) => (
+                <button
+                  key={label}
+                  type="button"
+                  className="btn btn-sm btn-ghost"
+                  onClick={() =>
+                    setPrompt(
+                      `Lag et ${label.toLowerCase()} i fotorealistisk stil. Profesjonelt lys, høy oppløsning.`,
+                    )
+                  }
+                >
+                  {label}
+                </button>
+              ))}
             </div>
 
             <div className="flex items-center gap-2">
@@ -1093,15 +1104,14 @@ async function handleEditGenerate() {
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
             <button
-  type="button"
-  onClick={handleGenerate}
- disabled={
-  !prompt.trim() ||
-  isBusy ||
-  imageCooldown > 0 ||
-  !!creditError
-  }
-
+              type="button"
+              onClick={handleGenerate}
+              disabled={
+                !prompt.trim() ||
+                isBusy ||
+                imageCooldown > 0 ||
+                !!creditError
+              }
               className="btn btn-primary btn-lg inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {imageCooldown > 0 ? (
@@ -1129,201 +1139,193 @@ async function handleEditGenerate() {
         </div>
       )}
 
-      {/* MODE: Banner med tekst */}
-      {mode === "banner" && (
-        <div className="mb-8 space-y-4 rounded-2xl border border-phorium-off/30 bg-phorium-dark p-5">
-          <p className="mb-2 flex items-center gap-1.5 text-[11px] text-phorium-light/70">
-            <LayoutTemplate className="h-3.5 w-3.5" />
-            Bannere for kampanjer, nyheter og tilbud. Perfekt til forsiden,
-            kampanjesider og sosiale medier.
-          </p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-[10px] text-phorium-accent/90">
-                Hovedtekst*
-              </label>
-              <input
-                value={safeHeadline}
-                onChange={(e) => setSafeHeadline(e.target.value)}
-                placeholder="-40% SOMMERSALG"
-                className="w-full rounded-2xl border border-phorium-off/40 bg-phorium-dark px-3 py-2 text-[12px] text-phorium-light placeholder:text-phorium-light/40 focus:border-phorium-accent focus:outline-none focus:ring-2 focus:ring-phorium-accent/18"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-[10px] text-phorium-accent/90">
-                Undertekst (valgfritt)
-              </label>
-              <input
-                value={safeSubline}
-                onChange={(e) => setSafeSubline(e.target.value)}
-                placeholder="Kun denne helgen"
-                className="w-full rounded-2xl border border-phorium-off/40 bg-phorium-dark px-3 py-2 text-[12px] text-phorium-light placeholder:text-phorium-light/40 focus:border-phorium-accent focus:outline-none focus:ring-2 focus:ring-phorium-accent/18"
-              />
-            </div>
-          </div>
+            {/* MODE: Banner med tekst */}
+   {mode === "banner" && (
+  <div className="mb-8 space-y-5 rounded-2xl border border-phorium-off/30 bg-phorium-dark p-5">
+    {/* Intro */}
+    <p className="flex items-center gap-1.5 text-[11px] text-phorium-light/70">
+      <LayoutTemplate className="h-3.5 w-3.5" />
+      Bannere for kampanjer, nyheter og tilbud. Perfekt til forsiden, kampanjesider og sosiale medier.
+    </p>
 
-          <div>
-            <label className="mb-1 block text-[10px] text-phorium-accent/90">
-              Stil / bakgrunn (valgfritt)
-            </label>
-            <textarea
-              value={safeBgPrompt}
-              onChange={(e) => setSafeBgPrompt(e.target.value)}
-              placeholder="F.eks. «lys sommerfølelse, myke farger, skandinavisk stil» eller la stå tom for auto."
-              className="h-20 w-full resize-none rounded-2xl border border-phorium-off/40 bg-phorium-dark px-3 py-2 text-[12px] text-phorium-light placeholder:text-phorium-light/40 focus:border-phorium-accent focus:outline-none focus:ring-2 focus:ring-phorium-accent/18"
-            />
-          </div>
+    {/* Hovedtekst + undertekst */}
+    <div className="grid gap-3 sm:grid-cols-2">
+      <div>
+        <label className="mb-1 block text-[11px] text-phorium-light/70">
+          Hovedtekst*
+        </label>
+        <input
+          type="text"
+          value={safeHeadline}
+          onChange={(e) => setSafeHeadline(e.target.value)}
+          placeholder="-40% SOMMERSALG"
+          className="w-full rounded-xl border border-phorium-off/40 bg-white/95 px-3 py-2 text-[13px] text-phorium-dark shadow-[0_4px_14px_rgba(0,0,0,0.15)] placeholder:text-phorium-dark/40 outline-none focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/25"
+        />
+      </div>
 
-          {/* Templates / forslag */}
-          <div className="flex flex-wrap gap-2 text-[10px] text-phorium-light/70">
-            {["Sommersalg", "Nyhet", "Black Week", "Outlet"].map((tpl) => (
-              <button
-                key={tpl}
-                type="button"
-                onClick={() => {
-                  if (tpl === "Sommersalg") {
-                    setSafeHeadline("-40% SOMMERSALG");
-                    setSafeSubline("Kun denne uken");
-                  } else if (tpl === "Nyhet") {
-                    setSafeHeadline("NYHETER I BUTIKKEN");
-                    setSafeSubline("Utforsk de siste produktene");
-                  } else if (tpl === "Black Week") {
-                    setSafeHeadline("BLACK WEEK");
-                    setSafeSubline("Begrenset antall – førstemann til mølla");
-                  } else if (tpl === "Outlet") {
-                    setSafeHeadline("OUTLET");
-                    setSafeSubline("Siste sjanse – gjør et kupp");
-                  }
-                }}
-                className="btn btn-xs btn-ghost"
-              >
-                {tpl}
-              </button>
-            ))}
-          </div>
+      <div>
+        <label className="mb-1 block text-[11px] text-phorium-light/70">
+          Undertekst (valgfritt)
+        </label>
+        <input
+          type="text"
+          value={safeSubline}
+          onChange={(e) => setSafeSubline(e.target.value)}
+          placeholder="Kun denne helgen"
+          className="w-full rounded-xl border border-phorium-off/40 bg-white/95 px-3 py-2 text-[13px] text-phorium-dark shadow-[0_4px_14px_rgba(0,0,0,0.15)] placeholder:text-phorium-dark/40 outline-none focus:border-phorium-accent focus:ring-2 focus:ring-phorium-accent/25"
+        />
+      </div>
+    </div>
 
-          {/* Egen bakgrunn eller AI-bakgrunn */}
-          <div className="grid gap-4 md:grid-cols-[1.6fr,1.1fr]">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-2 text-[11px]">
-                <span className="text-phorium-light/70">
-                  Bakgrunn til banneret
-                </span>
-                <div className="inline-flex rounded-full border border-phorium-off/30 bg-phorium-dark/60 p-0.5">
-                  <button
-                    type="button"
-                    onClick={() => setBannerSource("ai")}
-                    className={`rounded-full px-2 py-0.5 text-[10px] inline-flex items-center gap-1 ${
-                      bannerSource === "ai"
-                        ? "bg-phorium-accent text-phorium-dark"
-                        : "text-phorium-light/70"
-                    }`}
-                  >
-                    <Sparkles className="h-3 w-3" />
-                    AI-bakgrunn
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBannerSource("upload")}
-                    className={`rounded-full px-2 py-0.5 text-[10px] inline-flex items-center gap-1 ${
-                      bannerSource === "upload"
-                        ? "bg-phorium-accent text-phorium-dark"
-                        : "text-phorium-light/70"
-                    }`}
-                  >
-                    <ImageIcon className="h-3 w-3" />
-                    Mitt bilde
-                  </button>
-                </div>
-              </div>
+    {/* ---- KOMPAKT STIL / MAL / FONT ---- */}
+    <div className="space-y-3 rounded-2xl border border-phorium-off/35 bg-phorium-dark/60 p-3">
+      {/* Rad 1: Stil på teksten + font-dropdown */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-phorium-light/70">
+          Stil på teksten
+        </span>
 
-              {bannerSource === "ai" && (
-                <p className="text-[11px] text-phorium-light/60">
-                  Vi lager et komplett banner fra bunnen av – med bakgrunn,
-                  komposisjon og tekstplassering tilpasset teksten din.
-                </p>
-              )}
+        <div className="flex items-center gap-2 text-[10px] text-phorium-light/70">
+  <Type className="h-3.5 w-3.5 text-phorium-light/70" />
 
-              {bannerSource === "upload" && (
-                <p className="text-[11px] text-phorium-light/60">
-                  Last opp et bilde, så legger vi på teksten på en trygg og
-                  lesbar måte.
-                </p>
-              )}
+  <select
+    className="rounded-full border border-phorium-off/40 bg-phorium-dark px-3 py-1 text-[11px] text-phorium-light focus:border-phorium-accent focus:outline-none focus:ring-1 focus:ring-phorium-accent/40"
+    value={bannerFont}
+    onChange={(e) => setBannerFont(e.target.value as BannerFont)}
+  >
+    <option value="auto">Følg brandprofil</option>
+    <option value="sans">Ren sans</option>
+    <option value="serif">Stilren serif</option>
+    <option value="handwritten">Håndskrift</option>
+  </select>
+</div>
 
-              <div className="mt-2 flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!safeHeadline.trim()) return;
-                    try {
-                      const res = await fetch("/api/phorium-copy", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          brand,
-                          headline: safeHeadline.trim(),
-                        }),
-                      });
-                      const data = await res.json();
-                      if (data?.suggestion) {
-                        setSafeSubline(data.suggestion);
-                      }
-                    } catch {
-                      // stille – luksusfunksjon
-                    }
-                  }}
-                  className="btn btn-xs btn-ghost inline-flex items-center gap-1"
-                >
-                  <Palette className="h-3 w-3" />
-                  Foreslå undertekst
-                </button>
-                <span className="text-[10px] text-phorium-light/50">
-                  Bruker brandprofilen din for å foreslå tekst.
-                </span>
-              </div>
-            </div>
+      </div>
 
-            <div className="space-y-2 rounded-2xl border border-phorium-off/35 bg-phorium-dark/60 p-3 text-[11px]">
-              {bannerSource === "upload" && (
-                <>
-                  <label className="mb-1 block text-[10px] text-phorium-accent/90">
-                    Bakgrunnsbilde
-                  </label>
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      setTextBgFile(file);
-                      const url = URL.createObjectURL(file);
-                      setTextBgPreview(url);
-                    }}
-                    className="block w-full text-[11px] text-phorium-light/80 file:mr-3 file:rounded-full file:border file:border-phorium-off/40 file:bg-phorium-dark file:px-3 file:py-1.5 file:text-[11px] file:text-phorium-light hover:file:bg-phorium-off/10"
-                  />
-                  {textBgPreview && (
-                    <div className="mt-2 overflow-hidden rounded-xl border border-phorium-off/40 bg-black/40">
-                      <img
-                        src={textBgPreview}
-                        alt="Bakgrunnsforhåndsvisning"
-                        className="max-h-40 w-full object-cover"
-                      />
-                    </div>
-                  )}
-                </>
-              )}
+      {/* Rad 2: Templates + stiltekst i to rader */}
+      <div className="space-y-2">
+        {/* Templates (Sommersalg / Nyhet / …) */}
+        <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-phorium-light/80">
+          {["Sommersalg", "Nyhet", "Black Week", "Outlet"].map((tpl) => (
+            <button
+              key={tpl}
+              type="button"
+              onClick={() => {
+                if (tpl === "Sommersalg") {
+                  setSafeHeadline("-40% SOMMERSALG");
+                  setSafeSubline("Kun denne uken");
+                } else if (tpl === "Nyhet") {
+                  setSafeHeadline("NYHETER I BUTIKKEN");
+                  setSafeSubline("Utforsk de siste produktene");
+                } else if (tpl === "Black Week") {
+                  setSafeHeadline("BLACK WEEK");
+                  setSafeSubline("Begrenset antall – førstemann til mølla");
+                } else if (tpl === "Outlet") {
+                  setSafeHeadline("OUTLET");
+                  setSafeSubline("Siste sjanse – gjør et kupp");
+                }
+              }}
+              className="inline-flex items-center rounded-full border border-phorium-off/40 bg-phorium-dark/80 px-3 py-1 hover:border-phorium-accent/70 hover:text-phorium-accent"
+            >
+              {tpl}
+            </button>
+          ))}
+        </div>
 
-              {bannerSource === "ai" && (
-                <p className="text-[11px] text-phorium-light/65">
-                  Vi genererer en tilpasset bakgrunn som matcher brandprofilen
-                  din. Du trenger ikke laste opp noe.
-                </p>
-              )}
-            </div>
-          </div>
+        {/* Stil / bakgrunn textarea */}
+        <div>
+          <label className="mb-1 block text-[10px] text-phorium-light/70">
+            Stil / bakgrunn (valgfritt)
+          </label>
+          <textarea
+            value={safeBgPrompt}
+            onChange={(e) => setSafeBgPrompt(e.target.value)}
+            placeholder='F.eks. «lys sommerfølelse, myke farger, skandinavisk stil» eller la stå tom for auto.'
+            className="h-20 w-full resize-none rounded-2xl border border-phorium-off/40 bg-phorium-dark px-3 py-2 text-[12px] text-phorium-light placeholder:text-phorium-light/40 focus:border-phorium-accent focus:outline-none focus:ring-2 focus:ring-phorium-accent/18"
+          />
+        </div>
+      </div>
+    </div>
 
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+    {/* ---- BAKGRUNN / AI / MITT BILDE + FORESLÅ ---- */}
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-phorium-off/35 bg-phorium-dark/60 px-4 py-3">
+      <div className="flex flex-col gap-1 text-[11px] text-phorium-light/70">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-phorium-light/65">
+          Bakgrunn til banneret
+        </span>
+        <span className="text-[10px] text-phorium-light/60">
+          Vi lager et komplett banner som matcher brandprofilen din – du trenger ikke laste opp noe.
+        </span>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        {/* AI / Mitt bilde toggle – behold logikken du allerede har */}
+        <div className="inline-flex rounded-full border border-phorium-off/30 bg-phorium-dark/80 p-0.5">
+          <button
+            type="button"
+            onClick={() => setBannerSource("ai")}
+            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] ${
+              bannerSource === "ai"
+                ? "bg-phorium-accent text-phorium-dark"
+                : "text-phorium-light/75"
+            }`}
+          >
+            <Sparkles className="h-3 w-3" />
+            AI-bakgrunn
+          </button>
+          <button
+            type="button"
+            onClick={() => setBannerSource("upload")}
+            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] ${
+              bannerSource === "upload"
+                ? "bg-phorium-accent text-phorium-dark"
+                : "text-phorium-light/75"
+            }`}
+          >
+            <ImageIcon className="h-3 w-3" />
+            Mitt bilde
+          </button>
+        </div>
+
+       <button
+  type="button"
+  className="btn btn-xs btn-ghost inline-flex items-center gap-1"
+  onClick={async () => {
+    // Ikke gjør noe hvis hovedtekst er tom
+    if (!safeHeadline.trim()) return;
+
+    try {
+      const res = await fetch("/api/phorium-copy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          headline: safeHeadline.trim(),
+          // Ta gjerne med brand hvis du har det i komponenten:
+          // brand,
+        }),
+      });
+
+      if (!res.ok) return;
+      const data = await res.json();
+
+      if (data?.suggestion) {
+        setSafeSubline(data.suggestion);
+      }
+    } catch (err) {
+      console.error("Kunne ikke foreslå undertekst", err);
+      // Vi lar bare knappen feile stille – luksusfunksjon :)
+    }
+  }}
+>
+  <Palette className="h-3 w-3" />
+  Foreslå undertekst
+</button>
+
+      </div>
+    </div>
+
+          {/* Knapper nederst – tett på innholdet */}
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
@@ -1333,13 +1335,12 @@ async function handleEditGenerate() {
                     : handleOverlayGenerate
                 }
                 disabled={
-  !safeHeadline.trim() ||
-  isBusy ||
-  bannerCooldown > 0 ||
-  (bannerSource === "upload" && !textBgFile) ||
-  !!creditError
-}
-
+                  !safeHeadline.trim() ||
+                  isBusy ||
+                  bannerCooldown > 0 ||
+                  (bannerSource === "upload" && !textBgFile) ||
+                  !!creditError
+                }
                 className="btn btn-primary btn-lg inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {bannerCooldown > 0 ? (
@@ -1364,17 +1365,16 @@ async function handleEditGenerate() {
                   </>
                 )}
               </button>
+
               <button
                 type="button"
                 onClick={handleCampaignPack}
-        disabled={
-  !safeHeadline.trim() ||
-  isBusy ||
-  packCooldown > 0 ||
-  !!creditError
-}
-
-
+                disabled={
+                  !safeHeadline.trim() ||
+                  isBusy ||
+                  packCooldown > 0 ||
+                  !!creditError
+                }
                 className="btn btn-secondary btn-lg inline-flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {packCooldown > 0 ? (
@@ -1394,18 +1394,18 @@ async function handleEditGenerate() {
                   </>
                 )}
               </button>
+
               <button
                 type="button"
                 onClick={handleVariant}
-       disabled={!lastBannerConfig || isBusy || !!creditError}
-
-
+                disabled={!lastBannerConfig || isBusy || !!creditError}
                 className="btn btn-ghost btn-sm inline-flex items-center gap-1 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
                 Ny variant
               </button>
             </div>
+
             <p className="text-[10px] text-phorium-light/60">
               Kampanjepakken gir deg web-hero, Instagram-post og story/reel med
               samme uttrykk.
@@ -1413,6 +1413,7 @@ async function handleEditGenerate() {
           </div>
         </div>
       )}
+
 
       {/* MODE: Produktbilde til scene */}
       {mode === "product" && (
@@ -1422,6 +1423,7 @@ async function handleEditGenerate() {
             Plasser produktet ditt i en AI-generert scene. Bruk et tydelig
             produktbilde – vi bygger miljøet rundt det.
           </p>
+
           <input
             type="file"
             accept="image/png,image/jpeg"
@@ -1430,12 +1432,13 @@ async function handleEditGenerate() {
               if (!file) return;
               const url = URL.createObjectURL(file);
               setBaseImage(url);
-              setSceneFile(file); 
+              setSceneFile(file);
               setImageUrl(null);
               setCampaignPack([]);
             }}
             className="block w-full text-[11px] text-phorium-light/80 file:mr-3 file:rounded-full file:border file:border-phorium-off/40 file:bg-phorium-dark file:px-3 file:py-1.5 file:text-[11px] file:text-phorium-light hover:file:bg-phorium-off/10"
           />
+
           {baseImage && (
             <div className="flex flex-col gap-2 rounded-2xl border border-phorium-off/35 bg-phorium-dark/70 p-3 text-[11px]">
               <div className="flex items-center gap-1.5 text-[10px] text-phorium-light/60">
@@ -1454,18 +1457,21 @@ async function handleEditGenerate() {
               </p>
             </div>
           )}
+
           <textarea
             value={editPrompt}
             onChange={(e) => setEditPrompt(e.target.value)}
             placeholder='Kort: «Lyst studio», «Eksklusivt baderom», «Kjøkkenbenk i tre» osv.'
             className="h-20 w-full resize-none rounded-2xl border border-phorium-off/40 bg-phorium-dark px-3 py-2 text-[12px] text-phorium-light placeholder:text-phorium-light/40 focus:border-phorium-accent focus:outline-none focus:ring-2 focus:ring-phorium-accent/18"
           />
+
           <button
             type="button"
             onClick={handleEditGenerate}
-            disabled={!baseImage || !editPrompt.trim() || isBusy || !!creditError}
-
-            className="btn btn-primary btn-lg inline-flex items-center gap-2 w-full disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+            disabled={
+              !baseImage || !editPrompt.trim() || isBusy || !!creditError
+            }
+            className="btn btn-primary btn-lg inline-flex w-full items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             {editing ? (
               <>
@@ -1482,244 +1488,79 @@ async function handleEditGenerate() {
         </div>
       )}
 
-      {/* Forhåndsvisning + kampanjepakke */}
-      <div className="mt-2 border-t border-phorium-off/30 pt-6">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="flex items-center gap-2 text-lg font-semibold text-phorium-accent">
-            <ImageIcon className="h-4 w-4" />
-            Forhåndsvisning
-          </h2>
-          <label className="flex items-center gap-2 text-[10px] text-phorium-light/65">
-            <input
-              type="checkbox"
-              checked={showSafeZone}
-              onChange={(e) => setShowSafeZone(e.target.checked)}
-              className="accent-phorium-accent"
-            />
-            <Crop className="h-3.5 w-3.5" />
-            Vis trygg tekst-sone
-          </label>
-        </div>
+  
+  <PhoriumVisualsResult
+  imageUrl={imageUrl}
+   isBusy={isBusy}  
+  error={error}
+  campaignPack={campaignPack}
+  history={history}
+  showSafeZone={showSafeZone}
+  setShowSafeZone={setShowSafeZone}
+  fullscreenImage={fullscreenImage}
+  setFullscreenImage={setFullscreenImage}
+  isShopifyMode={isShopifyMode}
+  productIdFromUrl={productIdFromUrl}
+  saving={saving}
+  onDownload={handleDownload}
+  onSaveToShopify={handleSaveImageToShopify}
+ onUseHistoryAgain={handleReusePrompt}
+onUseHistoryStyle={handleUseStyle}
 
-        {error && (
-          <div className="mb-3 rounded-2xl border border-phorium-accent/40 bg-phorium-accent/10 px-3 py-2 text-[11px] text-phorium-light flex items-start gap-2">
-            <AlertCircle className="h-3.5 w-3.5 mt-[2px]" />
-            <span>{error}</span>
-          </div>
-        )}
+/>
 
-        <div className="flex min-h-[240px] flex-col items-center justify-center rounded-2xl border border-phorium-off/35 bg-phorium-dark/60 px-4 py-6">
-          {isBusy && (
-            <PhoriumLoader label="Genererer bilde … finjusterer komposisjon og tekstplass" />
-          )}
 
-          {!isBusy && imageUrl && (
-            <AnimatePresence>
-              <motion.div
-                key={imageUrl}
-                initial={{ opacity: 0, scale: 0.97 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.97 }}
-                transition={{ duration: 0.3 }}
-                className="flex w-full flex-col items-center gap-3"
-              >
-                <div className="relative">
-                  <img
-                    src={imageUrl}
-                    alt="Generert bilde"
-                    onClick={() => setFullscreenImage(imageUrl)}
-                    className="max-h-[420px] max-w-full cursor-zoom-in rounded-2xl border border-phorium-accent/40 object-contain shadow-2xl transition hover:opacity-90"
-                  />
 
-                  {showSafeZone && (
-                    <div className="pointer-events-none absolute left-1/2 top-1/2 h-[70%] w-[80%] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-dashed border-phorium-accent/70" />
-                  )}
-                </div>
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleDownload(imageUrl)}
-                    className="btn btn-secondary btn-sm inline-flex items-center gap-1"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                    Last ned
-                  </button>
-                  {isShopifyMode && productIdFromUrl && (
-                    <button
-                      type="button"
-                      onClick={handleSaveImageToShopify}
-                      disabled={saving}
-                      className="btn btn-primary btn-sm inline-flex items-center gap-1 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {saving ? (
-                        <>
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          Lagrer i Shopify…
-                        </>
-                      ) : (
-                        <>
-                          <Store className="h-3.5 w-3.5" />
-                          Lagre som produktbilde i Shopify
-                        </>
-                      )}
-                    </button>
-                  )}
-                </div>
+      {/* Global lightbox for alle bilder (preview, kampanjepakke, historikk) */}
+      <AnimatePresence>
+  {fullscreenImage && (
+    <motion.div
+      key="fullscreen"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.25 }}
+      className="fixed inset-0 z-[100] flex cursor-zoom-out items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
+      onClick={() => setFullscreenImage(null)}
+    >
+      <motion.img
+        src={fullscreenImage}
+        alt="Forstørret bilde"
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        transition={{ duration: 0.25 }}
+        className="max-h-[90vh] max-w-[95vw] rounded-2xl border border-phorium-accent/50 object-contain shadow-2xl"
+      />
 
-                <AnimatePresence>
-                  {fullscreenImage && (
-                    <motion.div
-                      key="fullscreen"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.25 }}
-                      className="fixed inset-0 z-[100] flex cursor-zoom-out items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
-                      onClick={() => setFullscreenImage(null)}
-                    >
-                      <motion.img
-                        src={fullscreenImage}
-                        alt="Forstørret bilde"
-                        initial={{ scale: 0.95, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0.95, opacity: 0 }}
-                        transition={{ duration: 0.25 }}
-                        className="max-h-[90vh] max-w-[95vw] rounded-2xl border border-phorium-accent/50 object-contain shadow-2xl"
-                      />
-                      <motion.button
-                        type="button"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="absolute right-6 top-6 rounded-full bg-phorium-accent px-3 py-1 text-[11px] font-semibold text-phorium-dark shadow-lg transition hover:bg-phorium-accent/90 inline-flex items-center gap-1"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setFullscreenImage(null);
-                        }}
-                      >
-                        <ZoomOut className="h-3.5 w-3.5" />
-                        Lukk
-                      </motion.button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-            </AnimatePresence>
-          )}
+      <motion.div
+        initial={{ opacity: 0, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 4 }}
+        className="absolute bottom-6 left-1/2 flex -translate-x-1/2 gap-2"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={() => handleDownload(fullscreenImage)}
+          className="btn btn-secondary btn-sm inline-flex items-center gap-1"
+        >
+          <Download className="h-3.5 w-3.5" />
+          Last ned
+        </button>
+        <button
+          type="button"
+          onClick={() => setFullscreenImage(null)}
+          className="btn btn-ghost btn-sm inline-flex items-center gap-1"
+        >
+          <ZoomOut className="h-3.5 w-3.5" />
+          Lukk
+        </button>
+      </motion.div>
+    </motion.div>
+  )}
+</AnimatePresence>
 
-          {!isBusy && !imageUrl && !error && (
-            <p className="flex items-center gap-1.5 text-center text-[12px] text-phorium-light/70">
-              <ImageIcon className="h-3.5 w-3.5" />
-              Velg modus, fyll inn det viktigste – forhåndsvisningen dukker opp
-              her.
-            </p>
-          )}
-        </div>
-
-        {saveMessage && (
-          <p className="mt-2 text-[11px] text-phorium-light/70">
-            {saveMessage}
-          </p>
-        )}
-
-        {/* Kampanjepakke-visning */}
-        {campaignPack.length > 0 && (
-          <div className="mt-4">
-            <p className="mb-1.5 text-[11px] text-phorium-light/75">
-              Kampanjepakke generert:
-            </p>
-            <div className="grid gap-3 md:grid-cols-3">
-              {campaignPack.map((item) => (
-                <div
-                  key={item.label + item.size}
-                  className="flex flex-col gap-2 rounded-2xl border border-phorium-off/35 bg-phorium-dark p-2 text-[11px]"
-                >
-                  <div className="text-[10px] font-semibold text-phorium-accent flex items-center justify-between gap-2">
-                    <span>{item.label}</span>
-                    <span className="text-[9px] text-phorium-light/60">
-                      {item.size}
-                    </span>
-                  </div>
-                  <div className="mt-1 flex flex-1 items-center justify-center overflow-hidden rounded-xl bg-phorium-dark">
-  <img
-    src={item.url}
-    alt={item.label}
-    onClick={() => setFullscreenImage(item.url)}
-    className="h-full w-full cursor-zoom-in object-cover transition hover:opacity-90"
-  />
-</div>
-
-                  <button
-                    type="button"
-                    onClick={() => handleDownload(item.url)}
-                    className="btn btn-secondary btn-xs inline-flex items-center justify-center gap-1"
-                  >
-                    <Download className="h-3 w-3" />
-                    Last ned
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Historikk */}
-      <div className="mt-8 border-t border-phorium-off/30 pt-5">
-        <h2 className="mb-2 flex items-center gap-2 text-lg font-semibold text-phorium-accent">
-          <History className="h-4 w-4" />
-          Historikk (siste 3)
-        </h2>
-        <p className="mb-2 text-[11px] text-phorium-light/65">
-          <span className="font-semibold">Bruk igjen</span> regenererer et
-          lignende bilde.{" "}
-          <span className="font-semibold">Bruk stil</span> bruker stilen videre
-          med ny tekst/prompt.
-        </p>
-
-        {history.length === 0 && (
-          <p className="text-[12px] text-phorium-light/70">
-            Når du genererer bilder, lagres de her for rask gjenbruk.
-          </p>
-        )}
-
-        <div className="grid gap-4 md:grid-cols-3">
-          {history.map((item, index) => (
-            <div
-              key={item.createdAt + index}
-              className="flex flex-col gap-2 rounded-2xl border border-phorium-off/35 bg-phorium-dark p-3 text-[11px]"
-            >
-              <p className="min-h-[30px] line-clamp-2 font-semibold text-phorium-accent/90">
-                {item.prompt}
-              </p>
-              <div className="flex flex-1 items-center justify-center overflow-hidden rounded-xl bg-phorium-dark/80">
-                <img
-                  src={item.imageUrl}
-                  alt="Historikkbilde"
-                  onClick={() => setFullscreenImage(item.imageUrl)}
-                  className="h-full w-full cursor-zoom-in object-cover transition hover:opacity-90"
-                />
-              </div>
-              <div className="mt-2 flex gap-1.5">
-                <button
-                  onClick={() => handleReusePrompt(item)}
-                  className="btn btn-secondary btn-sm inline-flex flex-1 items-center justify-center gap-1"
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  Bruk igjen
-                </button>
-                <button
-                  onClick={() => handleUseStyle(item)}
-                  className="btn btn-ghost btn-sm inline-flex flex-1 items-center justify-center gap-1"
-                >
-                  <Palette className="h-3.5 w-3.5" />
-                  Bruk stil
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
     </>
   );
 }
