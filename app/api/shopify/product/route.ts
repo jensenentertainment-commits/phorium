@@ -117,10 +117,12 @@ export async function GET(req: Request) {
       total: count ?? products.length,
     });
 
-  } catch (err) {
+} catch (err) {
   console.error("Products API error:", err);
   return NextResponse.json(
     { success: false, error: "Runtime-feil i products-API.", details: String(err) },
     { status: 500 },
   );
+}
+
 }
