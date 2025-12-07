@@ -286,33 +286,34 @@ export default function PhoriumVisualsForm() {
     void fetchProduct();
   }, [productIdFromUrl]);
 
-  // ------- helpers for prompt-kontekst -------
+// ------- helpers for prompt-kontekst -------
+function brandPrefix() {
+  if (!brand) return "";
+  const parts: string[] = [];
 
-  function brandPrefix() {
-    if (!brand) return "";
-    const parts: string[] = [];
+  if (brand.store_name) {
+    parts.push(`Butikk: ${brand.store_name}.`);
+  }
 
-  if (brand?.store_name) {
-  parts.push(`Butikk: ${brand.store_name}.`);
-}
+  if (brand.industry) {
+    parts.push(`Bransje: ${brand.industry}.`);
+  }
 
+  if (brand.target_audience) {
+    parts.push(`Målgruppe: ${brand.target_audience}.`);
+  }
 
-    if (brand.industry) {
-      parts.push(`Bransje: ${brand.industry}.`);
-    }
-    if (brand.target_audience) {
-      parts.push(`Målgruppe: ${brand.target_audience}.`);
-    }
-    if (brand.tone_of_voice) {
-      parts.push(`Tone: ${brand.tone_of_voice}.`);
-    }
-    if (brand.style_keywords && brand.style_keywords.length > 0) {
-      parts.push(
-        `Visuell stil: ${brand.style_keywords
-          .map((w: string) => w.toLowerCase())
-          .join(", ")}.`,
-      );
-    }
+  if (brand.tone_of_voice) {
+    parts.push(`Tone: ${brand.tone_of_voice}.`);
+  }
+
+  if (brand.style_keywords && brand.style_keywords.length > 0) {
+    parts.push(
+      `Visuell stil: ${brand.style_keywords
+        .map((w: string) => w.toLowerCase())
+        .join(", ")}.`
+    );
+  }
     if (brand.primary_color || brand.secondary_color) {
       parts.push(
         `Farger: ${
