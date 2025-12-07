@@ -7,6 +7,7 @@ export default function RLSTestPage() {
   const supabase = createClientComponentClient();
 
   const [user, setUser] = useState<any>(null);
+  const [session, setSession] = useState<any>(null);
   const [credits, setCredits] = useState<any>(null);
   const [generations, setGenerations] = useState<any>(null);
   const [errors, setErrors] = useState<any>(null);
@@ -14,18 +15,21 @@ export default function RLSTestPage() {
   useEffect(() => {
     async function run() {
       try {
-        // 1) Hent innlogget bruker
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
         const {
           data: { user },
         } = await supabase.auth.getUser();
+
+        setSession(session);
         setUser(user);
 
-        // 2) Hent credits for denne brukeren
         const { data: creditsData, error: creditsError } = await supabase
           .from("credits")
           .select("*");
 
-        // 3) Hent generations / historikk
         const { data: genData, error: genError } = await supabase
           .from("generations")
           .select("id, user_id, created_at")
@@ -44,7 +48,7 @@ export default function RLSTestPage() {
     }
 
     run();
-  }, []);
+  }, [supabase]);
 
   return (
     <div style={{ padding: "20px" }}>
@@ -53,6 +57,9 @@ export default function RLSTestPage() {
 
       <h2 style={{ marginTop: "20px" }}>👤 Bruker</h2>
       <pre>{JSON.stringify(user, null, 2)}</pre>
+
+      <h2 style={{ marginTop: "20px" }}>🧾 Session</h2>
+      <pre>{JSON.stringify(session, null, 2)}</pre>
 
       <h2 style={{ marginTop: "20px" }}>💳 Credits</h2>
       <pre>{JSON.stringify(credits, null, 2)}</pre>
