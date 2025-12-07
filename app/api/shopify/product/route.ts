@@ -85,13 +85,14 @@ export async function GET(req: Request) {
       .order("created_at_shopify", { ascending: false })
       .range(from, to);
 
-    if (error) {
-      console.error("❌ Supabase products error:", error);
-      return NextResponse.json(
-        { success: false, error: "Kunne ikke hente produkter." },
-        { status: 500 },
-      );
-    }
+   if (error) {
+  console.error("Supabase products error:", error);
+  return NextResponse.json(
+    { success: false, error: "Supabase-feil i products-API.", details: error },
+    { status: 500 },
+  );
+}
+
 
     // Mapp resultater
     const products = (data || []).map((row) => ({
@@ -117,10 +118,9 @@ export async function GET(req: Request) {
     });
 
   } catch (err) {
-    console.error("❌ Products API error:", err);
-    return NextResponse.json(
-      { success: false, error: "Uventet feil i produkt-API." },
-      { status: 500 },
-    );
-  }
+  console.error("Products API error:", err);
+  return NextResponse.json(
+    { success: false, error: "Runtime-feil i products-API.", details: String(err) },
+    { status: 500 },
+  );
 }
