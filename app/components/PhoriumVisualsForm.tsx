@@ -294,7 +294,7 @@ export default function PhoriumVisualsForm() {
 
     if (brand.store_name) {
       if (brand?.store_name) {
-  parts.push(`Butikk: ${brand.store_name}.`);
+  parts.push(`Butikk: ${brand.store_name}`);
 }
 
     if (brand.industry) {
