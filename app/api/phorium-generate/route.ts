@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
-import sharp from "sharp";
-import { useCredits } from "@/lib/credits"; //
+import {
+  ensureCreditsAvailable,
+  consumeCreditsAfterSuccess,
+} from "@/lib/credits";
+// Hvis du har aktivitetslogging:
 import { logActivity } from "@/lib/activityLog";
 
 export const runtime = "nodejs";
@@ -10,288 +13,297 @@ const apiKey = process.env.OPENAI_API_KEY;
 
 if (!apiKey) {
   console.warn(
-    "[Phorium] OPENAI_API_KEY mangler. Sett den i .env.local og restart dev-server."
+    "[Phorium] OPENAI_API_KEY mangler. Sett den i .env.local og restart dev-server.",
   );
 }
 
-const client = new OpenAI({ apiKey: apiKey || "" });
+const client = new OpenAI({
+  apiKey: apiKey!,
+});
 
-type Body = {
+type PhoriumGenerateBody = {
+  userId?: string;
   backgroundPrompt: string;
   headline: string;
   subline?: string;
-  size?: string; // ønsket sluttstørrelse, f.eks. "1200x628"
-    userId?: string;
+  size?: string; // f.eks. "1200x628"
+  brandPrimary?: string;
+  brandSecondary?: string;
+  brandTextColor?: string;
 };
+
+type PhoriumGenerateResult = {
+  svg: string;
+  width: number;
+  height: number;
+};
+
+const DEFAULT_SIZE = "1200x628";
+const CREDITS_PER_RUN = 6;
+const FEATURE_KEY = "phorium_generate";
+
+function parseSize(size: string): [number, number] | [null, null] {
+  const match = size.match(/^(\d+)x(\d+)$/i);
+  if (!match) return [null, null];
+  const w = Number(match[1]);
+  const h = Number(match[2]);
+  if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) {
+    return [null, null];
+  }
+  return [w, h];
+}
+
+function escapeXml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
 
 export async function POST(req: Request) {
   try {
     if (!apiKey) {
       return NextResponse.json(
         {
-          error:
-            "OPENAI_API_KEY mangler på serveren. Legg den til i .env.local og restart.",
+          success: false,
+          error: "OPENAI_API_KEY mangler på server.",
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
-      const body = (await req.json()) as Body;
+    const body = (await req.json()) as PhoriumGenerateBody;
+
     const userId = body.userId;
+    const backgroundPrompt = body.backgroundPrompt?.trim();
+    const headline = body.headline?.trim();
+    const subline = body.subline?.trim() || "";
+    const size = body.size || DEFAULT_SIZE;
 
     // 1) Krev innlogging
     if (!userId) {
       return NextResponse.json(
         {
+          success: false,
           error: "Du må være innlogget for å generere bannere.",
         },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
-    // 2) Kreditt-trekk før OpenAI + sharp (banner-generering)
-    // Her bruker vi 6 kreditter per banner (juster hvis du vil)
-    const creditResult = await useCredits(userId, 6);
-
-    if (!creditResult.ok) {
+    // 2) Valider input
+    if (!backgroundPrompt || !headline) {
       return NextResponse.json(
         {
-          error:
-            creditResult.error ||
-            "Ikke nok kreditter til å generere flere bannere.",
-        },
-        { status: 403 }
-      );
-    }
-
-
-    if (!body?.backgroundPrompt || !body?.headline) {
-      return NextResponse.json(
-        {
+          success: false,
           error: "backgroundPrompt og headline er påkrevd.",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // 1) Ønsket sluttstørrelse (for Phorium-banneret)
-    const [targetWidth, targetHeight] = parseSize(body.size || "1200x628");
+    const [targetWidth, targetHeight] = parseSize(size);
     if (!targetWidth || !targetHeight) {
       return NextResponse.json(
         {
+          success: false,
           error: "Ugyldig size-format. Bruk f.eks. 1200x628.",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // 2) Velg en gyldig OpenAI-størrelse basert på ratio
-    const openAiSize = chooseOpenAiSize(targetWidth, targetHeight);
-    // Må være en av: "1024x1024", "1024x1536", "1536x1024"
+    // 3) Sjekk at bruker har nok kreditter (INGEN trekk ennå)
+    const creditCheck = await ensureCreditsAvailable(userId, CREDITS_PER_RUN);
 
-    const prompt = `
-${body.backgroundPrompt}
-Design et kommersielt banner uten tekst, tall, logoer eller vannmerker i motivet.
-La komposisjonen ha tydelig plass til tittel og undertekst som skal legges på etterpå.
-`;
+    if (!creditCheck.ok) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            creditCheck.error ||
+            "Ikke nok kreditter til å kjøre Phorium generate.",
+        },
+        { status: 403 },
+      );
+    }
 
-    // 3) Generer bakgrunn i OpenAI-størrelse
-    const imageResult = await client.images.generate({
+    // 4) Bygg prompt til GPT-Image
+    const brandPrimary = body.brandPrimary || "#1A4242";
+    const brandSecondary = body.brandSecondary || "#C8B77A";
+    const brandTextColor = body.brandTextColor || "#FFFFFF";
+
+    const imagePrompt = `
+Highly polished ecommerce banner background, no text, no logos.
+Style: premium, minimal, Scandinavian ecommerce, soft gradients and subtle depth.
+Use colors that complement:
+- Primary: ${brandPrimary}
+- Secondary: ${brandSecondary}
+
+Scene description:
+${backgroundPrompt}
+
+Do NOT include any text in the image. No words, no letters.
+Just a clean, high-end background optimized for overlaying UI text.
+`.trim();
+
+    // 5) Kall GPT-Image-1 for å generere bakgrunn
+    const imageResponse = await client.images.generate({
       model: "gpt-image-1",
-      prompt,
-      size: openAiSize,
+      prompt: imagePrompt,
+      size: "1024x1024", // vi skalerer inn i SVG uansett
       n: 1,
-      // Ikke send response_format her; vi håndterer både url og b64_json under.
+      response_format: "b64_json",
     });
 
-    if (!imageResult.data || !imageResult.data[0]) {
-      console.error("[Phorium] Ingen bilde-data fra OpenAI:", imageResult);
+    const imgData = imageResponse.data?.[0]?.b64_json;
+    if (!imgData) {
       return NextResponse.json(
-        { error: "Kunne ikke generere bakgrunnsbilde." },
-        { status: 500 }
+        {
+          success: false,
+          error: "OpenAI returnerte ikke noe bilde.",
+        },
+        { status: 502 },
       );
     }
 
-    const first = imageResult.data[0] as any;
+    const bgHref = `data:image/png;base64,${imgData}`;
 
-    let rawBuffer: Buffer | null = null;
+    // 6) Bygg SVG-banner med bilde + tekst
+    const safeHeadline = escapeXml(headline);
+    const safeSubline = escapeXml(subline);
 
-    // Foretrukket: b64_json dersom tilgjengelig
-    if (first.b64_json) {
-      rawBuffer = Buffer.from(first.b64_json, "base64");
+    const svg = `
+<svg xmlns="http://www.w3.org/2000/svg" width="${targetWidth}" height="${targetHeight}" viewBox="0 0 ${targetWidth} ${targetHeight}" role="img">
+  <defs>
+    <clipPath id="clip">
+      <rect x="0" y="0" width="${targetWidth}" height="${targetHeight}" rx="32" ry="32" />
+    </clipPath>
+  </defs>
+
+  <!-- Bakgrunnsbilde -->
+  <image
+    href="${bgHref}"
+    x="0"
+    y="0"
+    width="${targetWidth}"
+    height="${targetHeight}"
+    preserveAspectRatio="xMidYMid slice"
+    clip-path="url(#clip)"
+  />
+
+  <!-- Gradient overlay for lesbar tekst -->
+  <rect
+    x="0"
+    y="0"
+    width="${targetWidth}"
+    height="${targetHeight}"
+    fill="url(#overlayGradient)"
+    clip-path="url(#clip)"
+  />
+
+  <defs>
+    <linearGradient id="overlayGradient" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(0,0,0,0.35)" />
+      <stop offset="40%" stop-color="rgba(0,0,0,0.25)" />
+      <stop offset="100%" stop-color="rgba(0,0,0,0.55)" />
+    </linearGradient>
+  </defs>
+
+  <!-- Tekstblokk -->
+  <g transform="translate(64, ${targetHeight / 2 - 40})">
+    <text
+      x="0"
+      y="0"
+      font-family="system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif"
+      font-size="40"
+      font-weight="700"
+      fill="${brandTextColor}"
+      dominant-baseline="hanging"
+    >
+      ${safeHeadline}
+    </text>
+
+    ${
+      safeSubline
+        ? `<text
+      x="0"
+      y="56"
+      font-family="system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif"
+      font-size="22"
+      font-weight="400"
+      fill="${brandTextColor}"
+      opacity="0.9"
+      dominant-baseline="hanging"
+    >
+      ${safeSubline}
+    </text>`
+        : ""
     }
-    // Fallback: url → hent bildefil
-    else if (first.url) {
-      const imgRes = await fetch(first.url);
-      if (!imgRes.ok) {
-        console.error(
-          "[Phorium] Klarte ikke å hente bilde fra URL:",
-          first.url,
-          imgRes.status,
-          await imgRes.text().catch(() => "")
-        );
-        return NextResponse.json(
-          { error: "Kunne ikke hente generert bilde fra OpenAI." },
-          { status: 500 }
-        );
-      }
-      const arrayBuffer = await imgRes.arrayBuffer();
-      rawBuffer = Buffer.from(arrayBuffer);
+  </g>
+
+  <!-- Subtil border -->
+  <rect
+    x="0.5"
+    y="0.5"
+    width="${targetWidth - 1}"
+    height="${targetHeight - 1}"
+    rx="32"
+    ry="32"
+    fill="none"
+    stroke="${brandSecondary}"
+    stroke-width="1"
+    opacity="0.7"
+  />
+</svg>
+`.trim();
+
+    // 7) Trekk og logg kreditter ETTER at alt har gått bra
+    await consumeCreditsAfterSuccess(userId, CREDITS_PER_RUN, FEATURE_KEY, {
+      openaiModel: "gpt-image-1",
+      // tokensIn / tokensOut kan legges til senere hvis du vil
+    });
+
+    // (valgfritt) logg aktivitet i din egen logg-tabell
+    try {
+      await logActivity({
+        userId,
+        eventType: "PHORIUM_GENERATE",
+        meta: {
+          credits_charged: CREDITS_PER_RUN,
+          size,
+          brandPrimary,
+          brandSecondary,
+        },
+      });
+    } catch (err) {
+      console.warn("[Phorium] Klarte ikke å logge aktivitet:", err);
     }
 
-    if (!rawBuffer) {
-      console.error("[Phorium] Mangler bildepayload (hverken b64_json eller url).");
-      return NextResponse.json(
-        { error: "Kunne ikke lese generert bilde." },
-        { status: 500 }
-      );
-    }
-
-    // 4) Resize/crop til ønsket sluttstørrelse (f.eks. 1200x628)
-    const bgBuffer = await sharp(rawBuffer)
-      .resize(targetWidth, targetHeight, {
-        fit: "cover",
-        position: "center",
-      })
-      .toBuffer();
-
-    // 5) Bygg tekst-overlay i SVG
-    const headline = sanitize(body.headline);
-    const subline = body.subline ? sanitize(body.subline) : "";
-    const svg = buildTextOverlaySVG({
+    const result: PhoriumGenerateResult = {
+      svg,
       width: targetWidth,
       height: targetHeight,
-      headline,
-      subline,
-    });
+    };
 
-    // 6) Komponer bakgrunn + tekst
-    const finalBuffer = await sharp(bgBuffer)
-      .composite([{ input: Buffer.from(svg), left: 0, top: 0 }])
-      .png()
-      .toBuffer();
-
-          // etter at kampanjepakken er generert ferdig:
-    await logActivity({
-      userId,
-      eventType: "CAMPAIGN_GENERATED",
-      meta: {
-        kind: "campaign_pack",
-        formats: ["1200x628", "1080x1080", "1080x1920"],
-        credits_charged: 8,
-        headline: body.headline ?? null,
-      },
-    });
-
-   // 7) Returner PNG som Uint8Array (BodyInit-friendly)
-const pngBytes = new Uint8Array(finalBuffer);
-
-return new NextResponse(pngBytes as any, {
-  status: 200,
-  headers: {
-    "Content-Type": "image/png",
-  },
-});
-
-  } catch (err: any) {
-    console.error("[Phorium] Phorium-generate error:", err);
     return NextResponse.json(
       {
-        error: "Noe gikk galt ved generering av Phorium-banner.",
-        details: err?.message || String(err),
+        success: true,
+        result,
       },
-      { status: 500 }
+      { status: 200 },
+    );
+  } catch (err: any) {
+    console.error("Feil i /api/phorium-generate:", err);
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Uventet feil under banner-generering.",
+        detail: String(err?.message || err),
+      },
+      { status: 500 },
     );
   }
-}
-
-// helpers
-
-function parseSize(size: string): [number, number] {
-  try {
-    const [w, h] = size.split("x").map((n) => parseInt(n.trim(), 10));
-    if (!w || !h || Number.isNaN(w) || Number.isNaN(h)) return [0, 0];
-    return [w, h];
-  } catch {
-    return [0, 0];
-  }
-}
-
-// Velg nærmeste gyldige GPT-Image-1-størrelse basert på ratio
-// Lovlige: 1024x1024 (kvadrat), 1536x1024 (wide), 1024x1536 (tall)
-function chooseOpenAiSize(
-  targetWidth: number,
-  targetHeight: number
-): "1024x1024" | "1536x1024" | "1024x1536" {
-  const ratio = targetWidth / targetHeight;
-
-  // Bredere enn ca 4:3 → wide
-  if (ratio > 1.3) return "1536x1024";
-  // Smal / høy → tall
-  if (ratio < 0.8) return "1024x1536";
-  // Ellers kvadrat-ish
-  return "1024x1024";
-}
-
-function sanitize(text: string): string {
-  return text.replace(/[<>]/g, "").trim();
-}
-
-function buildTextOverlaySVG({
-  width,
-  height,
-  headline,
-  subline,
-}: {
-  width: number;
-  height: number;
-  headline: string;
-  subline?: string;
-}): string {
-  const padding = Math.round(width * 0.06);
-  const headlineFontSize = Math.max(Math.round(width * 0.07), 32);
-  const sublineFontSize = Math.max(Math.round(width * 0.028), 16);
-
-  const headlineY = padding + headlineFontSize;
-  const sublineY = headlineY + sublineFontSize + 10;
-
-  return `
-<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-  <style>
-    .headline {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-      font-size: ${headlineFontSize}px;
-      font-weight: 700;
-      fill: #F4F0E6;
-      text-shadow: 0px 2px 6px rgba(0,0,0,0.55);
-    }
-    .subline {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-      font-size: ${sublineFontSize}px;
-      font-weight: 400;
-      fill: #E4D7B0;
-      text-shadow: 0px 2px 5px rgba(0,0,0,0.55);
-    }
-  </style>
-  <rect x="0" y="0" width="${width}" height="${height}" fill="transparent" />
-  <text x="${padding}" y="${headlineY}" class="headline">${escapeXML(
-    headline
-  )}</text>
-  ${
-    subline
-      ? `<text x="${padding}" y="${sublineY}" class="subline">${escapeXML(
-          subline
-        )}</text>`
-      : ""
-  }
-</svg>`;
-}
-
-function escapeXML(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
 }

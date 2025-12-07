@@ -1,10 +1,7 @@
 // app/api/generate-text/route.ts
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
-import {
-  ensureCreditsAvailable,
-  consumeCreditsAfterSuccess,
-} from "@/lib/credits";
+import { useCredits } from "@/lib/credits";
 import { logActivity } from "@/lib/activityLog";
 
 const openai = new OpenAI({
@@ -66,21 +63,20 @@ export async function POST(req: Request) {
       );
     }
 
-  // 3) Kredittsjekk – 2 kreditter per generering (INGEN trekk enda)
-const creditCheck = await ensureCreditsAvailable(userId, 2);
+    // 3) Kredittsjekk – 2 kreditter per generering
+    const creditResult = await useCredits(userId, 2);
 
-if (!creditCheck.ok) {
-  return NextResponse.json(
-    {
-      success: false,
-      error:
-        creditCheck.error ||
-        "Ikke nok kreditter til å generere mer tekst.",
-    },
-    { status: 403 },
-  );
-}
-
+    if (!creditResult.ok) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            creditResult.error ||
+            "Ikke nok kreditter til å generere mer tekst.",
+        },
+        { status: 403 },
+      );
+    }
 
     // 4) Brand-kontekst
     const brandContext = brand
@@ -149,7 +145,17 @@ VIKTIG:
 
     const raw = completion.choices[0]?.message?.content;
 
- if (!raw) {
+    await logActivity({
+  userId, // fra body eller session
+  eventType: "TEXT_GENERATED",
+  meta: {
+    source: body.source || "manual", // hvis du har noe lignende
+    credits_charged: 2,
+    productName: body.productName ?? null,
+  },
+});
+
+    if (!raw) {
       return NextResponse.json(
         {
           success: false,
@@ -169,25 +175,6 @@ VIKTIG:
         .trim();
       parsed = JSON.parse(cleaned);
     }
-
-    // Etter vellykket OpenAI-svar: trekk og logg
-await consumeCreditsAfterSuccess(userId, 2, "product_text", {
-  openaiModel: "gpt-4.1-mini", // tilpass til modellen du faktisk bruker
-  // tokensIn: completion.usage?.input_tokens,
-  // tokensOut: completion.usage?.output_tokens,
-});
-
-// Etter at vi VET at kreditter er trukket
-await logActivity({
-  userId,
-  eventType: "TEXT_GENERATED",
-  meta: {
-    source: body.source || "manual",
-    credits_charged: 2,
-    productName: body.productName ?? null,
-  },
-});
-
 
     // 6) Returner i formatet PhoriumTextForm forventer
     return NextResponse.json(

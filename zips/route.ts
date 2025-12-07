@@ -2,11 +2,7 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import sharp from "sharp";
-import {
-  ensureCreditsAvailable,
-  consumeCreditsAfterSuccess,
-} from "@/lib/credits";
-
+import { useCredits } from "@/lib/credits";
 import { logActivity } from "@/lib/activityLog";
 
 
@@ -62,21 +58,20 @@ export async function POST(req: Request) {
       );
     }
 
-   // 2) Kredittsjekk – 4 kreditter per standardbilde (INGEN trekk ennå)
-const creditCheck = await ensureCreditsAvailable(userId, 4);
+    // 2) Kredittsjekk – 4 kreditter per standardbilde
+    const creditResult = await useCredits(userId, 4);
 
-if (!creditCheck.ok) {
-  return NextResponse.json(
-    {
-      success: false,
-      error:
-        creditCheck.error ||
-        "Ikke nok kreditter til å generere flere bilder.",
-    },
-    { status: 403 },
-  );
-}
-
+    if (!creditResult.ok) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            creditResult.error ||
+            "Ikke nok kreditter til å generere flere bilder.",
+        },
+        { status: 403 },
+      );
+    }
 
     // 3) Finn ønsket målformat – fallback til 1024x1024
     const target =
@@ -124,12 +119,6 @@ if (!creditCheck.ok) {
 
     const finalB64 = resizedBuffer.toString("base64");
     const dataUrl = `data:image/png;base64,${finalB64}`;
-
-
-
-await consumeCreditsAfterSuccess(userId, 4, "visuals_v1", {
-  openaiModel: "gpt-image-1", // eller hva du bruker
-});
 
       // ... etter at du har laget dataUrl, før return:
     await logActivity({

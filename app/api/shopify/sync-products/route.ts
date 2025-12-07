@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { getShopifySession } from "@/lib/shopifySession";
+import { checkRateLimit } from "lib/rateLimit";
 
 const SHOPIFY_API_VERSION = "2024-01";
 
@@ -24,6 +25,27 @@ export async function POST(req: Request) {
     }
 
     const { shop, accessToken } = session;
+
+    // 🔹 RATE LIMIT – gratis, men ikke uendelig
+    // Vi bruker shop-domene som "identitet" for begrensning
+    const limit = await checkRateLimit({
+      route: "/api/shopify/sync-products",
+      userId: null,
+      ip: shop,          // per shop-domain
+      windowSeconds: 300, // 5 minutter
+      maxRequests: 3,     // maks 3 full-sync på 5 minutter per shop
+    });
+
+    if (!limit.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Du har synkronisert veldig ofte på kort tid. Vent litt før du kjører en ny sync.",
+        },
+        { status: 429 },
+      );
+    }
 
     let sinceId = 0;
     let totalImported = 0;
@@ -143,28 +165,20 @@ export async function POST(req: Request) {
       }
     }
 
+    // 🔹 Logg sync til Supabase (dette lå før etter en return – nå kjøres det faktisk)
+    await supabaseAdmin.from("shopify_sync_log").insert({
+      shop_domain: shop,
+      imported_count: totalImported,
+      total_products: totalImported, // evt. justér hvis du vil lagre "expected total"
+      note: "Full sync via since_id",
+      synced_at: new Date().toISOString(),
+    });
+
+    // 🔹 Returner synk-resultat til frontend
     return NextResponse.json({
       success: true,
       imported: totalImported,
     });
-
-// Logg sync til Supabase
-await supabaseAdmin
-  .from("shopify_sync_log")
-  .insert({
-    shop_domain: shop,
-    imported_count: totalImported,
-    total_products: totalImported, // du kan endre hvis du vil lagre 'expected total'
-    note: "Full sync via since_id"
-  });
-
-// Returner synk-resultat til frontend
-return NextResponse.json({
-  success: true,
-  imported: totalImported
-});
-
-
   } catch (err: any) {
     console.error("Sync-products error:", err);
     return NextResponse.json(

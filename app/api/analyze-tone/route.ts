@@ -1,5 +1,7 @@
+// app/api/analyze-tone/route.ts
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
+import { checkRateLimit } from "lib/rateLimit";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
@@ -18,11 +20,36 @@ export async function POST(req: Request) {
     const body = await req.json();
     const text = (body.text as string | undefined) || "";
     const language = (body.language as string | undefined) || "norsk";
+    const userId = (body.userId as string | undefined) || null;
 
     if (!text.trim()) {
       return NextResponse.json(
         { success: false, error: "Ingen tekst å analysere." },
         { status: 400 },
+      );
+    }
+
+    // 🔹 RATE LIMIT: gratis, men ikke uendelig
+    const ip =
+      (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() ||
+      null;
+
+    const limit = await checkRateLimit({
+      route: "/api/analyze-tone",
+      userId,
+      ip,
+      windowSeconds: 60, // vindu på 60 sekunder
+      maxRequests: 20,   // f.eks. maks 20 analyser per minutt per bruker/IP
+    });
+
+    if (!limit.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Du har gjort mange toneanalyser på kort tid. Vent litt og prøv igjen.",
+        },
+        { status: 429 },
       );
     }
 
