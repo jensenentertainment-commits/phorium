@@ -120,9 +120,11 @@ export async function GET(req: Request) {
 } catch (err) {
   console.error("Products API error:", err);
   return NextResponse.json(
-    { success: false, error: "Runtime-feil i products-API.", details: String(err) },
+    {
+      success: false,
+      error: String(err),          // 👈 vis SELVE feilmeldingen
+    },
     { status: 500 },
   );
 }
-
 }
