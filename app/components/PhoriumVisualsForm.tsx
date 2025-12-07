@@ -266,7 +266,7 @@ export default function PhoriumVisualsForm() {
         setProductLoading(true);
         setProductError(null);
 
-        const res = await fetch(`/api/shopify/product?id=${productIdFromUrl}`, {
+        const res = await fetch(`/api/studio/product?id=${id}`)`, {
           cache: "no-store",
         });
 

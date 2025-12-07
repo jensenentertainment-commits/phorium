@@ -1,130 +1,114 @@
-// app/api/shopify/product/route.ts
+// app/api/studio/product/route.ts
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { getShopifySession } from "@/lib/shopifySession";
+import { cookies } from "next/headers";
+
+// Henter user_id fra Supabase-auth-cookie (juster hvis du bruker annet auth-system)
+async function getUserId() {
+  const userCookie = cookies().get("sb-user") || cookies().get("phorium_user_id");
+  if (!userCookie) return null;
+
+  try {
+    const parsed = JSON.parse(userCookie.value);
+    return parsed.id || parsed.user_id || null;
+  } catch {
+    return null;
+  }
+}
 
 export async function GET(req: Request) {
   try {
-    // Hent Shopify session
-    const session = await getShopifySession();
-    if (!session) {
+    // 1) Auth – sikre at bruker er innlogget
+    const userId = await getUserId();
+    if (!userId) {
       return NextResponse.json(
-        { success: false, error: "Ingen Shopify-session." },
-        { status: 401 },
+        { success: false, error: "Ikke innlogget." },
+        { status: 401 }
       );
     }
 
-    const { shop } = session;
-
+    // 2) Hent produkt-ID fra URL
     const { searchParams } = new URL(req.url);
-    const limitRaw = Number(searchParams.get("limit") || "50");
-    const pageRaw = Number(searchParams.get("page") || "1");
-    const status = searchParams.get("status") || "any";
-    const q = searchParams.get("q") || "";
-    const missingDescription = searchParams.get("missing_description") === "1";
+    const id = searchParams.get("id");
 
-    // Sikre verdier
-    const limit = Math.min(Math.max(limitRaw, 1), 250);
-    const page = Math.max(pageRaw, 1);
-    const from = (page - 1) * limit;
-    const to = from + limit - 1;
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: "Mangler produkt-ID." },
+        { status: 400 }
+      );
+    }
 
-    // BYGG QUERY
-    let query = supabaseAdmin
+    // 3) Hent brukerens shop_domain via Supabase-profilen
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from("profiles")
+      .select("shop_domain")
+      .eq("id", userId)
+      .single();
+
+    if (profileError || !profile?.shop_domain) {
+      return NextResponse.json(
+        { success: false, error: "Fant ikke brukerens shop-domain." },
+        { status: 400 }
+      );
+    }
+
+    const shopDomain = profile.shop_domain;
+
+    // 4) Hent produktet fra `shopify_products` basert på shop og ID
+    const { data, error } = await supabaseAdmin
       .from("shopify_products")
       .select(
         `
-          id,
           shopify_product_id,
           title,
           handle,
           status,
           price,
           image,
-          created_at_shopify,
-          updated_at_shopify,
           plain_description,
           has_description,
+          created_at_shopify,
+          updated_at_shopify,
           optimization_score,
           optimization_label,
           optimization_characters
-        `,
-        { count: "exact" },
+        `
       )
-      .eq("shop_domain", shop);
+      .eq("shopify_product_id", id)
+      .eq("shop_domain", shopDomain)
+      .single();
 
-    // FILTER: status
-    if (status !== "any") {
-      query = query.eq("status", status);
+    if (error || !data) {
+      return NextResponse.json(
+        { success: false, error: "Fant ikke produktet." },
+        { status: 404 }
+      );
     }
 
-    // FILTER: mangler beskrivelse
-    if (missingDescription) {
-      query = query.eq("has_description", false);
-    }
+    // 5) Standardiser output-formatet slik Studio/Visuals forventer
+    const product = {
+      id: data.shopify_product_id,
+      title: data.title,
+      handle: data.handle,
+      status: data.status,
+      price: data.price,
+      image: data.image,
+      plainDescription: data.plain_description,
+      hasDescription: data.has_description,
+      createdAt: data.created_at_shopify,
+      updatedAt: data.updated_at_shopify,
+      optimizationScore: data.optimization_score,
+      optimizationLabel: data.optimization_label,
+      optimizationCharacters: data.optimization_characters,
+    };
 
-    // FILTER: søk (NY SIKKER VERSJON)
-    if (q && q.trim() !== "") {
-      const numeric = Number(q);
+    return NextResponse.json({ success: true, product });
 
-      if (!isNaN(numeric)) {
-        // Tall → søk i ID også
-        query = query.or(
-          `title.ilike.%${q}%,handle.ilike.%${q}%,shopify_product_id.eq.${numeric}`
-        );
-      } else {
-        // Ikke tall → søk kun i tekstfelter
-        query = query.or(
-          `title.ilike.%${q}%,handle.ilike.%${q}%`
-        );
-      }
-    }
-
-    // Kjør query
-    const { data, error, count } = await query
-      .order("created_at_shopify", { ascending: false })
-      .range(from, to);
-
-   if (error) {
-  console.error("Supabase products error:", error);
-  return NextResponse.json(
-    { success: false, error: "Supabase-feil i products-API.", details: error },
-    { status: 500 },
-  );
-}
-
-
-    // Mapp resultater
-    const products = (data || []).map((row) => ({
-      id: row.shopify_product_id,
-      title: row.title,
-      handle: row.handle,
-      status: row.status,
-      price: row.price,
-      image: row.image,
-      createdAt: row.created_at_shopify,
-      updatedAt: row.updated_at_shopify,
-      plainDescription: row.plain_description,
-      hasDescription: row.has_description,
-      optimizationScore: row.optimization_score,
-      optimizationLabel: row.optimization_label,
-      optimizationCharacters: row.optimization_characters,
-    }));
-
-    return NextResponse.json({
-      success: true,
-      products,
-      total: count ?? products.length,
-    });
-
-} catch (err) {
-  console.error("Products API error:", err);
-  return NextResponse.json(
-    {
-      success: false,
-      error: String(err),          // 👈 vis SELVE feilmeldingen
-    },
-    { status: 500 },
-  );
-}
+  } catch (err) {
+    console.error("❌ Studio product API error:", err);
+    return NextResponse.json(
+      { success: false, error: "Uventet feil i product-API." },
+      { status: 500 }
+    );
+  }
 }
