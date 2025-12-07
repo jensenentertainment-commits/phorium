@@ -293,8 +293,10 @@ export default function PhoriumVisualsForm() {
     const parts: string[] = [];
 
     if (brand.store_name) {
-      parts.push(`Butikk: ${brand.store_name}.`);
-    }
+      if (brand?.store_name) {
+  parts.push(`Butikk: ${brand.store_name}.`);
+}
+
     if (brand.industry) {
       parts.push(`Bransje: ${brand.industry}.`);
     }
